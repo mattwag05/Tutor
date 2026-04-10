@@ -13,6 +13,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   PenLine,
+  Presentation,
   Plus,
   Settings,
   type LucideIcon,
@@ -26,6 +27,7 @@ interface NavEntry {
   href: string;
   label: string;
   icon: LucideIcon;
+  external?: string; // If set, navigates to this external URL instead of href
 }
 
 const PRIMARY_NAV: NavEntry[] = [
@@ -35,6 +37,7 @@ const PRIMARY_NAV: NavEntry[] = [
   { href: "/guide", label: "Guided Learning", icon: GraduationCap },
   { href: "/knowledge", label: "Knowledge", icon: BookOpen },
   { href: "/memory", label: "Memory", icon: Brain },
+  { href: "/classroom", label: "Classroom", icon: Presentation, external: "https://deeptutor.tail6e035b.ts.net:3100" },
 ];
 
 const SECONDARY_NAV: NavEntry[] = [{ href: "/settings", label: "Settings", icon: Settings }];
@@ -103,16 +106,27 @@ export function SidebarShell({
             const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
             return (
               <div key={item.href} className="flex flex-col items-center">
-                <Link
-                  href={item.href}
-                  className={`rounded-lg p-2 transition-colors ${
-                    active
-                      ? "bg-[var(--background)]/70 text-[var(--foreground)]"
-                      : "text-[var(--muted-foreground)] hover:bg-[var(--background)]/50 hover:text-[var(--foreground)]"
-                  }`}
-                >
-                  <item.icon size={16} strokeWidth={active ? 1.9 : 1.5} />
-                </Link>
+                {item.external ? (
+                  <a
+                    href={item.external}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-lg p-2 transition-colors text-[var(--muted-foreground)] hover:bg-[var(--background)]/50 hover:text-[var(--foreground)]"
+                  >
+                    <item.icon size={16} strokeWidth={1.5} />
+                  </a>
+                ) : (
+                  <Link
+                    href={item.href}
+                    className={`rounded-lg p-2 transition-colors ${
+                      active
+                        ? "bg-[var(--background)]/70 text-[var(--foreground)]"
+                        : "text-[var(--muted-foreground)] hover:bg-[var(--background)]/50 hover:text-[var(--foreground)]"
+                    }`}
+                  >
+                    <item.icon size={16} strokeWidth={active ? 1.9 : 1.5} />
+                  </Link>
+                )}
                 {item.href === "/agents" && <TutorBotRecent collapsed />}
               </div>
             );
@@ -182,17 +196,29 @@ export function SidebarShell({
             const hasBots = item.href === "/agents";
             return (
               <div key={item.href}>
-                <Link
-                  href={item.href}
-                  className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] transition-colors ${
-                    active
-                      ? "bg-[var(--background)]/70 font-medium text-[var(--foreground)]"
-                      : "text-[var(--muted-foreground)] hover:bg-[var(--background)]/50 hover:text-[var(--foreground)]"
-                  }`}
-                >
-                  <item.icon size={16} strokeWidth={active ? 1.9 : 1.5} />
-                  <span>{t(item.label)}</span>
-                </Link>
+                {item.external ? (
+                  <a
+                    href={item.external}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] transition-colors text-[var(--muted-foreground)] hover:bg-[var(--background)]/50 hover:text-[var(--foreground)]"
+                  >
+                    <item.icon size={16} strokeWidth={1.5} />
+                    <span>{t(item.label)}</span>
+                  </a>
+                ) : (
+                  <Link
+                    href={item.href}
+                    className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] transition-colors ${
+                      active
+                        ? "bg-[var(--background)]/70 font-medium text-[var(--foreground)]"
+                        : "text-[var(--muted-foreground)] hover:bg-[var(--background)]/50 hover:text-[var(--foreground)]"
+                    }`}
+                  >
+                    <item.icon size={16} strokeWidth={active ? 1.9 : 1.5} />
+                    <span>{t(item.label)}</span>
+                  </Link>
+                )}
                 {hasSessionsBelow && (
                   <div className={`${sessionViewportClassName} overflow-y-auto`}>
                     <SessionList
