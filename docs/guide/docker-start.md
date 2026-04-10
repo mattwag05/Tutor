@@ -97,6 +97,33 @@ docker run -d --name deeptutor `
 The `:latest` tag is a **multi-architecture image** — Docker automatically pulls the correct version for your system (Intel/AMD or Apple Silicon/ARM).
 :::
 
+## Tailscale Sidecar Deployment
+
+For secure remote access over a Tailscale network without exposing public ports:
+
+```bash
+# docker-compose.yml includes a tailscale-deeptutor sidecar
+# All services share its network namespace via network_mode: service:tailscale-deeptutor
+
+# Required env vars in .env:
+TS_AUTHKEY=tskey-auth-...          # Generate at https://login.tailscale.com/admin/settings/keys
+NEXT_PUBLIC_API_BASE_EXTERNAL=https://your-hostname.your-tailnet.ts.net:8001
+
+# Start the full stack
+docker compose up -d
+```
+
+The Tailscale Serve config (`tailscale/ts-serve.json`) provides HTTPS termination:
+- Port 443 → DeepTutor frontend (3782)
+- Port 8001 → DeepTutor API (8002)
+- Port 3100 → OpenMAIC classroom (3101)
+
+::: warning Port Collision
+Internal service ports MUST differ from Tailscale Serve external ports since they share a network namespace. The backend runs on 8002 internally (not 8001), and OpenMAIC on 3101 (not 3100).
+:::
+
+---
+
 ## Cloud Deployment
 
 When deploying to a cloud server, you must set the external API URL:

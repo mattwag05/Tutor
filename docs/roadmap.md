@@ -13,6 +13,14 @@ Our vision for DeepTutor's future development.
 - [x] **Dark Mode** — System-wide dark/light theme support
 - [x] **Environment Configuration** — Unified `.env` based configuration
 
+## ✅ Recently Completed (v0.6.x — Custom Fork)
+
+- [x] **OpenMAIC Classroom Integration** — THU-MAIC interactive AI classroom runs as a sibling service, with RAG-enriched content generation via DeepTutor knowledge bases
+- [x] **Knowledge Base Selector** — Users can select a DeepTutor KB from the OpenMAIC generation toolbar to inject RAG context into scene outlines
+- [x] **Tailscale Sidecar Deployment** — Docker Compose orchestration with Tailscale sidecar for secure remote access (HTTPS via TS Serve)
+- [x] **Upstream Sync (2026-04-10)** — Fresh sync from HKUDS/DeepTutor main + THU-MAIC/OpenMAIC with all customizations re-applied
+- [x] **i18n Migration** — All custom strings ported to the new i18next JSON locale system (en-US, zh-CN, ja-JP, ru-RU)
+
 ## 🚀 Planned Features
 
 - [ ] **Deepcoding from Research Drafts** — Transform research and Co-Writer outputs into working prototypes

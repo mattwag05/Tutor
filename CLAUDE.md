@@ -2,10 +2,11 @@
 
 AI tutoring platform — multi-agent RAG architecture, Python/FastAPI backend, Next.js frontend.
 
-**Status:** 🔨 In Development (active fork of HKUDS/DeepTutor)
-**Repo:** https://github.com/mattwag05/DeepTutor
-**Upstream:** https://github.com/HKUDS/DeepTutor
-**Version:** v0.6.0 (363+ commits)
+**Status:** 🔨 In Development (synced from upstream 2026-04-10)
+**Repo:** https://forgejo.tail6e035b.ts.net/matthewwagner/DeepTutor.git
+**Upstream:** https://github.com/HKUDS/DeepTutor (main at 445e762)
+**OpenMAIC Upstream:** https://github.com/THU-MAIC/OpenMAIC
+**Deployed:** https://deeptutor.tail6e035b.ts.net (Pironman — 100.75.2.44)
 
 ---
 
@@ -132,31 +133,38 @@ npx tsc --noEmit  # TypeScript type check (run from web/ dir)
 
 5. **`npm audit` warnings** — 24 known vulnerabilities in frontend deps (moderate/high). Not blocking for local dev. Track via a bd task when addressing.
 
-6. **Sidebar nav order persistence** — `GlobalContext.tsx` loads saved nav order from `GET /api/v1/settings/sidebar` and merges missing `DEFAULT_NAV_ORDER` items. New nav entries added to defaults will auto-appear for existing users (appended at end of group). No manual DB update needed.
+6. **Sidebar refactored to directory** — Upstream refactored `Sidebar.tsx` into `sidebar/SidebarShell.tsx`, `WorkspaceSidebar.tsx`, and `UtilitySidebar.tsx`. The Classroom nav item is in `SidebarShell.tsx` using an `external` field on `NavEntry` for the OpenMAIC link (`https://deeptutor.tail6e035b.ts.net:3100`).
 
-7. **WebSocket disconnect handling** — Course router's `except` block tries to `send_json` on a closed WebSocket, causing `RuntimeError: Cannot call "send" once a close message has been sent`. Wrap sends in the error handler with a `WebSocketDisconnect` catch.
+7. **i18n system** — Upstream replaced the old per-file `.ts` translation approach with i18next + JSON locale files at `lib/i18n/locales/{en-US,zh-CN,ja-JP,ru-RU}.json`. All KB toolbar strings are under the `toolbar` namespace. When adding new UI strings, add keys to ALL four locale files.
 
-8. **`response_format` not supported on OpenRouter** — OpenRouter/Anthropic models don't support `response_format={"type": "json_object"}`. Agents that need structured output (CurriculumAgent, EnrichmentAgent) must include JSON formatting instructions in the prompt and parse the response.
+8. **WebSocket disconnect handling** — Course router's `except` block tries to `send_json` on a closed WebSocket, causing `RuntimeError: Cannot call "send" once a close message has been sent`. Wrap sends in the error handler with a `WebSocketDisconnect` catch.
 
-9. **Docker: Ollama host** — Inside Docker containers, `EMBEDDING_HOST` must be `http://host.docker.internal:11434` (not `localhost`). `localhost` inside a container is the container itself. The `.env` already has the correct value for Docker runs.
+9. **`response_format` not supported on OpenRouter** — OpenRouter/Anthropic models don't support `response_format={"type": "json_object"}`. Agents that need structured output (CurriculumAgent, EnrichmentAgent) must include JSON formatting instructions in the prompt and parse the response.
 
-10. **Tailscale sidecar** — `docker-compose.yml` includes `tailscale-deeptutor` sidecar (ScaleTail/coder pattern). `deeptutor` uses `network_mode: service:tailscale-deeptutor` — remove `ports:` and `networks:` directives as they conflict. Auth key in Vaultwarden: `get-secret "Tailscale Auth Key"`. Serve config: `tailscale/ts-serve.json`.
+10. **Docker: Ollama host** — Inside Docker containers, `EMBEDDING_HOST` must be `http://host.docker.internal:11434` (not `localhost`). `localhost` inside a container is the container itself. The `.env` already has the correct value for Docker runs.
 
-11. **Tailscale sidecar port collision** — `BACKEND_PORT` must NOT be `8001`. Tailscale Serve binds `[tailscale-ip]:8001` in the shared network namespace, so uvicorn's `0.0.0.0:8001` collides and the backend fails to start. Current config: `BACKEND_PORT=8002` (internal); `tailscale/ts-serve.json` proxies `{HOST}:8001 → localhost:8002`; `NEXT_PUBLIC_API_BASE_EXTERNAL=https://deeptutor.tail6e035b.ts.net:8001` unchanged.
+11. **Tailscale sidecar** — `docker-compose.yml` includes `tailscale-deeptutor` sidecar (ScaleTail/coder pattern). `deeptutor` uses `network_mode: service:tailscale-deeptutor` — remove `ports:` and `networks:` directives as they conflict. Auth key in Vaultwarden: `get-secret "Tailscale Auth Key"`. Serve config: `tailscale/ts-serve.json`.
+
+12. **Tailscale sidecar port collision** — `BACKEND_PORT` must NOT be `8001`. Tailscale Serve binds `[tailscale-ip]:8001` in the shared network namespace, so uvicorn's `0.0.0.0:8001` collides and the backend fails to start. Current config: `BACKEND_PORT=8002` (internal); `tailscale/ts-serve.json` proxies `{HOST}:8001 → localhost:8002`; `NEXT_PUBLIC_API_BASE_EXTERNAL=https://deeptutor.tail6e035b.ts.net:8001` unchanged.
 
 ---
 
 ## Remotes
 
 ```
-origin    https://github.com/mattwag05/DeepTutor.git  (your fork)
-upstream  https://github.com/HKUDS/DeepTutor.git      (HKUDS original)
+origin    https://forgejo.tail6e035b.ts.net/matthewwagner/DeepTutor.git  (Forgejo, private)
+upstream  https://github.com/HKUDS/DeepTutor.git                        (HKUDS original)
 ```
+
+**Branches:**
+- `main` — latest upstream + all local customizations (synced 2026-04-10)
+- `backup-pre-upstream-sync` — snapshot of old codebase before upstream sync
 
 To sync upstream changes:
 ```bash
 git fetch upstream
 git merge upstream/main
+# Re-apply customizations if conflicts arise
 ```
 
 ---
@@ -193,6 +201,46 @@ Five places must be updated to wire in a new module (e.g. `mymodule`):
 | **LLM calls fail** | OpenRouter key missing/expired | Check `OPENROUTER_API_KEY` in `.env`; test at openrouter.ai |
 | **Settings don't apply** | UI config DB overriding `.env` | Change values via Settings UI, or clear the unified config DB |
 | **Frontend can't reach backend** | Wrong API URL | Backend must be on port `8001`; check `web/.env.local` for `NEXT_PUBLIC_API_URL` |
+
+---
+
+## Production Deployment (Pironman)
+
+The full stack runs on the Pironman (100.75.2.44) via Docker Compose with a Tailscale sidecar.
+
+**Host:** Pironman (Debian 13, ARM64, 16GB RAM, NVMe)
+**Path:** `/home/matthewwagner/DeepTutor/`
+**Access:** `ssh root@100.75.2.44`
+
+**Live URLs:**
+- Frontend: https://deeptutor.tail6e035b.ts.net (→ 127.0.0.1:3782)
+- API: https://deeptutor.tail6e035b.ts.net:8001 (→ 127.0.0.1:8002)
+- OpenMAIC: https://deeptutor.tail6e035b.ts.net:3100 (→ 127.0.0.1:3101)
+
+**Containers:** `tailscale-deeptutor`, `deeptutor`, `openmaic`
+
+**Rebuild & deploy:**
+```bash
+ssh root@100.75.2.44
+cd /home/matthewwagner/DeepTutor
+
+# Pull latest from Forgejo
+git pull origin main
+
+# Rebuild OpenMAIC image (separate build)
+cd services/openmaic && docker build -t openmaic:latest . && cd ../..
+
+# Rebuild DeepTutor + restart stack
+docker compose build deeptutor
+docker compose up -d
+```
+
+**pnpm lockfile:** If `services/openmaic/package.json` has new deps, update the lockfile before building:
+```bash
+cd services/openmaic
+docker run --rm -v $(pwd):/app -w /app node:22-alpine \
+  sh -c 'corepack enable && corepack prepare pnpm@10.28.0 --activate && pnpm install --no-frozen-lockfile'
+```
 
 ---
 
