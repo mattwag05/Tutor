@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { apiUrl } from "@/lib/api";
-import { invalidateNotebookCaches, listNotebooks } from "@/lib/notebook-api";
+import { listCategories } from "@/lib/notebook-api";
 
 type RecordType =
   | "solve"
@@ -70,16 +70,21 @@ export default function SaveToNotebookModal({
   const [summaryPreview, setSummaryPreview] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      abortRef.current?.abort();
+      return;
+    }
     setTitle(payload?.title || "");
     setSummaryPreview("");
     setError("");
     setSelectedIds([]);
     void (async () => {
       try {
-        setNotebooks(await listNotebooks());
+        const cats = await listCategories();
+        setNotebooks(cats.map((c) => ({ id: String(c.id), name: c.name })));
       } catch {
         setNotebooks([]);
       }
@@ -105,6 +110,9 @@ export default function SaveToNotebookModal({
 
   const handleSave = async () => {
     if (!payload || !canSave) return;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
     setIsLoading(true);
     setError("");
     setSummaryPreview("");
@@ -122,6 +130,7 @@ export default function SaveToNotebookModal({
           metadata: payload.metadata || {},
           kb_name: payload.kbName || null,
         }),
+        signal: controller.signal,
       });
 
       if (!response.ok || !response.body) {
@@ -154,7 +163,6 @@ export default function SaveToNotebookModal({
           } else if (type === "result") {
             const summary = String(event.payload.summary || finalSummary);
             setSummaryPreview(summary);
-            invalidateNotebookCaches();
             onSaved?.({ summary });
             setIsLoading(false);
             onClose();
@@ -165,6 +173,7 @@ export default function SaveToNotebookModal({
 
       throw new Error("Notebook save stream ended unexpectedly.");
     } catch (err) {
+      if (controller.signal.aborted) return;
       setError(err instanceof Error ? err.message : "Failed to save to notebook.");
       setIsLoading(false);
     }
