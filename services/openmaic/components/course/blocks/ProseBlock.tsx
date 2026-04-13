@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, type ReactNode } from 'react';
+import { Fragment, memo, useMemo, type ReactNode } from 'react';
 import katex from 'katex';
 import type { ProseBlock, CourseCitation } from '@/lib/types/course';
 import { GlossaryChip } from './GlossaryChip';
@@ -11,28 +11,29 @@ interface ProseBlockProps {
   citations: Record<string, CourseCitation>;
 }
 
-/**
- * Minimal markdown + inline-token renderer for Course prose blocks.
- * KaTeX output is HTML-safe by design (internally escapes input); we set
- * it via dangerouslySetInnerHTML because that is KaTeX's supported React
- * integration pattern — matches BaseLatexElement.tsx in this repo.
- */
-export function ProseBlockView({ block, citations }: ProseBlockProps) {
-  const paragraphs = block.markdown.split(/\n\s*\n/).filter((p) => p.trim());
+function ProseBlockViewInner({ block, citations }: ProseBlockProps) {
+  // Tokenizing each paragraph is pure given the markdown string; memo so
+  // re-renders (e.g. other sections hydrating) don't re-walk every span.
+  const paragraphs = useMemo(
+    () => block.markdown.split(/\n\s*\n/).filter((p) => p.trim()).map((p) => tokenize(p.trim())),
+    [block.markdown],
+  );
+
   return (
     <div className="prose-block space-y-4 text-[17px] leading-relaxed text-neutral-800 dark:text-neutral-200">
-      {paragraphs.map((para, i) => (
-        <p key={i}>{renderInline(para.trim(), citations)}</p>
+      {paragraphs.map((tokens, i) => (
+        <p key={i}>{renderTokens(tokens, citations)}</p>
       ))}
     </div>
   );
 }
 
-function renderInline(
-  text: string,
+export const ProseBlockView = memo(ProseBlockViewInner);
+
+function renderTokens(
+  tokens: Token[],
   citations: Record<string, CourseCitation>,
 ): ReactNode {
-  const tokens = tokenize(text);
   return tokens.map((t, i) => {
     if (t.kind === 'text') {
       return <Fragment key={i}>{renderEmphasis(t.value)}</Fragment>;
@@ -46,9 +47,9 @@ function renderInline(
       return <CitationPill key={i} citation={cit} />;
     }
     if (t.kind === 'math') {
-      const html = safeKatex(t.value, false);
       // KaTeX output is sanitized internally; input is LLM-generated LaTeX
       // which we further guard with throwOnError: false + strict: ignore.
+      const html = safeKatex(t.value, false);
       return (
         <span
           key={i}

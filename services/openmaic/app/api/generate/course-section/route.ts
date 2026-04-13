@@ -1,29 +1,9 @@
-/**
- * Course Section Generation API.
- *
- * POST /api/generate/course-section
- * Body: {
- *   courseTitle: string,
- *   topic: string,
- *   language: Language,
- *   courseOutline: Array<{ id, order, title, description }>,
- *   section: { id, order, title, description? },
- *   knowledgeBase?: string,
- * }
- *
- * Returns: { section: CourseSection, citations: CourseCitation[] }
- *
- * Non-streaming for simplicity — the reader UI can lazy-load sections as
- * the user scrolls, so a ~10–20 second per-section round-trip is acceptable.
- * Streaming per-section can be added later without UI changes.
- */
-
 import { NextRequest, NextResponse } from 'next/server';
 import { nanoid } from 'nanoid';
 import { callLLM } from '@/lib/ai/llm';
 import { buildPrompt, PROMPT_IDS } from '@/lib/generation/prompts';
 import { parseJsonResponse } from '@/lib/generation/json-repair';
-import { apiError } from '@/lib/server/api-response';
+import { apiError, API_ERROR_CODES } from '@/lib/server/api-response';
 import { resolveModelFromHeaders } from '@/lib/server/resolve-model';
 import { getRAGContextForGeneration, isDeepTutorEnabled } from '@/lib/integrations';
 import { createLogger } from '@/lib/logger';
@@ -63,7 +43,7 @@ export async function POST(req: NextRequest) {
     };
 
     if (!body.topic || !body.section?.title) {
-      return apiError('MISSING_REQUIRED_FIELD', 400, 'topic and section.title are required');
+      return apiError(API_ERROR_CODES.MISSING_REQUIRED_FIELD, 400, 'topic and section.title are required');
     }
 
     const language: Language = body.language || 'en-US';
@@ -104,7 +84,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (!prompts) {
-      return apiError('INTERNAL_ERROR', 500, 'Course section prompt template not found');
+      return apiError(API_ERROR_CODES.INTERNAL_ERROR, 500, 'Course section prompt template not found');
     }
 
     log.info(
@@ -125,7 +105,7 @@ export async function POST(req: NextRequest) {
     const parsed = parseJsonResponse<GeneratedSectionShape>(result.text);
     if (!parsed || !Array.isArray(parsed.blocks)) {
       return apiError(
-        'INTERNAL_ERROR',
+        API_ERROR_CODES.INTERNAL_ERROR,
         500,
         'LLM response could not be parsed into a course section',
       );
@@ -157,7 +137,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     log.error(`Course section generation failed: ${error}`);
     return apiError(
-      'INTERNAL_ERROR',
+      API_ERROR_CODES.INTERNAL_ERROR,
       500,
       error instanceof Error ? error.message : String(error),
     );

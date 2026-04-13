@@ -1,11 +1,4 @@
 /**
- * Course Outline Streaming API (SSE)
- *
- * The entry point for the Oboe-style Course Builder. Takes a single-sentence
- * topic and streams back a structured outline (title + 6–12 sections) as
- * SSE events. Each section arrives individually as soon as the LLM emits it,
- * so the reader UI can show progressive loading.
- *
  * SSE events:
  *   { type: 'section', data: CourseSection, index: number }
  *   { type: 'retry',   attempt: number, maxAttempts: number }
@@ -17,10 +10,11 @@ import { NextRequest } from 'next/server';
 import { nanoid } from 'nanoid';
 import { streamLLM } from '@/lib/ai/llm';
 import { buildPrompt, PROMPT_IDS } from '@/lib/generation/prompts';
-import { apiError } from '@/lib/server/api-response';
+import { apiError, API_ERROR_CODES } from '@/lib/server/api-response';
 import { resolveModelFromHeaders } from '@/lib/server/resolve-model';
 import { getRAGContextForGeneration, isDeepTutorEnabled } from '@/lib/integrations';
 import { createLogger } from '@/lib/logger';
+import { SSE_SSE_HEARTBEAT_INTERVAL_MS, MAX_STREAM_RETRIES } from '@/lib/constants/generation';
 import type { CourseSection, Language } from '@/lib/types/course';
 
 const log = createLogger('CourseOutlineStream');
@@ -38,12 +32,12 @@ interface OutlineShape {
   }>;
 }
 
-/**
- * Extract complete sections from a partially-streamed JSON object.
- * The LLM emits `{ "courseTitle": "...", "sections": [ {...}, {...}, ... ] }`.
- * We find the start of the `sections` array and emit each top-level object
- * as soon as its closing brace arrives.
- */
+// Incremental JSON-object parser over a partially-streamed outline object.
+// The LLM emits `{ "courseTitle": ..., "sections": [ {...}, ... ] }`; we
+// find the `sections` array and return each complete object past
+// `alreadyParsed`. Same brace-depth/string-aware scanner as
+// scene-outlines-stream's extractNewOutlines — a shared helper would be a
+// nice extraction if a third caller lands.
 function extractNewSections(buffer: string, alreadyParsed: number): CourseSection[] {
   const results: CourseSection[] = [];
   const stripped = buffer.replace(/^[\s\S]*?(?=\{)/, '');
@@ -115,10 +109,6 @@ function normalizeSection(
   };
 }
 
-/**
- * Attempt to extract the courseTitle from the (possibly partial) buffer.
- * Returns undefined if not yet visible.
- */
 function extractCourseTitle(buffer: string): string | undefined {
   const match = buffer.match(/"courseTitle"\s*:\s*"([^"]+)"/);
   return match?.[1];
@@ -135,7 +125,7 @@ export async function POST(req: NextRequest) {
     };
 
     if (!body.topic || typeof body.topic !== 'string' || body.topic.trim().length === 0) {
-      return apiError('MISSING_REQUIRED_FIELD', 400, 'topic is required');
+      return apiError(API_ERROR_CODES.MISSING_REQUIRED_FIELD, 400, 'topic is required');
     }
 
     const { model: languageModel, modelInfo, modelString } = await resolveModelFromHeaders(req);
@@ -169,14 +159,12 @@ export async function POST(req: NextRequest) {
     });
 
     if (!prompts) {
-      return apiError('INTERNAL_ERROR', 500, 'Course outline prompt template not found');
+      return apiError(API_ERROR_CODES.INTERNAL_ERROR, 500, 'Course outline prompt template not found');
     }
 
     log.info(`Generating course outline: "${topic.substring(0, 60)}" [model=${modelString}]`);
 
     const encoder = new TextEncoder();
-    const HEARTBEAT_INTERVAL_MS = 15_000;
-    const MAX_STREAM_RETRIES = 2;
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -189,7 +177,7 @@ export async function POST(req: NextRequest) {
             } catch {
               stopHeartbeat();
             }
-          }, HEARTBEAT_INTERVAL_MS);
+          }, SSE_HEARTBEAT_INTERVAL_MS);
         };
         const stopHeartbeat = () => {
           if (heartbeatTimer) {
@@ -223,7 +211,6 @@ export async function POST(req: NextRequest) {
               for await (const chunk of result.textStream) {
                 fullText += chunk;
 
-                // Opportunistically grab the courseTitle as soon as it lands
                 const detected = extractCourseTitle(fullText);
                 if (detected) courseTitle = detected;
 
@@ -349,7 +336,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     return apiError(
-      'INTERNAL_ERROR',
+      API_ERROR_CODES.INTERNAL_ERROR,
       500,
       error instanceof Error ? error.message : String(error),
     );

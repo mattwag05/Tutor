@@ -1,156 +1,139 @@
-/**
- * Course Builder client-side store.
- *
- * Holds the current course being viewed, per-section generation state, and
- * progress. Persists back to the server via PUT /api/course/[id] whenever
- * meaningful state changes.
- *
- * Intentionally minimal — no IndexedDB layer yet. The server is the source
- * of truth; the store is a hydrated cache for the active session.
- */
-
 'use client';
 
 import { create } from 'zustand';
+import { createSelectors } from '@/lib/utils/create-selectors';
 import type {
   Course,
   CourseBlock,
   CourseCitation,
   CourseSection,
-  Language,
 } from '@/lib/types/course';
 
-interface SectionGenState {
-  status: 'pending' | 'generating' | 'ready' | 'error';
-  error?: string;
-}
+const PERSIST_DEBOUNCE_MS = 500;
 
 interface CourseStoreState {
   course: Course | null;
-  /** Per-section hydration state, keyed by section id. */
-  sectionState: Record<string, SectionGenState>;
-  /** Index of the currently visible section (for AdvanceBar + AutoHydrate). */
-  activeSectionIndex: number;
-  hydrating: boolean;
-
-  // ==================== Mutations ====================
 
   setCourse: (course: Course) => void;
-  setHydrating: (v: boolean) => void;
-  setActiveSectionIndex: (i: number) => void;
 
-  /** Replace a section's blocks (called after generation success). */
-  applySectionBlocks: (sectionId: string, blocks: CourseBlock[], citations: CourseCitation[]) => void;
-
-  /** Mark a section as generating / error / ready. */
-  setSectionStatus: (sectionId: string, state: SectionGenState) => void;
-
-  /** Mark section progress (completed / in-progress). */
+  applySectionBlocks: (
+    sectionId: string,
+    blocks: CourseBlock[],
+    citations: CourseCitation[],
+  ) => void;
+  setSectionStatus: (
+    sectionId: string,
+    status: NonNullable<CourseSection['status']>,
+    error?: string,
+  ) => void;
   markSectionComplete: (sectionId: string) => void;
 
-  // ==================== Server sync ====================
-
-  /** Fetch course from server and replace local state. */
   loadCourse: (id: string) => Promise<void>;
-
-  /**
-   * Persist current course to server (debounced by the caller — the store
-   * performs the raw fetch only). Silent on failure; returns ok flag.
-   */
-  persist: () => Promise<boolean>;
-
-  /**
-   * Generate a section on-demand. POSTs to /api/generate/course-section
-   * with the full course outline context, then applies the resulting
-   * blocks and citations to the store.
-   */
   generateSection: (sectionId: string) => Promise<void>;
 }
 
-export const useCourseStore = create<CourseStoreState>((set, get) => ({
+let persistTimer: ReturnType<typeof setTimeout> | null = null;
+let persistInFlight: Promise<unknown> | null = null;
+let persistPending = false;
+
+/** Trailing-edge debounced PUT of the current course to /api/course/[id]. */
+function schedulePersist(getCourse: () => Course | null) {
+  if (persistTimer) clearTimeout(persistTimer);
+  persistTimer = setTimeout(() => {
+    persistTimer = null;
+    void runPersist(getCourse);
+  }, PERSIST_DEBOUNCE_MS);
+}
+
+async function runPersist(getCourse: () => Course | null) {
+  if (persistInFlight) {
+    persistPending = true;
+    return;
+  }
+  const course = getCourse();
+  if (!course) return;
+  persistInFlight = fetch(`/api/course/${course.id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(course),
+  }).catch(() => undefined);
+  await persistInFlight;
+  persistInFlight = null;
+  if (persistPending) {
+    persistPending = false;
+    schedulePersist(getCourse);
+  }
+}
+
+function updateSection(
+  course: Course,
+  sectionId: string,
+  patch: (section: CourseSection) => CourseSection,
+): Course {
+  return {
+    ...course,
+    sections: course.sections.map((s) => (s.id === sectionId ? patch(s) : s)),
+  };
+}
+
+const useCourseStoreBase = create<CourseStoreState>((set, get) => ({
   course: null,
-  sectionState: {},
-  activeSectionIndex: 0,
-  hydrating: false,
 
-  setCourse: (course) => {
-    // Seed sectionState from course.sections so blocks arrays already
-    // populated count as 'ready'.
-    const sectionState: Record<string, SectionGenState> = {};
-    for (const section of course.sections) {
-      sectionState[section.id] = {
-        status: section.blocks.length > 0 ? 'ready' : section.status || 'pending',
-      };
-    }
-    set({ course, sectionState, activeSectionIndex: 0 });
-  },
-
-  setHydrating: (v) => set({ hydrating: v }),
-  setActiveSectionIndex: (i) => set({ activeSectionIndex: i }),
+  setCourse: (course) => set({ course }),
 
   applySectionBlocks: (sectionId, blocks, citations) => {
     const course = get().course;
     if (!course) return;
-    const newSections = course.sections.map((s) =>
-      s.id === sectionId ? { ...s, blocks, status: 'ready' as const } : s,
-    );
     const newCitations = { ...course.citations };
-    for (const c of citations) {
-      newCitations[c.id] = c;
-    }
+    for (const c of citations) newCitations[c.id] = c;
     set({
-      course: { ...course, sections: newSections, citations: newCitations },
-      sectionState: {
-        ...get().sectionState,
-        [sectionId]: { status: 'ready' },
+      course: {
+        ...updateSection(course, sectionId, (s) => ({
+          ...s,
+          blocks,
+          status: 'ready',
+          error: undefined,
+        })),
+        citations: newCitations,
       },
     });
+    schedulePersist(() => get().course);
   },
 
-  setSectionStatus: (sectionId, state) =>
+  setSectionStatus: (sectionId, status, error) => {
+    const course = get().course;
+    if (!course) return;
     set({
-      sectionState: { ...get().sectionState, [sectionId]: state },
-    }),
+      course: updateSection(course, sectionId, (s) => ({ ...s, status, error })),
+    });
+  },
 
   markSectionComplete: (sectionId) => {
     const course = get().course;
     if (!course) return;
     const progress = course.progress || { sections: {} };
-    const newProgress = {
-      ...progress,
-      sections: { ...progress.sections, [sectionId]: 'completed' as const },
-    };
-    set({ course: { ...course, progress: newProgress } });
+    set({
+      course: {
+        ...course,
+        progress: {
+          ...progress,
+          sections: { ...progress.sections, [sectionId]: 'completed' },
+        },
+      },
+    });
+    schedulePersist(() => get().course);
   },
 
   loadCourse: async (id) => {
-    set({ hydrating: true });
-    try {
-      const res = await fetch(`/api/course/${id}`);
-      if (!res.ok) {
-        set({ hydrating: false });
-        return;
-      }
-      const course = (await res.json()) as Course;
-      get().setCourse(course);
-    } finally {
-      set({ hydrating: false });
-    }
-  },
-
-  persist: async () => {
-    const course = get().course;
-    if (!course) return false;
-    try {
-      const res = await fetch(`/api/course/${course.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(course),
-      });
-      return res.ok;
-    } catch {
-      return false;
-    }
+    const res = await fetch(`/api/course/${id}`);
+    if (!res.ok) return;
+    const course = (await res.json()) as Course;
+    // Any sections with blocks already populated are implicitly 'ready'
+    course.sections = course.sections.map((s) => ({
+      ...s,
+      status: s.blocks.length > 0 ? 'ready' : s.status || 'pending',
+    }));
+    set({ course });
   },
 
   generateSection: async (sectionId) => {
@@ -158,12 +141,11 @@ export const useCourseStore = create<CourseStoreState>((set, get) => ({
     if (!course) return;
     const section = course.sections.find((s) => s.id === sectionId);
     if (!section) return;
+    // Skip if already generating or ready — dedupes races between the
+    // IntersectionObserver and the prefetch effect.
+    if (section.status === 'generating' || section.status === 'ready') return;
 
-    // Already generating or ready? Skip.
-    const existing = get().sectionState[sectionId];
-    if (existing?.status === 'generating' || existing?.status === 'ready') return;
-
-    get().setSectionStatus(sectionId, { status: 'generating' });
+    get().setSectionStatus(sectionId, 'generating');
 
     try {
       const res = await fetch('/api/generate/course-section', {
@@ -191,7 +173,7 @@ export const useCourseStore = create<CourseStoreState>((set, get) => ({
 
       if (!res.ok) {
         const err = await res.text();
-        get().setSectionStatus(sectionId, { status: 'error', error: err || 'Generation failed' });
+        get().setSectionStatus(sectionId, 'error', err || 'Generation failed');
         return;
       }
 
@@ -199,47 +181,15 @@ export const useCourseStore = create<CourseStoreState>((set, get) => ({
         section: CourseSection;
         citations: CourseCitation[];
       };
-
       get().applySectionBlocks(sectionId, data.section.blocks, data.citations || []);
-      void get().persist();
     } catch (error) {
-      get().setSectionStatus(sectionId, {
-        status: 'error',
-        error: error instanceof Error ? error.message : String(error),
-      });
+      get().setSectionStatus(
+        sectionId,
+        'error',
+        error instanceof Error ? error.message : String(error),
+      );
     }
   },
 }));
 
-// Convenience selector for a section by id
-export function useCourseSection(sectionId: string): CourseSection | undefined {
-  return useCourseStore((s) => s.course?.sections.find((sec) => sec.id === sectionId));
-}
-
-// Helper to build a minimal Course from an outline stream result, used by
-// the landing page after the stream finishes.
-export function seedCourseFromOutline(params: {
-  id: string;
-  title: string;
-  topic: string;
-  language: Language;
-  knowledgeBase?: string;
-  sections: CourseSection[];
-}): Course {
-  return {
-    id: params.id,
-    title: params.title,
-    topic: params.topic,
-    language: params.language,
-    knowledgeBase: params.knowledgeBase,
-    createdAt: new Date().toISOString(),
-    sections: params.sections.map((s) => ({
-      ...s,
-      blocks: s.blocks || [],
-      goDeeperPrompts: s.goDeeperPrompts || [],
-      status: s.status || 'pending',
-    })),
-    citations: {},
-    progress: { sections: {} },
-  };
-}
+export const useCourseStore = createSelectors(useCourseStoreBase);

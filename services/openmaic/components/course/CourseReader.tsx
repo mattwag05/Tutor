@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { useCourseStore } from '@/lib/course/store';
-import type { CourseBlock, CourseSection } from '@/lib/types/course';
+import type { CourseBlock, CourseCitation, CourseSection } from '@/lib/types/course';
 import { CourseTOCDrawer } from './CourseTOCDrawer';
 import { AdvanceBar } from './AdvanceBar';
 import { GoDeeperStrip } from './GoDeeperStrip';
@@ -18,61 +19,44 @@ interface Props {
   courseId: string;
 }
 
-/**
- * The scrollable article-reader view of a Course.
- *
- * Responsibilities:
- * - Load the course document via the store on mount
- * - Render one section at a time (lazy-hydrates subsequent sections as the
- *   user scrolls toward them via IntersectionObserver)
- * - Host the TOC drawer, AdvanceBar, and GoDeeperStrip
- */
 export function CourseReader({ courseId }: Props) {
-  const {
-    course,
-    sectionState,
-    activeSectionIndex,
-    hydrating,
-    loadCourse,
-    generateSection,
-    setActiveSectionIndex,
-    markSectionComplete,
-  } = useCourseStore();
+  const course = useCourseStore.use.course();
+  const loadCourse = useCourseStore.use.loadCourse();
+  const generateSection = useCourseStore.use.generateSection();
+  const markSectionComplete = useCourseStore.use.markSectionComplete();
 
   const [tocOpen, setTocOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
   const sectionRefs = useRef<Array<HTMLElement | null>>([]);
 
-  // Load the course on mount
   useEffect(() => {
     void loadCourse(courseId);
   }, [courseId, loadCourse]);
 
-  // Kick off generation for the active section + next section
+  // Hydrate the active section and pre-fetch the next one.
+  // Small delay on the next-section fetch to avoid racing the current
+  // section for LLM bandwidth.
   useEffect(() => {
     if (!course) return;
-    const current = course.sections[activeSectionIndex];
-    const next = course.sections[activeSectionIndex + 1];
-    if (current && sectionState[current.id]?.status !== 'ready' && sectionState[current.id]?.status !== 'generating') {
-      void generateSection(current.id);
-    }
-    if (next && sectionState[next.id]?.status !== 'ready' && sectionState[next.id]?.status !== 'generating') {
-      // Small delay to avoid racing the current section for LLM bandwidth
+    const current = course.sections[activeIndex];
+    const next = course.sections[activeIndex + 1];
+    if (current) void generateSection(current.id);
+    if (next) {
       const t = setTimeout(() => void generateSection(next.id), 800);
       return () => clearTimeout(t);
     }
-  }, [course, activeSectionIndex, sectionState, generateSection]);
+  }, [course, activeIndex, generateSection]);
 
-  // Track which section is in view for the AdvanceBar
+  // Observer only needs to rebuild when the section count changes, not on
+  // every in-place section hydration (which replaces the course object).
+  const sectionCount = course?.sections.length ?? 0;
   useEffect(() => {
-    if (!course) return;
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
           if (entry.isIntersecting) {
             const idx = Number(entry.target.getAttribute('data-section-index'));
-            if (!Number.isNaN(idx)) {
-              setActiveSectionIndex(idx);
-            }
+            if (!Number.isNaN(idx)) setActiveIndex(idx);
           }
         }
       },
@@ -80,43 +64,48 @@ export function CourseReader({ courseId }: Props) {
     );
     sectionRefs.current.forEach((el) => el && observer.observe(el));
     return () => observer.disconnect();
-  }, [course, setActiveSectionIndex]);
+  }, [sectionCount]);
 
-  if (hydrating && !course) {
+  const scrollToSection = useCallback(
+    (sectionId: string) => {
+      const idx = course?.sections.findIndex((s) => s.id === sectionId) ?? -1;
+      if (idx < 0) return;
+      sectionRefs.current[idx]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    },
+    [course],
+  );
+
+  const onAdvance = useCallback(() => {
+    const current = course?.sections[activeIndex];
+    const next = course?.sections[activeIndex + 1];
+    if (!current || !next) return;
+    markSectionComplete(current.id);
+    scrollToSection(next.id);
+  }, [course, activeIndex, markSectionComplete, scrollToSection]);
+
+  const onGoDeeper = useCallback((prompt: string) => {
+    toast('Go deeper coming soon', {
+      description: prompt,
+    });
+  }, []);
+
+  const onOpenArtifact = useCallback(
+    (kind: 'podcast' | 'flashcards' | 'studyGuide' | 'finalExam') => {
+      toast(`${kind} generation coming soon`);
+    },
+    [],
+  );
+
+  if (!course) {
     return <ReaderSkeleton />;
   }
-  if (!course) {
-    return (
-      <div className="flex min-h-screen items-center justify-center text-neutral-500">
-        Course not found.
-      </div>
-    );
-  }
 
-  const currentSection = course.sections[activeSectionIndex];
-  const nextSection = course.sections[activeSectionIndex + 1];
-
-  const scrollToSection = (sectionId: string) => {
-    const idx = course.sections.findIndex((s) => s.id === sectionId);
-    if (idx < 0) return;
-    const el = sectionRefs.current[idx];
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
-
-  const onAdvance = () => {
-    if (!currentSection || !nextSection) return;
-    markSectionComplete(currentSection.id);
-    scrollToSection(nextSection.id);
-  };
+  const currentSection = course.sections[activeIndex];
+  const nextSection = course.sections[activeIndex + 1];
 
   return (
     <div className="min-h-screen bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
-      <ReaderHeader
-        title={course.title}
-        onOpenToc={() => setTocOpen(true)}
-      />
+      <ReaderHeader title={course.title} onOpenToc={() => setTocOpen(true)} />
 
       <CourseTOCDrawer
         course={course}
@@ -124,10 +113,7 @@ export function CourseReader({ courseId }: Props) {
         activeSectionId={currentSection?.id}
         onClose={() => setTocOpen(false)}
         onSelectSection={scrollToSection}
-        onOpenArtifact={(kind) => {
-          // Phase 4 wiring
-          alert(`${kind} generation arrives in Phase 4.`);
-        }}
+        onOpenArtifact={onOpenArtifact}
       />
 
       <main className="mx-auto max-w-2xl px-4 pb-40 pt-8 sm:px-6">
@@ -136,12 +122,8 @@ export function CourseReader({ courseId }: Props) {
             key={section.id}
             index={i}
             section={section}
-            status={sectionState[section.id]?.status || 'pending'}
             citations={course.citations}
-            onAsk={(prompt) => {
-              // Phase 3 — stub
-              alert(`"Go deeper" arrives in Phase 3:\n\n${prompt}`);
-            }}
+            onAsk={onGoDeeper}
             registerRef={(el) => {
               sectionRefs.current[i] = el;
             }}
@@ -149,15 +131,10 @@ export function CourseReader({ courseId }: Props) {
         ))}
       </main>
 
-      <AdvanceBar
-        nextTitle={nextSection?.title}
-        onAdvance={onAdvance}
-      />
+      <AdvanceBar nextTitle={nextSection?.title} onAdvance={onAdvance} />
     </div>
   );
 }
-
-// ==================== Header ====================
 
 function ReaderHeader({ title, onOpenToc }: { title: string; onOpenToc: () => void }) {
   return (
@@ -179,38 +156,38 @@ function ReaderHeader({ title, onOpenToc }: { title: string; onOpenToc: () => vo
   );
 }
 
-// ==================== Section ====================
-
 interface SectionViewProps {
   index: number;
   section: CourseSection;
-  status: 'pending' | 'generating' | 'ready' | 'error';
-  citations: Record<string, import('@/lib/types/course').CourseCitation>;
+  citations: Record<string, CourseCitation>;
   onAsk: (prompt: string) => void;
   registerRef: (el: HTMLElement | null) => void;
 }
 
-function SectionView({ index, section, status, citations, onAsk, registerRef }: SectionViewProps) {
+function SectionView({ index, section, citations, onAsk, registerRef }: SectionViewProps) {
+  const status = section.status || 'pending';
+  const blockList = useMemo(
+    () =>
+      section.blocks.map((block) => (
+        <BlockView key={block.id} block={block} citations={citations} />
+      )),
+    [section.blocks, citations],
+  );
+
   return (
-    <section
-      ref={registerRef}
-      data-section-index={index}
-      className="scroll-mt-20 py-12"
-    >
+    <section ref={registerRef} data-section-index={index} className="scroll-mt-20 py-12">
       <h1 className="mb-6 font-serif text-4xl text-neutral-900 dark:text-neutral-50">
         {section.title}
       </h1>
 
       {status === 'ready' && section.blocks.length > 0 ? (
         <>
-          {section.blocks.map((block) => (
-            <BlockView key={block.id} block={block} citations={citations} />
-          ))}
+          {blockList}
           <GoDeeperStrip prompts={section.goDeeperPrompts} onAsk={onAsk} />
         </>
       ) : status === 'error' ? (
         <div className="rounded-md border border-rose-200 bg-rose-50 p-4 text-rose-800 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-200">
-          Failed to generate this section. Pull to retry (coming soon).
+          {section.error || 'Failed to generate this section.'}
         </div>
       ) : (
         <GenerationSkeleton />
@@ -219,14 +196,12 @@ function SectionView({ index, section, status, citations, onAsk, registerRef }: 
   );
 }
 
-// ==================== Block dispatcher ====================
-
 function BlockView({
   block,
   citations,
 }: {
   block: CourseBlock;
-  citations: Record<string, import('@/lib/types/course').CourseCitation>;
+  citations: Record<string, CourseCitation>;
 }) {
   switch (block.type) {
     case 'prose':
@@ -247,8 +222,6 @@ function BlockView({
       return null;
   }
 }
-
-// ==================== Skeletons ====================
 
 function GenerationSkeleton() {
   return (
