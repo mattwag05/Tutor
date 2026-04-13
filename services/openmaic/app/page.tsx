@@ -17,6 +17,7 @@ import {
   Moon,
   Monitor,
   BotOff,
+  BookOpen,
   ChevronUp,
 } from 'lucide-react';
 import { useI18n } from '@/lib/hooks/use-i18n';
@@ -403,6 +404,23 @@ function HomePage() {
             </div>
           )}
         </div>
+
+        <div className="w-[1px] h-4 bg-gray-200 dark:bg-gray-700" />
+
+        {/* Course Builder Button */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => router.push('/course')}
+              className="p-2 rounded-full text-gray-400 dark:text-gray-500 hover:bg-white dark:hover:bg-gray-700 hover:text-gray-800 dark:hover:text-gray-200 hover:shadow-sm transition-all"
+            >
+              <BookOpen className="w-4 h-4" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" sideOffset={4}>
+            {t('course.title')}
+          </TooltipContent>
+        </Tooltip>
 
         <div className="w-[1px] h-4 bg-gray-200 dark:bg-gray-700" />
 
