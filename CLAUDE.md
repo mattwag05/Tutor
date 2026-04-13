@@ -149,6 +149,44 @@ npx tsc --noEmit  # TypeScript type check (run from web/ dir)
 
 ---
 
+## Course Builder
+
+The Course Builder feature lives **entirely in `services/openmaic/`** (Oboe.com-style reader), NOT in `src/agents/course/` which does not exist. Entry points:
+- `services/openmaic/app/course/page.tsx` — landing (topic input + outline streaming)
+- `services/openmaic/app/course/[id]/page.tsx` — article-reader viewer
+- `services/openmaic/lib/generation/prompts/templates/course-{outline,section}/` — prompts
+- `services/openmaic/lib/server/course-storage.ts` — file-based CRUD under `data/courses/<id>.json`
+- `services/openmaic/lib/course/store.ts` — zustand client store
+
+Parallel to the slide-based classroom (NOT a replacement).
+
+---
+
+## Dropbox Conflict Artifacts
+
+The working tree periodically accumulates `* 2.{py,ts,tsx,md,...}` duplicate files from iCloud/Dropbox sync. Verify they're byte-identical to their non-`2` counterparts (`diff -q`), then bulk-move to `~/.Trash/deeptutor-dupes-<date>/` BEFORE any `git merge` or `git pull` — they otherwise pollute merge commits. Python faster than shell for the bulk move: loop `git status --porcelain`, filter `' 2\.[A-Za-z0-9]+$'`, `shutil.move`.
+
+---
+
+## Upstream Sync Procedure
+
+**DeepTutor upstream:** `git fetch upstream && git merge upstream/main` — accept upstream deletion of `docs/roadmap.md` and `docs/guide/docker-start.md` (fork customization notes live in `AGENTS.md` / `CLAUDE.md` instead, not in the docs tree).
+
+**OpenMAIC upstream** (vendored, NOT a submodule):
+1. Once-only: `git remote add upstream-openmaic https://github.com/THU-MAIC/OpenMAIC.git`
+2. Sync: worktree-overlay 3-way merge. Create worktree of `upstream-openmaic/main` at `/tmp/openmaic-upstream`, `rsync -a --exclude=.git --exclude=node_modules --exclude=.next --exclude='.env*'` into `services/openmaic/`. Back up the protected customization files first. Then for each protected file, run `git merge-file --marker-size=7 <backup> <d797e42:path> <rsynced>` — `d797e42` is the initial vendor commit and serves as the natural merge base.
+3. **Protected files list** (3-way merge these, never blind-overwrite):
+   - `CLAUDE.md`, `Dockerfile`
+   - `app/api/generate/scene-outlines-stream/route.ts`
+   - `app/api/health/route.ts`, `app/api/knowledge-bases/route.ts`
+   - `app/generation-preview/{page,types}.tsx`, `app/page.tsx`
+   - `components/generation/generation-toolbar.tsx`
+   - `lib/generation/{generation-pipeline,outline-generator,pipeline-types}.ts`
+   - `lib/integrations/*`, `lib/i18n/locales/*.json`, `package.json`
+4. **Never** use `git subtree pull` on OpenMAIC — it was added via plain file copy (not `git subtree add`), so subtree tooling produces 60+ spurious add/add conflicts.
+
+---
+
 ## Remotes
 
 ```
