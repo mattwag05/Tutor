@@ -101,6 +101,22 @@ deeptutor serve --port 8001
 | `deeptutor_cli/main.py`             | Typer CLI entry point                |
 | `deeptutor/api/routers/unified_ws.py` | Unified WebSocket endpoint         |
 
+## OpenMAIC Classroom Integration
+
+OpenMAIC (THU-MAIC) runs as a sibling Docker service sharing the Tailscale network namespace. It connects to DeepTutor's backend for RAG-enriched classroom content generation.
+
+**Integration points:**
+- `services/openmaic/lib/integrations/deeptutor-client.ts` — WebSocket RAG client
+- `services/openmaic/app/api/knowledge-bases/route.ts` — KB listing endpoint (proxies to DeepTutor)
+- `services/openmaic/app/api/generate/scene-outlines-stream/route.ts` — RAG-enriched outline generation
+- `services/openmaic/components/generation/generation-toolbar.tsx` — KB selector dropdown UI
+
+**Data flow:** User selects KB in toolbar → FormState → sessionStorage → GenerationSessionState → fetch body → API route → `getRAGContextForGeneration()` → enriched prompt → scene outlines
+
+**Sidebar link:** DeepTutor's sidebar (`web/components/sidebar/SidebarShell.tsx`) includes a "Classroom" nav item that links externally to `https://deeptutor.tail6e035b.ts.net:3100`.
+
+---
+
 ## Plugin Development
 
 Create a directory under `deeptutor/plugins/<name>/` with:

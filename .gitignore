@@ -54,8 +54,13 @@ MANIFEST
 # Virtual Environments
 .env
 *.env
+.env.*
 !.env.example
 env/
+
+# Local session scratch (remember skill)
+.remember/
+
 venv/
 ENV/
 .venv/
