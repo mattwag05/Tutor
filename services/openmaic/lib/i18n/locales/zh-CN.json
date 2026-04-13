@@ -898,5 +898,31 @@
     "title": "请输入访问码",
     "placeholder": "访问码",
     "error": "访问码错误，请重试。"
+  },
+  "course": {
+    "title": "课程构建器",
+    "tagline": "丰富、个性化、可滚动的课程。输入主题，即可获得包含内联测验、术语卡片和引用的干净阅读体验。",
+    "placeholder": "给我讲讲标准模型…",
+    "generate": "生成课程",
+    "generating": "生成中…",
+    "outlineStreaming": "大纲流式传输中",
+    "nextSection": "下一节",
+    "advance": "继续",
+    "goDeeper": "深入了解",
+    "goDeeperPlaceholder": "继续深入…",
+    "fillInTheBlank": "填空题",
+    "multipleChoice": "单项选择",
+    "correct": "正确",
+    "incorrect": "错误",
+    "explainThis": "解释一下",
+    "notFound": "课程未找到。",
+    "somethingWrong": "出错了",
+    "tryAgain": "重试",
+    "podcast": "播客",
+    "flashcards": "闪卡",
+    "studyGuide": "学习指南",
+    "finalExam": "期末考试",
+    "generatingIllustration": "正在生成插图…",
+    "sectionFailed": "此节生成失败。"
   }
 }

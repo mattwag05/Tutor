@@ -898,5 +898,31 @@
     "title": "Enter Access Code",
     "placeholder": "Access code",
     "error": "Invalid access code. Please try again."
+  },
+  "course": {
+    "title": "Course Builder",
+    "tagline": "Enriched, personalized, scrollable courses. Type a topic — you'll get a clean article-reader with inline quizzes, glossary chips, and citations.",
+    "placeholder": "Teach me about the Standard Model…",
+    "generate": "Generate course",
+    "generating": "Generating…",
+    "outlineStreaming": "Outline streaming",
+    "nextSection": "Next section",
+    "advance": "Advance",
+    "goDeeper": "Go deeper",
+    "goDeeperPlaceholder": "Go deeper on…",
+    "fillInTheBlank": "Fill in the blank",
+    "multipleChoice": "Multiple choice",
+    "correct": "Correct",
+    "incorrect": "Incorrect",
+    "explainThis": "Explain this",
+    "notFound": "Course not found.",
+    "somethingWrong": "Something went wrong",
+    "tryAgain": "Try again",
+    "podcast": "Podcast",
+    "flashcards": "Flash Cards",
+    "studyGuide": "Study Guide",
+    "finalExam": "Final Exam",
+    "generatingIllustration": "Generating illustration…",
+    "sectionFailed": "Failed to generate this section."
   }
 }

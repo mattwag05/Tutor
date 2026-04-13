@@ -898,5 +898,31 @@
     "title": "アクセスコードを入力",
     "placeholder": "アクセスコード",
     "error": "アクセスコードが正しくありません。もう一度お試しください。"
+  },
+  "course": {
+    "title": "コースビルダー",
+    "tagline": "充実したパーソナライズド・スクロール可能なコース。トピックを入力すれば、インラインクイズ、用語チップ、引用を備えた読みやすい記事が生成されます。",
+    "placeholder": "標準模型について教えてください…",
+    "generate": "コースを生成",
+    "generating": "生成中…",
+    "outlineStreaming": "アウトラインをストリーミング中",
+    "nextSection": "次のセクション",
+    "advance": "進む",
+    "goDeeper": "もっと深く",
+    "goDeeperPlaceholder": "さらに掘り下げる…",
+    "fillInTheBlank": "穴埋め",
+    "multipleChoice": "選択肢",
+    "correct": "正解",
+    "incorrect": "不正解",
+    "explainThis": "解説",
+    "notFound": "コースが見つかりません。",
+    "somethingWrong": "エラーが発生しました",
+    "tryAgain": "もう一度試す",
+    "podcast": "ポッドキャスト",
+    "flashcards": "フラッシュカード",
+    "studyGuide": "学習ガイド",
+    "finalExam": "期末試験",
+    "generatingIllustration": "イラストを生成中…",
+    "sectionFailed": "このセクションの生成に失敗しました。"
   }
 }
