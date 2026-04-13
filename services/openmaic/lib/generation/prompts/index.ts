@@ -31,4 +31,8 @@ export const PROMPT_IDS = {
   INTERACTIVE_HTML: 'interactive-html',
   INTERACTIVE_ACTIONS: 'interactive-actions',
   PBL_ACTIONS: 'pbl-actions',
+  COURSE_OUTLINE: 'course-outline',
+  COURSE_SECTION: 'course-section',
+  COURSE_FOLLOW_UP: 'course-follow-up',
+  COURSE_EXPLAIN: 'course-explain',
 } as const;

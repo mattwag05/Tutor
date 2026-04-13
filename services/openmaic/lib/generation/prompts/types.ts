@@ -15,7 +15,11 @@ export type PromptId =
   | 'interactive-scientific-model'
   | 'interactive-html'
   | 'interactive-actions'
-  | 'pbl-actions';
+  | 'pbl-actions'
+  | 'course-outline'
+  | 'course-section'
+  | 'course-follow-up'
+  | 'course-explain';
 
 /**
  * Snippet identifier

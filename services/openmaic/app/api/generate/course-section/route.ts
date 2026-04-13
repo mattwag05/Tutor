@@ -1,0 +1,165 @@
+/**
+ * Course Section Generation API.
+ *
+ * POST /api/generate/course-section
+ * Body: {
+ *   courseTitle: string,
+ *   topic: string,
+ *   language: Language,
+ *   courseOutline: Array<{ id, order, title, description }>,
+ *   section: { id, order, title, description? },
+ *   knowledgeBase?: string,
+ * }
+ *
+ * Returns: { section: CourseSection, citations: CourseCitation[] }
+ *
+ * Non-streaming for simplicity — the reader UI can lazy-load sections as
+ * the user scrolls, so a ~10–20 second per-section round-trip is acceptable.
+ * Streaming per-section can be added later without UI changes.
+ */
+
+import { NextRequest, NextResponse } from 'next/server';
+import { nanoid } from 'nanoid';
+import { callLLM } from '@/lib/ai/llm';
+import { buildPrompt, PROMPT_IDS } from '@/lib/generation/prompts';
+import { parseJsonResponse } from '@/lib/generation/json-repair';
+import { apiError } from '@/lib/server/api-response';
+import { resolveModelFromHeaders } from '@/lib/server/resolve-model';
+import { getRAGContextForGeneration, isDeepTutorEnabled } from '@/lib/integrations';
+import { createLogger } from '@/lib/logger';
+import type {
+  CourseBlock,
+  CourseCitation,
+  CourseSection,
+  Language,
+} from '@/lib/types/course';
+
+const log = createLogger('CourseSection');
+
+export const maxDuration = 300;
+
+interface GeneratedSectionShape {
+  sectionId?: string;
+  blocks: CourseBlock[];
+  citations?: CourseCitation[];
+}
+
+interface OutlineSummary {
+  id: string;
+  order: number;
+  title: string;
+  description?: string;
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = (await req.json()) as {
+      courseTitle?: string;
+      topic?: string;
+      language?: Language;
+      courseOutline?: OutlineSummary[];
+      section?: { id: string; order: number; title: string; description?: string };
+      knowledgeBase?: string;
+    };
+
+    if (!body.topic || !body.section?.title) {
+      return apiError('MISSING_REQUIRED_FIELD', 400, 'topic and section.title are required');
+    }
+
+    const language: Language = body.language || 'en-US';
+    const { model: languageModel, modelInfo, modelString } = await resolveModelFromHeaders(req);
+
+    // RAG enrichment — query the KB for the specific section topic, not just
+    // the course topic, so each section gets context targeted to its content.
+    let researchContext = language === 'zh-CN' ? '无' : 'None';
+    if (body.knowledgeBase && isDeepTutorEnabled()) {
+      try {
+        const sectionQuery = `${body.section.title}: ${body.section.description || body.topic}`;
+        const ragContext = await getRAGContextForGeneration(body.knowledgeBase, sectionQuery);
+        if (ragContext) {
+          researchContext = ragContext;
+          log.info(
+            `RAG enriched section "${body.section.title}" from KB "${body.knowledgeBase}"`,
+          );
+        }
+      } catch (error) {
+        log.warn(`RAG enrichment failed for section, proceeding without: ${error}`);
+      }
+    }
+
+    const courseOutlineText = (body.courseOutline || [])
+      .map((s) => `${s.order}. ${s.title}${s.description ? ` — ${s.description}` : ''}`)
+      .join('\n');
+
+    const prompts = buildPrompt(PROMPT_IDS.COURSE_SECTION, {
+      courseTitle: body.courseTitle || body.topic,
+      topic: body.topic,
+      language,
+      courseOutline: courseOutlineText || '(not provided)',
+      sectionId: body.section.id,
+      sectionOrder: String(body.section.order),
+      sectionTitle: body.section.title,
+      sectionDescription: body.section.description || '',
+      researchContext,
+    });
+
+    if (!prompts) {
+      return apiError('INTERNAL_ERROR', 500, 'Course section prompt template not found');
+    }
+
+    log.info(
+      `Generating section "${body.section.title}" [model=${modelString}] [kb=${body.knowledgeBase || 'none'}]`,
+    );
+
+    const result = await callLLM(
+      {
+        model: languageModel,
+        system: prompts.system,
+        prompt: prompts.user,
+        maxOutputTokens: modelInfo?.outputWindow,
+      },
+      'course-section',
+      { retries: 1 },
+    );
+
+    const parsed = parseJsonResponse<GeneratedSectionShape>(result.text);
+    if (!parsed || !Array.isArray(parsed.blocks)) {
+      return apiError(
+        'INTERNAL_ERROR',
+        500,
+        'LLM response could not be parsed into a course section',
+      );
+    }
+
+    // Ensure every block has an id
+    const blocks: CourseBlock[] = parsed.blocks.map((b, i) => ({
+      ...b,
+      id: b.id || `${body.section!.id}_b${i + 1}`,
+    })) as CourseBlock[];
+
+    // Ensure every citation has an id
+    const citations: CourseCitation[] = (parsed.citations || []).map((c, i) => ({
+      ...c,
+      id: c.id || `src_${i + 1}_${nanoid(4)}`,
+    }));
+
+    const section: CourseSection = {
+      id: body.section.id,
+      order: body.section.order,
+      title: body.section.title,
+      description: body.section.description,
+      blocks,
+      goDeeperPrompts: [], // filled in at outline time, reused in UI
+      status: 'ready',
+    };
+
+    return NextResponse.json({ section, citations });
+  } catch (error) {
+    log.error(`Course section generation failed: ${error}`);
+    return apiError(
+      'INTERNAL_ERROR',
+      500,
+      error instanceof Error ? error.message : String(error),
+    );
+  }
+}
