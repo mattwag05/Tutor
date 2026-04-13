@@ -12,11 +12,6 @@ interface Props {
   onOpenArtifact: (kind: 'podcast' | 'flashcards' | 'studyGuide' | 'finalExam') => void;
 }
 
-/**
- * TOC drawer matching Oboe's left-slide panel. Lists sections in order;
- * bottom group exposes the four artifact actions (Podcast, Flash Cards,
- * Study Guide, Final Exam).
- */
 export function CourseTOCDrawer({
   course,
   open,

@@ -5,11 +5,6 @@ interface Props {
   onAdvance: () => void;
 }
 
-/**
- * Sticky bottom bar — matches Oboe's "Next section: <title> [Advance]"
- * pinned control. Rendered by CourseReader and scroll-aware (only visible
- * when we've scrolled near the end of the current section).
- */
 export function AdvanceBar({ nextTitle, onAdvance }: Props) {
   if (!nextTitle) return null;
   return (

@@ -8,12 +8,6 @@ interface Props {
   block: FillBlankQuizBlock;
 }
 
-/**
- * Fill-in-the-blank quiz renderer. Shows the question with the ___ marker
- * replaced by a visible blank underline. When `choices` is present, we
- * render A/B/C/D letter-circles below the question (mirroring the Oboe UX
- * observed in the recording).
- */
 export function FillBlankQuizBlockView({ block }: Props) {
   const [selected, setSelected] = useState<string | null>(null);
   const [revealed, setRevealed] = useState(false);

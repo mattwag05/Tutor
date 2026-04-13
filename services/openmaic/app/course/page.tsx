@@ -14,13 +14,6 @@ type StreamState =
   | { phase: 'streaming'; sections: CourseSection[]; courseTitle: string }
   | { phase: 'error'; message: string };
 
-/**
- * Course Builder landing page.
- *
- * Mirrors the Oboe.com home: a single input box ("Teach me about..."),
- * with progressive outline streaming under it as sections arrive, then
- * a redirect into the reader once generation is complete.
- */
 export default function CourseLandingPage() {
   const router = useRouter();
   const [topic, setTopic] = useState('');

@@ -1,24 +1,8 @@
-/**
- * Course Builder types — Oboe-style article-reader course format.
- *
- * Parallel to the slide-based Classroom format (lib/types/stage.ts), but
- * produces scrollable markdown sections with inline interactive blocks
- * instead of a slide deck. Stored server-side in data/courses/<id>.json.
- */
+// Course Builder types — article-reader course format, parallel to the
+// slide-based Classroom format in lib/types/stage.ts. Stored server-side
+// in data/courses/<id>.json.
 
 export type Language = 'en-US' | 'zh-CN' | 'ja-JP' | 'ru-RU';
-
-// ==================== Blocks ====================
-//
-// A section is a heterogeneous list of blocks. Block types roughly mirror
-// the Oboe UX observed in the screen recording:
-//   - prose: markdown with inline {{term:X}} and {{cite:src_N}} markers
-//   - heading: subsection header inside a section
-//   - math: LaTeX formula (inline or display) with optional explainable flag
-//   - pullQuote: italic blockquote with attribution + citation pill
-//   - illustration: AI-generated image (optional)
-//   - fillBlankQuiz / multipleChoiceQuiz: inline knowledge-check blocks
-//   - glossaryTerm: definition block (usually rendered via {{term:X}} popover)
 
 export type CourseBlock =
   | ProseBlock

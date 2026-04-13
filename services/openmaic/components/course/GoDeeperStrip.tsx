@@ -4,19 +4,10 @@ import { useState } from 'react';
 
 interface Props {
   prompts: string[];
-  /**
-   * Called when the user taps a prompt or submits free text. Phase 2
-   * stub — Phase 3 will wire this to /api/generate/course-follow-up
-   * and insert the returned sub-section inline.
-   */
   onAsk: (prompt: string) => void;
   disabled?: boolean;
 }
 
-/**
- * The "GO DEEPER" strip shown at the end of every section.
- * 4–5 indented suggested follow-ups + a "Go deeper on…" free-text input.
- */
 export function GoDeeperStrip({ prompts, onAsk, disabled }: Props) {
   const [text, setText] = useState('');
 

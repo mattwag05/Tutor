@@ -1,9 +1,3 @@
-/**
- * Server-side storage for Course Builder documents.
- * Mirrors classroom-storage.ts pattern: atomic JSON file write under
- * data/courses/<id>.json.
- */
-
 import { promises as fs } from 'fs';
 import path from 'path';
 import type { Course } from '@/lib/types/course';
