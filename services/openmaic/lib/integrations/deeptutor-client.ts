@@ -100,15 +100,11 @@ export async function checkHealth(): Promise<boolean> {
 export async function listKnowledgeBases(): Promise<KnowledgeBaseInfo[]> {
   if (!config.enabled) return [];
 
-  try {
-    return await apiGet<KnowledgeBaseInfo[]>('/api/v1/knowledge/list');
-  } catch (error) {
-    if (error instanceof DeepTutorUnavailableError) {
-      log.warn('DeepTutor unavailable for KB listing, returning empty list');
-      return [];
-    }
-    throw error;
-  }
+  // Intentionally does NOT swallow `DeepTutorUnavailableError`. Callers
+  // (notably `/api/knowledge-bases`) catch and report `available: false`
+  // so the KB selector can render the "unavailable" state instead of an
+  // empty-but-present picker — the degraded UX is the point.
+  return await apiGet<KnowledgeBaseInfo[]>('/api/v1/knowledge/list');
 }
 
 export async function getKnowledgeBase(kbName: string): Promise<KnowledgeBaseDetails | null> {
