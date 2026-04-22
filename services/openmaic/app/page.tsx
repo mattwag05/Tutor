@@ -18,6 +18,7 @@ import {
   Monitor,
   BotOff,
   BookOpen,
+  GraduationCap,
   ChevronUp,
 } from 'lucide-react';
 import { useI18n } from '@/lib/hooks/use-i18n';
@@ -407,20 +408,33 @@ function HomePage() {
 
         <div className="w-[1px] h-4 bg-gray-200 dark:bg-gray-700" />
 
-        {/* Course Builder Button */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              onClick={() => router.push('/course')}
-              className="p-2 rounded-full text-gray-400 dark:text-gray-500 hover:bg-white dark:hover:bg-gray-700 hover:text-gray-800 dark:hover:text-gray-200 hover:shadow-sm transition-all"
-            >
-              <BookOpen className="w-4 h-4" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" sideOffset={4}>
-            {t('course.title')}
-          </TooltipContent>
-        </Tooltip>
+        {/* Mode switcher — Classroom (current) / Course Builder */}
+        <div
+          role="tablist"
+          aria-label="Mode"
+          className="flex items-center gap-1 rounded-full bg-white/70 dark:bg-gray-800/60 px-1 py-1 border border-gray-200 dark:border-gray-700 shadow-sm"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected="true"
+            aria-current="page"
+            className="flex items-center gap-1.5 rounded-full bg-gray-900 dark:bg-gray-100 px-3 py-1.5 text-xs font-medium text-white dark:text-gray-900"
+          >
+            <GraduationCap className="w-3.5 h-3.5" />
+            Classroom
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected="false"
+            onClick={() => router.push('/course')}
+            className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            Course Builder
+          </button>
+        </div>
 
         <div className="w-[1px] h-4 bg-gray-200 dark:bg-gray-700" />
 

@@ -10,7 +10,6 @@ import {
   type KnowledgeBaseInfo,
   type KnowledgeBaseDetails,
   type RAGQueryResult,
-  type ChatRAGResponse,
   type DeepTutorConfig,
   DeepTutorUnavailableError,
   DeepTutorAPIError,
@@ -139,114 +138,98 @@ export async function listRAGProviders(): Promise<string[]> {
   }
 }
 
-// ==================== RAG Query via Chat WebSocket ====================
+// ==================== RAG Query (metadata-only adaptation) ====================
 
 /**
- * Query a knowledge base for relevant context using DeepTutor's chat endpoint.
- * Sends a single-turn RAG-enabled chat message and collects the response.
- * Returns the RAG source passages and the synthesized answer.
+ * Query a knowledge base for relevant context.
+ *
+ * **Adaptation note (v1):** DeepTutor's HTTP API does not expose a per-KB
+ * retrieval endpoint (`/api/v1/knowledge/{kb}/query` does not exist — the
+ * only true-retrieval interface is the `/api/v1/ws` unified chat socket,
+ * which is not a good fit for a single-shot generation-time query).
+ *
+ * As a pragmatic P0 adaptation we fall back to KB *metadata* (name,
+ * description, document/image counts, status, recency) fetched from the
+ * existing `GET /api/v1/knowledge/{kb}` endpoint. This is "weak RAG" — it
+ * lets the outline generator orient around the KB contents, but does not
+ * inject retrieved passages. When a real query endpoint lands on DeepTutor
+ * we can swap this body out without touching callers.
+ *
+ * Returns synthesized `answer` (human-readable KB summary) and a single
+ * metadata "source" entry describing the KB.
  */
 export async function queryKnowledgeBase(
   kbName: string,
   query: string,
   options?: { timeout?: number },
 ): Promise<{ answer: string; sources: RAGQueryResult[] }> {
+  void query; // retained for future retrieval endpoint
+  void options;
+
   if (!config.enabled) {
     throw new DeepTutorUnavailableError('DeepTutor integration is disabled');
   }
 
-  const timeout = options?.timeout ?? config.queryTimeout;
-  const wsUrl = config.baseUrl.replace(/^http/, 'ws') + '/api/v1/chat';
+  const details = await getKnowledgeBase(kbName);
+  if (!details) {
+    return { answer: '', sources: [] };
+  }
 
-  return new Promise((resolve, reject) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let ws: any;
+  // The shape returned by GET /api/v1/knowledge/{kb} is not strictly typed
+  // upstream; dig defensively.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const raw = details as any;
+  const meta = raw.metadata ?? {};
+  const stats = raw.statistics ?? {};
+  const description: string | undefined = meta.description;
+  const rawDocs = typeof stats.raw_documents === 'number' ? stats.raw_documents : undefined;
+  const images = typeof stats.images === 'number' ? stats.images : undefined;
+  const contentLists =
+    typeof stats.content_lists === 'number' ? stats.content_lists : undefined;
+  const status: string | undefined = raw.status;
+  const lastUpdated: string | undefined = meta.last_updated;
 
-    const timer = setTimeout(() => {
-      try {
-        ws?.close();
-      } catch {}
-      reject(new DeepTutorUnavailableError(`RAG query timed out after ${timeout}ms`));
-    }, timeout);
+  const summaryLines: string[] = [`Knowledge base "${kbName}"`];
+  if (description && description !== `Knowledge base: ${kbName}`) {
+    summaryLines.push(description);
+  }
+  const counts: string[] = [];
+  if (rawDocs !== undefined) counts.push(`${rawDocs} document${rawDocs === 1 ? '' : 's'}`);
+  if (images !== undefined && images > 0)
+    counts.push(`${images} image${images === 1 ? '' : 's'}`);
+  if (contentLists !== undefined && contentLists > 0)
+    counts.push(`${contentLists} processed content list${contentLists === 1 ? '' : 's'}`);
+  if (counts.length > 0) summaryLines.push(`Contains ${counts.join(', ')}.`);
+  if (status) summaryLines.push(`Indexing status: ${status}.`);
+  if (lastUpdated) summaryLines.push(`Last updated: ${lastUpdated}.`);
 
-    try {
-      // Dynamic require to avoid bundling issues
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const WebSocket = require('ws');
-      ws = new WebSocket(wsUrl);
-    } catch {
-      clearTimeout(timer);
-      reject(new DeepTutorUnavailableError('WebSocket not available'));
-      return;
-    }
+  const answer = summaryLines.join(' ');
+  const sources: RAGQueryResult[] = [
+    {
+      content: answer,
+      source: kbName,
+      metadata: { kind: 'kb-metadata', raw_documents: rawDocs, images, status },
+    },
+  ];
 
-    let answer = '';
-    let sources: RAGQueryResult[] = [];
-
-    ws.on('open', () => {
-      ws.send(
-        JSON.stringify({
-          message: query,
-          session_id: null,
-          kb_name: kbName,
-          enable_rag: true,
-          enable_web_search: false,
-        }),
-      );
-    });
-
-    ws.on('message', (data: Buffer | string) => {
-      try {
-        const parsed: ChatRAGResponse = JSON.parse(
-          typeof data === 'string' ? data : data.toString(),
-        );
-
-        switch (parsed.type) {
-          case 'stream':
-            answer += parsed.content || '';
-            break;
-          case 'sources':
-            sources = (parsed.rag || []).map((s) => ({
-              content: s.content || '',
-              score: s.score,
-              source: s.source,
-              metadata: s.metadata,
-            }));
-            break;
-          case 'result':
-            answer = parsed.content || answer;
-            break;
-          case 'error':
-            clearTimeout(timer);
-            ws.close();
-            reject(new DeepTutorAPIError(parsed.message || 'Unknown error', 500));
-            return;
-        }
-      } catch {
-        // Ignore parse errors for non-JSON messages
-      }
-    });
-
-    ws.on('close', () => {
-      clearTimeout(timer);
-      resolve({ answer, sources });
-    });
-
-    ws.on('error', (err: Error) => {
-      clearTimeout(timer);
-      reject(new DeepTutorUnavailableError(`WebSocket error: ${err.message}`));
-    });
-  });
+  return { answer, sources };
 }
 
 // ==================== Convenience: Get RAG Context for Generation ====================
+
+// Soft cap on injected RAG context size before we summarize.
+// Roughly 4k tokens at ~4 chars/token.
+const MAX_RAG_CONTEXT_CHARS = 16_000;
 
 /**
  * Fetch RAG context from DeepTutor and format it for injection into
  * OpenMAIC's outline generation pipeline.
  *
  * Returns formatted string suitable for the `researchContext` parameter,
- * or null if DeepTutor is unavailable or returns no results.
+ * or null if DeepTutor is unavailable or returns no useful metadata.
+ *
+ * If the payload exceeds MAX_RAG_CONTEXT_CHARS it is truncated with a
+ * visible marker (spec Q5).
  */
 export async function getRAGContextForGeneration(
   kbName: string,
@@ -256,25 +239,40 @@ export async function getRAGContextForGeneration(
     const { answer, sources } = await queryKnowledgeBase(kbName, topic);
 
     if (!answer && sources.length === 0) {
-      log.info(`No RAG results for topic "${topic}" in KB "${kbName}"`);
+      log.info(`No KB metadata available for "${kbName}"`);
       return null;
     }
 
     const parts: string[] = [];
 
     if (answer) {
-      parts.push(`## Research Summary\n${answer}`);
+      parts.push(`## Knowledge Base Summary\n${answer}`);
     }
 
     if (sources.length > 0) {
-      parts.push('## Source Passages');
+      parts.push('## Source References');
       sources.forEach((source, i) => {
-        const sourceLabel = source.source ? ` (from: ${source.source})` : '';
-        parts.push(`### Passage ${i + 1}${sourceLabel}\n${source.content}`);
+        const label = source.source ? ` (from: ${source.source})` : '';
+        parts.push(`### Reference ${i + 1}${label}\n${source.content}`);
       });
     }
 
-    return parts.join('\n\n');
+    parts.push(
+      '_Note: DeepTutor does not yet expose a per-KB retrieval endpoint; the above is KB-level metadata. Lean on it for topical grounding rather than citations._',
+    );
+
+    let result = parts.join('\n\n');
+    if (result.length > MAX_RAG_CONTEXT_CHARS) {
+      const original = result.length;
+      result =
+        result.slice(0, MAX_RAG_CONTEXT_CHARS) +
+        `\n\n_[truncated: ${original - MAX_RAG_CONTEXT_CHARS} chars removed to stay within generation context budget]_`;
+      log.warn(
+        `RAG context for KB "${kbName}" truncated from ${original} to ${MAX_RAG_CONTEXT_CHARS} chars`,
+      );
+    }
+
+    return result;
   } catch (error) {
     if (error instanceof DeepTutorUnavailableError) {
       log.warn(`DeepTutor unavailable for RAG context: ${error.message}`);
@@ -287,7 +285,8 @@ export async function getRAGContextForGeneration(
 
 // ==================== Initialize on Import ====================
 
-// Run health check on module load (non-blocking)
-if (config.enabled) {
+// Run a non-blocking health check on module load. Guarded to skip build-time
+// (NEXT_PHASE=phase-production-build) so Next.js builds don't hang on it.
+if (config.enabled && process.env.NEXT_PHASE !== 'phase-production-build') {
   checkHealth().catch(() => {});
 }

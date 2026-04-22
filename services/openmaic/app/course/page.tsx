@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { nanoid } from 'nanoid';
+import { BookOpen, GraduationCap } from 'lucide-react';
 import type {
   CourseSection,
   CourseOutlineStreamEvent,
@@ -108,6 +109,36 @@ export default function CourseLandingPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col px-4 py-16 sm:px-6">
+      {/* Mode switcher — Classroom / Course Builder (current) */}
+      <div className="mb-8 flex justify-center">
+        <div
+          role="tablist"
+          aria-label="Mode"
+          className="flex items-center gap-1 rounded-full bg-white/70 dark:bg-neutral-900/60 px-1 py-1 border border-neutral-200 dark:border-neutral-800 shadow-sm"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected="false"
+            onClick={() => router.push('/')}
+            className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+          >
+            <GraduationCap className="h-3.5 w-3.5" />
+            Classroom
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected="true"
+            aria-current="page"
+            className="flex items-center gap-1.5 rounded-full bg-neutral-900 dark:bg-neutral-100 px-3 py-1.5 text-xs font-medium text-white dark:text-neutral-900"
+          >
+            <BookOpen className="h-3.5 w-3.5" />
+            Course Builder
+          </button>
+        </div>
+      </div>
+
       <div className="mb-10">
         <h1 className="font-serif text-4xl text-neutral-900 dark:text-neutral-50">
           Course Builder
