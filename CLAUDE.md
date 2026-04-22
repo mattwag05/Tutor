@@ -3,7 +3,7 @@
 AI tutoring platform — multi-agent RAG architecture, Python/FastAPI backend, Next.js frontend.
 
 **Status:** 🔨 In Development (synced from upstream 2026-04-10)
-**Repo:** https://forgejo.tail6e035b.ts.net/matthewwagner/DeepTutor.git
+**Repo:** https://github.com/mattwag05/DeepTutor.git
 **Upstream:** https://github.com/HKUDS/DeepTutor (main at 445e762)
 **OpenMAIC Upstream:** https://github.com/THU-MAIC/OpenMAIC
 **Deployed:** https://deeptutor.tail6e035b.ts.net (Pironman — 100.75.2.44)
@@ -190,8 +190,8 @@ The working tree periodically accumulates `* 2.{py,ts,tsx,md,...}` duplicate fil
 ## Remotes
 
 ```
-origin    https://forgejo.tail6e035b.ts.net/matthewwagner/DeepTutor.git  (Forgejo, private)
-upstream  https://github.com/HKUDS/DeepTutor.git                        (HKUDS original)
+origin    https://github.com/mattwag05/DeepTutor.git  (GitHub, canonical)
+upstream  https://github.com/HKUDS/DeepTutor.git      (HKUDS original)
 ```
 
 **Branches:**
@@ -262,7 +262,7 @@ The full stack runs on the Pironman (100.75.2.44) via Docker Compose with a Tail
 ssh root@100.75.2.44
 cd /home/matthewwagner/DeepTutor
 
-# Pull latest from Forgejo
+# Pull latest from GitHub
 git pull origin main
 
 # Rebuild OpenMAIC image (separate build)
