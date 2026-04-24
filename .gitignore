@@ -296,3 +296,7 @@ celerybeat.pid
 # Beads / Dolt files (added by bd init)
 .dolt/
 .beads-credential-key
+
+# pnpm content-addressed store (used during lockfile regen)
+.pnpm-store/
+**/.pnpm-store/
