@@ -10,12 +10,6 @@
     "greetingWithName": "Привет, {{name}}"
   },
   "toolbar": {
-    "knowledgeBase": "База знаний",
-    "knowledgeBaseHint": "Обогатить содержание курса с помощью базы знаний DeepTutor",
-    "knowledgeBaseNone": "Без базы знаний",
-    "knowledgeBaseUnavailable": "База знаний DeepTutor недоступна",
-    "knowledgeBaseLoading": "Загрузка баз знаний...",
-    "languageHint": "Курс будет сгенерирован на этом языке",
     "pdfParser": "Парсер",
     "pdfUpload": "Загрузить PDF",
     "removePdf": "Удалить файл",
@@ -32,7 +26,15 @@
     "ttsTitle": "Синтез речи",
     "ttsHint": "Выберите голос для AI-учителя",
     "ttsPreview": "Прослушать",
-    "ttsPreviewing": "Воспроизведение..."
+    "ttsPreviewing": "Воспроизведение...",
+    "interactiveModeHint": "Включить интерактивный режим для более практического контента",
+    "interactiveModeLabel": "Интерактивный режим",
+    "knowledgeBase": "База знаний",
+    "knowledgeBaseHint": "Обогатить содержание курса с помощью базы знаний DeepTutor",
+    "knowledgeBaseNone": "Без базы знаний",
+    "knowledgeBaseUnavailable": "База знаний DeepTutor недоступна",
+    "knowledgeBaseLoading": "Загрузка баз знаний...",
+    "languageHint": "Курс будет сгенерирован на этом языке"
   },
   "export": {
     "pptx": "Экспорт PPTX",
@@ -40,7 +42,23 @@
     "resourcePackDesc": "PPTX + интерактивные страницы",
     "exporting": "Экспорт...",
     "exportSuccess": "Экспорт успешен",
-    "exportFailed": "Ошибка экспорта"
+    "exportFailed": "Ошибка экспорта",
+    "classroomZip": "Экспорт ZIP класса",
+    "classroomZipDesc": "Структура курса + медиафайлы"
+  },
+  "import": {
+    "classroom": "Импорт класса",
+    "parsing": "Анализ ZIP...",
+    "validating": "Проверка данных...",
+    "writingMedia": "Запись медиафайлов...",
+    "writingCourse": "Запись данных курса...",
+    "success": "Класс успешно импортирован",
+    "error": {
+      "invalidZip": "Недопустимый файл. Выберите корректный файл .maic.zip.",
+      "invalidManifest": "Недопустимый файл класса: manifest.json отсутствует или повреждён.",
+      "missingData": "Недопустимый файл класса: отсутствуют необходимые данные курса.",
+      "storageFull": "Импорт не удался: хранилище браузера заполнено. Удалите старые классы."
+    }
   },
   "chat": {
     "lecture": "Лекция",
@@ -217,9 +235,9 @@
       "mentionHint": "Используйте @question для вопроса, @judge для проверки",
       "placeholder": "Введите сообщение...",
       "send": "Отправить",
-      "welcomeMessage": "Привет! Я ваш помощник по задаче: \"{{title}}\"\n\nЧтобы помочь вам, я подготовил несколько вопросов:\n\n{{questions}}\n\nОбращайтесь через @question, если нужна помощь!",
       "issueCompleteMessage": "Задача \"{{completed}}\" выполнена! Переход к следующей: \"{{next}}\"",
-      "allCompleteMessage": "🎉 Все задачи выполнены! Отличная работа над проектом!"
+      "allCompleteMessage": "🎉 Все задачи выполнены! Отличная работа над проектом!",
+      "welcomeMessage": "Привет! Я ваш помощник по задаче: \"{{title}}\"\n\nЧтобы помочь вам, я подготовил несколько вопросов:\n\n{{questions}}\n\nОбращайтесь через @question, если нужна помощь!"
     },
     "guide": {
       "howItWorks": "Как это работает",
@@ -269,7 +287,11 @@
     "delete": "Удалить",
     "rename": "Переименовать",
     "renamePlaceholder": "Введите название класса",
-    "renameFailed": "Не удалось переименовать класс"
+    "renameFailed": "Не удалось переименовать класс",
+    "searchPlaceholder": "Поиск курсов...",
+    "searchAriaLabel": "Поиск курсов",
+    "clearSearch": "Очистить",
+    "searchEmpty": "Курсы не найдены"
   },
   "upload": {
     "pdfSizeLimit": "Поддержка PDF до 50 МБ",
@@ -410,6 +432,10 @@
       "glm": "GLM",
       "siliconflow": "SiliconFlow",
       "doubao": "Doubao",
+      "openrouter": "OpenRouter",
+      "grok": "Grok",
+      "tencent-hunyuan": "Tencent Hunyuan",
+      "xiaomi": "Xiaomi MiMo",
       "ollama": "Ollama (Локальный)"
     },
     "providerTypes": {
@@ -432,6 +458,10 @@
     "importFromClipboard": "Импорт из буфера",
     "apiSecret": "API-ключ",
     "apiHost": "Base URL",
+    "baseUrlRegion": {
+      "china": "Китай",
+      "international": "Международный"
+    },
     "requestUrl": "URL запроса",
     "models": "Модели",
     "addModel": "Добавить",
@@ -558,6 +588,7 @@
     "providerQwenASR": "Qwen ASR (Alibaba Cloud Bailian)",
     "providerUnpdf": "unpdf (встроенный)",
     "providerMinerU": "MinerU",
+    "providerMinerUCloud": "MinerU (Облако)",
     "browserNativeTTSNote": "Встроенный TTS браузера не требует настройки и полностью бесплатен, использует системные голоса",
     "testTTS": "Тест TTS",
     "testASR": "Тест ASR",
@@ -786,6 +817,7 @@
     "mineruLocalDescription": "MinerU поддерживает локальное развёртывание с расширенной обработкой PDF (таблицы, формулы, анализ макета). Требуется предварительное развёртывание сервиса MinerU.",
     "mineruServerAddress": "Адрес локального сервера MinerU (напр., http://localhost:8080)",
     "mineruApiKeyOptional": "Требуется только если на сервере включена аутентификация",
+    "mineruCloudApiKeyPlaceholder": "Введите API ключ MinerU Cloud",
     "optionalApiKey": "Необязательный API-ключ",
     "featureText": "Извлечение текста",
     "featureImages": "Извлечение изображений",
@@ -800,6 +832,7 @@
     "imageProvider": "Провайдер генерации изображений",
     "imageModel": "Модель генерации изображений",
     "providerSeedream": "Seedream (ByteDance)",
+    "providerOpenAIImage": "OpenAI Image",
     "providerQwenImage": "Qwen Image (Alibaba)",
     "providerNanoBanana": "Nano Banana (Gemini)",
     "providerMiniMaxImage": "MiniMax Image",

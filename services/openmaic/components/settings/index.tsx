@@ -34,7 +34,7 @@ import { toast } from 'sonner';
 import { type ProviderId } from '@/lib/ai/providers';
 import { PROVIDERS, MONO_LOGO_PROVIDERS } from '@/lib/ai/providers';
 import { cn } from '@/lib/utils';
-import { getProviderTypeLabel } from './utils';
+import { createCustomProviderSettings, getProviderTypeLabel } from './utils';
 import { ProviderList } from './provider-list';
 import { ProviderConfigPanel } from './provider-config-panel';
 import { PDFSettings } from './pdf-settings';
@@ -165,6 +165,7 @@ function getASRProviderName(providerId: ASRProviderId, t: (key: string) => strin
 // ─── Image/Video provider name helpers ───
 const IMAGE_PROVIDER_NAMES: Record<ImageProviderId, string> = {
   seedream: 'providerSeedream',
+  'openai-image': 'providerOpenAIImage',
   'qwen-image': 'providerQwenImage',
   'nano-banana': 'providerNanoBanana',
   'minimax-image': 'providerMiniMaxImage',
@@ -173,6 +174,7 @@ const IMAGE_PROVIDER_NAMES: Record<ImageProviderId, string> = {
 
 const IMAGE_PROVIDER_ICONS: Record<ImageProviderId, string> = {
   seedream: '/logos/doubao.svg',
+  'openai-image': '/logos/openai.svg',
   'qwen-image': '/logos/bailian.svg',
   'nano-banana': '/logos/gemini.svg',
   'minimax-image': '/logos/minimax.svg',
@@ -360,6 +362,7 @@ export function SettingsDialog({ open, onOpenChange, initialSection }: SettingsD
         name: providersConfig[selectedProviderId].name,
         type: providersConfig[selectedProviderId].type,
         defaultBaseUrl: providersConfig[selectedProviderId].defaultBaseUrl,
+        alternateBaseUrls: PROVIDERS[selectedProviderId]?.alternateBaseUrls,
         icon: providersConfig[selectedProviderId].icon,
         requiresApiKey: providersConfig[selectedProviderId].requiresApiKey,
         models: providersConfig[selectedProviderId].models,
@@ -456,17 +459,7 @@ export function SettingsDialog({ open, onOpenChange, initialSection }: SettingsD
     const newProviderId = `custom-${Date.now()}` as ProviderId;
     const updatedConfig = {
       ...providersConfig,
-      [newProviderId]: {
-        apiKey: '',
-        baseUrl: '',
-        models: [],
-        name: providerData.name,
-        type: providerData.type,
-        defaultBaseUrl: providerData.baseUrl || undefined,
-        icon: providerData.icon || undefined,
-        requiresApiKey: providerData.requiresApiKey,
-        isBuiltIn: false,
-      },
+      [newProviderId]: createCustomProviderSettings(providerData),
     };
     setProvidersConfig(updatedConfig);
     setShowAddProviderDialog(false);

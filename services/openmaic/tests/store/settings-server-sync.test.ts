@@ -7,6 +7,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
+import { isProviderUsable } from '@/lib/store/settings-validation';
 
 // ---------------------------------------------------------------------------
 // Mocks — must be defined before importing the store
@@ -157,11 +158,13 @@ vi.stubGlobal('fetch', mockFetch);
 
 // Stub localStorage
 const storage = new Map<string, string>();
-vi.stubGlobal('localStorage', {
+const localStorageStub = {
   getItem: (key: string) => storage.get(key) ?? null,
   setItem: (key: string, value: string) => storage.set(key, value),
   removeItem: (key: string) => storage.delete(key),
-});
+};
+vi.stubGlobal('localStorage', localStorageStub);
+vi.stubGlobal('window', { localStorage: localStorageStub });
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -173,8 +176,8 @@ interface MockServerResponse {
   tts?: Record<string, { baseUrl?: string }>;
   asr?: Record<string, { baseUrl?: string }>;
   pdf?: Record<string, { baseUrl?: string }>;
-  image?: Record<string, Record<string, never>>;
-  video?: Record<string, Record<string, never>>;
+  image?: Record<string, { baseUrl?: string }>;
+  video?: Record<string, { baseUrl?: string }>;
   webSearch?: Record<string, { baseUrl?: string }>;
 }
 
@@ -197,6 +200,64 @@ function mockServerResponse(overrides: MockServerResponse = {}) {
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
+
+describe('settings rehydrate — built-in provider models', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    storage.clear();
+    mockFetch.mockReset();
+  });
+
+  async function getStore() {
+    const { useSettingsStore } = await import('@/lib/store/settings');
+    return useSettingsStore;
+  }
+
+  it('reorders persisted built-in models to registry order while preserving custom models', async () => {
+    storage.set(
+      'settings-storage',
+      JSON.stringify({
+        state: {
+          providerId: 'openai',
+          modelId: 'gpt-4o-mini',
+          providersConfig: {
+            openai: {
+              apiKey: '',
+              baseUrl: '',
+              models: [
+                { id: 'custom-earlier', name: 'Custom Earlier' },
+                { id: 'gpt-4-turbo', name: 'Old GPT-4 Turbo' },
+                { id: 'gpt-4o-mini', name: 'Old GPT-4o Mini' },
+                { id: 'custom-later', name: 'Custom Later' },
+                { id: 'gpt-4o', name: 'Old GPT-4o' },
+              ],
+              name: 'OpenAI',
+              type: 'openai',
+              defaultBaseUrl: 'https://api.openai.com/v1',
+              icon: '/logos/openai.svg',
+              requiresApiKey: true,
+              isBuiltIn: true,
+            },
+          },
+        },
+        version: 2,
+      }),
+    );
+
+    const store = await getStore();
+    const models = store.getState().providersConfig.openai.models;
+
+    expect(models.map((m) => m.id)).toEqual([
+      'gpt-4o',
+      'gpt-4o-mini',
+      'gpt-4-turbo',
+      'custom-earlier',
+      'custom-later',
+    ]);
+    expect(models[0].name).toBe('GPT-4o');
+    expect(models[3].name).toBe('Custom Earlier');
+  });
+});
 
 describe('fetchServerProviders — provider availability sync', () => {
   beforeEach(() => {
@@ -227,6 +288,22 @@ describe('fetchServerProviders — provider availability sync', () => {
     expect(modelIds).toEqual(['gpt-4o']);
     expect(modelIds).not.toContain('gpt-4o-mini');
     expect(modelIds).not.toContain('gpt-4-turbo');
+  });
+
+  it('preserves custom server model IDs in server order', async () => {
+    const store = await getStore();
+    mockServerResponse({
+      providers: {
+        openai: { models: ['gpt-5.5', 'gpt-4o'] },
+      },
+    });
+
+    await store.getState().fetchServerProviders();
+
+    const models = store.getState().providersConfig.openai.models;
+    expect(models.map((m) => m.id)).toEqual(['gpt-5.5', 'gpt-4o']);
+    expect(models[0].name).toBe('gpt-5.5');
+    expect(models[1].name).toBe('GPT-4o');
   });
 
   it('keeps all models when server provides no model restriction', async () => {
@@ -312,7 +389,7 @@ describe('fetchServerProviders — provider availability sync', () => {
     expect(config.apiKey).toBe('');
     expect(config.isServerConfigured).toBe(false);
     // This is the condition model-selector uses to decide if a provider is usable:
-    const isUsable = !config.requiresApiKey || !!config.apiKey || !!config.isServerConfigured;
+    const isUsable = isProviderUsable(config);
     expect(isUsable).toBe(false);
   });
 
@@ -842,5 +919,61 @@ describe('fetchServerProviders — LLM cross-provider fallback', () => {
 
     expect(store.getState().providerId).toBe('anthropic');
     expect(store.getState().modelId).toBe('claude-sonnet-4-6');
+  });
+});
+
+describe('settings merge migration — custom provider baseUrl', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    storage.clear();
+    mockFetch.mockReset();
+  });
+
+  it('promotes defaultBaseUrl into baseUrl for legacy custom providers', async () => {
+    const { promoteLegacyCustomProviderBaseUrls } = await import('@/lib/store/settings');
+    const state = {
+      providersConfig: {
+        'custom-123': {
+          apiKey: '',
+          baseUrl: '',
+          models: [{ id: 'test-model', name: 'Test Model' }],
+          name: 'Legacy Custom',
+          type: 'openai',
+          defaultBaseUrl: 'https://example.com/v1',
+          requiresApiKey: true,
+          isBuiltIn: false,
+        },
+      },
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- intentionally partial for unit test
+    promoteLegacyCustomProviderBaseUrls(state as any);
+
+    expect(state.providersConfig['custom-123'].baseUrl).toBe('https://example.com/v1');
+    expect(state.providersConfig['custom-123'].defaultBaseUrl).toBe('https://example.com/v1');
+  });
+
+  it('does not promote defaultBaseUrl for built-in providers', async () => {
+    const { promoteLegacyCustomProviderBaseUrls } = await import('@/lib/store/settings');
+    const state = {
+      providersConfig: {
+        openai: {
+          apiKey: '',
+          baseUrl: '',
+          models: [{ id: 'gpt-4o', name: 'GPT-4o' }],
+          name: 'OpenAI',
+          type: 'openai',
+          defaultBaseUrl: 'https://persisted-openai.example/v1',
+          requiresApiKey: true,
+          isBuiltIn: true,
+        },
+      },
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- intentionally partial for unit test
+    promoteLegacyCustomProviderBaseUrls(state as any);
+
+    expect(state.providersConfig.openai.baseUrl).toBe('');
+    expect(state.providersConfig.openai.defaultBaseUrl).toBe('https://persisted-openai.example/v1');
   });
 });
