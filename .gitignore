@@ -292,3 +292,7 @@ celerybeat.pid
 *.wav
 *.ogg
 !demo/*.mp4
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+.beads-credential-key
