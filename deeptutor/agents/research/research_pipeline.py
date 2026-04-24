@@ -81,12 +81,15 @@ class ResearchPipeline:
 
         # Set directories
         system_config = config.get("system", {})
-        self.cache_dir = Path(
-            system_config.get(
-                "output_base_dir",
-                "./data/user/workspace/chat/deep_research",
+        self.cache_dir = (
+            Path(
+                system_config.get(
+                    "output_base_dir",
+                    "./data/user/workspace/chat/deep_research",
+                )
             )
-        ) / self.research_id
+            / self.research_id
+        )
         self.reports_dir = Path(
             system_config.get(
                 "reports_dir",
@@ -293,8 +296,37 @@ class ResearchPipeline:
 
         try:
             if tool_type in ("rag_hybrid", "rag_naive", "rag"):
-                rag_cfg = self.config.get("rag", {})
-                kb_name = rag_cfg.get("kb_name", "DE-all")
+                rag_cfg = self.config.get("rag", {}) or {}
+                kb_name = rag_cfg.get("kb_name")
+                if not kb_name:
+                    skipped = json.dumps(
+                        {
+                            "status": "skipped",
+                            "reason": "no_kb_selected",
+                            "message": (
+                                "RAG retrieval was requested but no "
+                                "knowledge base is configured for this "
+                                "research run."
+                            ),
+                            "tool": "rag",
+                            "query": query,
+                        },
+                        ensure_ascii=False,
+                    )
+                    await self._emit_trace_event(
+                        {
+                            "event": "tool_result",
+                            "phase": "researching",
+                            "call_id": call_id,
+                            "label": "Use rag",
+                            "call_kind": "tool_execution",
+                            "tool_name": "rag",
+                            "result": skipped,
+                            "state": "skipped",
+                            "query": query,
+                        }
+                    )
+                    return skipped
                 result = await self._call_tool_with_retry(
                     self._tool_registry.execute,
                     "rag",
@@ -338,17 +370,29 @@ class ResearchPipeline:
                     tool_name="run_code",
                 )
             else:
-                rag_cfg = self.config.get("rag", {})
-                kb_name = rag_cfg.get("kb_name", "DE-all")
-                result = await self._call_tool_with_retry(
-                    self._tool_registry.execute,
-                    "rag",
-                    query=query,
-                    kb_name=kb_name,
-                    max_retries=max_retries,
-                    timeout=default_timeout,
-                    tool_name="rag",
+                unknown = json.dumps(
+                    {
+                        "status": "failed",
+                        "reason": "unknown_tool",
+                        "tool": tool_type,
+                        "query": query,
+                    },
+                    ensure_ascii=False,
                 )
+                await self._emit_trace_event(
+                    {
+                        "event": "tool_result",
+                        "phase": "researching",
+                        "call_id": call_id,
+                        "label": f"Use {tool_type or 'tool'}",
+                        "call_kind": "tool_execution",
+                        "tool_name": tool_type or "tool",
+                        "result": unknown,
+                        "state": "error",
+                        "query": query,
+                    }
+                )
+                return unknown
         except Exception as e:
             failure = json.dumps(
                 {"status": "failed", "error": str(e), "tool": tool_type, "query": query},
@@ -534,7 +578,9 @@ class ResearchPipeline:
         self._log_progress("planning", "planning_started", user_topic=topic)
 
         if self.pre_confirmed_outline:
-            self.logger.info("\n【Step 1-2】Using pre-confirmed outline (skipping rephrase + decompose)...")
+            self.logger.info(
+                "\n【Step 1-2】Using pre-confirmed outline (skipping rephrase + decompose)..."
+            )
             optimized_topic = topic
             self.optimized_topic = optimized_topic
             self._log_progress(

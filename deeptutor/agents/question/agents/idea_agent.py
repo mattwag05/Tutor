@@ -9,11 +9,11 @@ import json
 from typing import Any
 
 from deeptutor.agents.base_agent import BaseAgent
-from deeptutor.utils.json_parser import parse_json_response
 from deeptutor.agents.question.models import QuestionTemplate
 from deeptutor.core.trace import build_trace_metadata, new_call_id
+from deeptutor.services.prompt.language import append_language_directive
 from deeptutor.tools.rag_tool import rag_search
-
+from deeptutor.utils.json_parser import parse_json_response
 
 BATCH_SIZE = 5
 
@@ -162,7 +162,7 @@ class IdeaAgent(BaseAgent):
             if not answer:
                 continue
             clipped = answer[:4000] + ("...[truncated]" if len(answer) > 4000 else "")
-            sections.append(f"=== Query: {item.get('query','')} ===\n{clipped}")
+            sections.append(f"=== Query: {item.get('query', '')} ===\n{clipped}")
         return "\n\n".join(sections) if sections else "No retrieval context available."
 
     async def _generate_templates(
@@ -178,7 +178,10 @@ class IdeaAgent(BaseAgent):
         trace_id: str = "ideation",
         batch_number: int | None = None,
     ) -> list[QuestionTemplate]:
-        system_prompt = self.get_prompt("system", "")
+        system_prompt = append_language_directive(
+            self.get_prompt("system", ""),
+            self.language,
+        )
         idea_prompt = self.get_prompt("generate_ideas", "")
         if not idea_prompt:
             idea_prompt = (
@@ -204,13 +207,15 @@ class IdeaAgent(BaseAgent):
             preference=effective_preference,
             knowledge_context=knowledge_context,
             num_ideas=num_ideas,
-            existing_concentrations=json.dumps(existing_concentrations or [], ensure_ascii=False, indent=2),
+            existing_concentrations=json.dumps(
+                existing_concentrations or [], ensure_ascii=False, indent=2
+            ),
         )
         try:
             _chunks: list[str] = []
             async for _c in self.stream_llm(
                 user_prompt=user_prompt,
-                system_prompt=system_prompt or "",
+                system_prompt=system_prompt,
                 response_format={"type": "json_object"},
                 stage="idea_generate_templates",
                 trace_meta=build_trace_metadata(
@@ -253,9 +258,7 @@ class IdeaAgent(BaseAgent):
                 or "written"
             )
             resolved_difficulty = (
-                target_difficulty
-                or str(item.get("difficulty", "medium")).strip()
-                or "medium"
+                target_difficulty or str(item.get("difficulty", "medium")).strip() or "medium"
             )
             templates.append(
                 QuestionTemplate(

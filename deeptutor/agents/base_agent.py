@@ -5,23 +5,26 @@ Unified BaseAgent - Base class for all module agents.
 This is the single source of truth for agent base functionality across:
 - solve module
 - research module
-- guide module
 - co_writer module
 - question module (unified in Jan 2026 refactor)
 """
 
 from abc import ABC, abstractmethod
+import inspect
 import os
 import time
-import inspect
 from typing import Any, AsyncGenerator, Awaitable, Callable
 
 from deeptutor.config.settings import settings
 from deeptutor.logging import LLMStats, get_logger
 from deeptutor.services.config import get_agent_params
 from deeptutor.services.llm import complete as llm_complete
-from deeptutor.services.llm import get_llm_config, get_token_limit_kwargs, supports_response_format
-from deeptutor.services.llm import prepare_multimodal_messages, supports_vision
+from deeptutor.services.llm import (
+    get_llm_config,
+    get_token_limit_kwargs,
+    prepare_multimodal_messages,
+    supports_response_format,
+)
 from deeptutor.services.llm import stream as llm_stream
 from deeptutor.services.prompt import get_prompt_manager
 
@@ -63,7 +66,7 @@ class BaseAgent(ABC):
         Initialize base Agent.
 
         Args:
-            module_name: Module name (solve/research/guide/co_writer/question)
+            module_name: Module name (solve/research/co_writer/question)
             agent_name: Agent name (e.g., "solve_agent", "note_agent")
             api_key: API key (optional, defaults to environment variable)
             base_url: API endpoint (optional, defaults to environment variable)
@@ -540,6 +543,7 @@ class BaseAgent(ABC):
         model = model or self.get_model()
         temperature = temperature if temperature is not None else self.get_temperature()
         max_tokens = max_tokens if max_tokens is not None else self.get_max_tokens()
+        max_retries = self.get_max_retries()
 
         # Build kwargs
         kwargs = {
@@ -564,11 +568,22 @@ class BaseAgent(ABC):
                 self.logger.debug(f"response_format not supported for {binding}/{model}, skipping")
 
         # Inject image attachments into messages when provided
-        if messages and attachments:
+        if attachments:
+            if not messages:
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ]
             mm_result = prepare_multimodal_messages(
                 messages, attachments, binding=self.binding, model=model
             )
             messages = mm_result.messages
+            if mm_result.images_stripped:
+                self.logger.info(
+                    "Images stripped for %s/%s – model does not support vision",
+                    self.binding,
+                    model,
+                )
 
         # Log input
         stage_label = stage or self.agent_name
@@ -608,6 +623,7 @@ class BaseAgent(ABC):
                 api_version=self.api_version,
                 binding=self.binding,
                 messages=messages,
+                max_retries=max_retries,
                 **kwargs,
             ):
                 full_response += chunk

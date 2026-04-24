@@ -9,11 +9,11 @@ to provide the planner with relevant knowledge context.
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 from typing import Any
 
 from deeptutor.agents.base_agent import BaseAgent
+from deeptutor.core.context import Attachment
 from deeptutor.core.trace import build_trace_metadata, derive_trace_metadata, new_call_id
 from deeptutor.utils.json_parser import parse_json_response
 
@@ -26,24 +26,6 @@ logger = logging.getLogger(__name__)
 _MAX_CHARS_PER_RETRIEVAL = 2000
 _MAX_AGGREGATE_INPUT_CHARS = 6000
 _NUM_QUERIES = 3
-
-
-def _build_multimodal_messages(
-    system_prompt: str,
-    user_prompt: str,
-    image_url: str,
-) -> list[dict[str, Any]]:
-    """Build OpenAI-compatible multimodal messages with an image."""
-    return [
-        {"role": "system", "content": system_prompt},
-        {
-            "role": "user",
-            "content": [
-                {"type": "text", "text": user_prompt},
-                {"type": "image_url", "image_url": {"url": image_url}},
-            ],
-        },
-    ]
 
 
 class PlannerAgent(BaseAgent):
@@ -132,9 +114,7 @@ class PlannerAgent(BaseAgent):
         }
 
         if image_url:
-            llm_kwargs["messages"] = _build_multimodal_messages(
-                system_prompt, user_prompt, image_url,
-            )
+            llm_kwargs["attachments"] = [Attachment(type="image", url=image_url)]
 
         chunks: list[str] = []
         async for chunk in self.stream_llm(**llm_kwargs):
@@ -180,9 +160,7 @@ class PlannerAgent(BaseAgent):
     ) -> list[str]:
         """Use a lightweight LLM call to derive multiple search queries from
         the user question."""
-        prompt_template = (
-            self.get_prompt("generate_queries") if self.has_prompts() else None
-        )
+        prompt_template = self.get_prompt("generate_queries") if self.has_prompts() else None
         if not prompt_template:
             prompt_template = (
                 "Generate {num_queries} concise and diverse knowledge-base "
@@ -194,7 +172,8 @@ class PlannerAgent(BaseAgent):
             )
 
         user_prompt = prompt_template.format(
-            question=question, num_queries=num_queries,
+            question=question,
+            num_queries=num_queries,
         )
         try:
             parts: list[str] = []
@@ -234,6 +213,7 @@ class PlannerAgent(BaseAgent):
         trace_root: str = "plan",
     ) -> list[dict[str, Any]]:
         """Execute retrieval tool calls for all queries in parallel."""
+
         async def _single_search(query: str, index: int) -> dict[str, Any]:
             trace_meta = build_trace_metadata(
                 call_id=new_call_id(f"{trace_root}-retrieve"),
@@ -316,7 +296,8 @@ class PlannerAgent(BaseAgent):
         )
         logger.info(
             "Parallel retrieval: %d/%d returned content",
-            sum(1 for r in results if r.get("answer")), len(results),
+            sum(1 for r in results if r.get("answer")),
+            len(results),
         )
         return list(results)
 
@@ -336,7 +317,7 @@ class PlannerAgent(BaseAgent):
                 continue
             clipped = answer[:_MAX_CHARS_PER_RETRIEVAL]
             if total_chars + len(clipped) > _MAX_AGGREGATE_INPUT_CHARS:
-                clipped = clipped[:max(0, _MAX_AGGREGATE_INPUT_CHARS - total_chars)]
+                clipped = clipped[: max(0, _MAX_AGGREGATE_INPUT_CHARS - total_chars)]
             if clipped:
                 sections.append(f"=== Source: {item.get('query', '?')} ===\n{clipped}")
                 total_chars += len(clipped)
@@ -346,9 +327,7 @@ class PlannerAgent(BaseAgent):
 
         raw_text = "\n\n".join(sections)
 
-        prompt_template = (
-            self.get_prompt("aggregate_context") if self.has_prompts() else None
-        )
+        prompt_template = self.get_prompt("aggregate_context") if self.has_prompts() else None
         if not prompt_template:
             prompt_template = (
                 "Below are several passages retrieved from a knowledge base. "
@@ -402,8 +381,8 @@ class PlannerAgent(BaseAgent):
             "describing WHAT to establish, not HOW. Do not specify tools. "
             "Simple questions need only 1 step; complex ones may need 3-6 steps. "
             "If retrieved knowledge is provided, use it to make a more informed plan. "
-            "Output strict JSON: {\"analysis\": \"...\", \"steps\": [{\"id\": \"S1\", "
-            "\"goal\": \"...\"}]}"
+            'Output strict JSON: {"analysis": "...", "steps": [{"id": "S1", '
+            '"goal": "..."}]}'
         )
 
     def _build_user_prompt(

@@ -2,28 +2,27 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import {
   Brain,
-  CheckCircle2,
   ChevronDown,
   ChevronRight,
   Database,
+  Eye,
+  EyeOff,
+  Info,
   Loader2,
   Plus,
   Rocket,
-  RotateCcw,
   Save,
   Search,
   Terminal,
   Trash2,
   Wand2,
-  X,
 } from "lucide-react";
 
 import { useTranslation } from "react-i18next";
 
-import { writeStoredLanguage } from "@/context/AppShellContext";
+import { writeStoredLanguage } from "@/context/app-shell-storage";
 import { apiUrl } from "@/lib/api";
 import { setTheme as applyThemePreference } from "@/lib/theme";
 
@@ -34,6 +33,10 @@ type CatalogModel = {
   name: string;
   model: string;
   dimension?: string;
+  send_dimensions?: boolean;
+  context_window?: string;
+  context_window_source?: string;
+  context_window_detected_at?: string;
 };
 
 type CatalogProfile = {
@@ -66,11 +69,16 @@ type Catalog = {
 };
 
 type UiSettings = {
-  theme: "light" | "dark" | "glass";
+  theme: "light" | "dark" | "glass" | "snow";
   language: "en" | "zh";
 };
 
-type ProviderOption = { value: string; label: string; base_url?: string };
+type ProviderOption = {
+  value: string;
+  label: string;
+  base_url?: string;
+  default_dim?: string;
+};
 
 type SettingsPayload = {
   ui: UiSettings;
@@ -85,31 +93,30 @@ type SystemStatus = {
   search: { status: string; provider?: string; error?: string };
 };
 
-type TourTestResult = "pass" | "fail" | "skip" | "pending";
-type TourTestResults = { llm: TourTestResult; embedding: TourTestResult; search: TourTestResult };
-type TourCompleteResponse = {
-  status: string;
-  message: string;
-  launch_at?: number;
-  redirect_at?: number;
-};
-
 // ---------------------------------------------------------------------------
 
 function cloneCatalog(catalog: Catalog): Catalog {
   return JSON.parse(JSON.stringify(catalog)) as Catalog;
 }
 
-function getActiveProfile(catalog: Catalog, serviceName: ServiceName): CatalogProfile | null {
+function getActiveProfile(
+  catalog: Catalog,
+  serviceName: ServiceName,
+): CatalogProfile | null {
   const service = catalog.services[serviceName];
   return (
-    service.profiles.find((profile) => profile.id === service.active_profile_id) ??
+    service.profiles.find(
+      (profile) => profile.id === service.active_profile_id,
+    ) ??
     service.profiles[0] ??
     null
   );
 }
 
-function getActiveModel(catalog: Catalog, serviceName: ServiceName): CatalogModel | null {
+function getActiveModel(
+  catalog: Catalog,
+  serviceName: ServiceName,
+): CatalogModel | null {
   if (serviceName === "search") return null;
   const service = catalog.services[serviceName];
   const profile = getActiveProfile(catalog, serviceName);
@@ -138,7 +145,11 @@ function defaultCatalog(): Catalog {
     version: 1,
     services: {
       llm: { active_profile_id: null, active_model_id: null, profiles: [] },
-      embedding: { active_profile_id: null, active_model_id: null, profiles: [] },
+      embedding: {
+        active_profile_id: null,
+        active_model_id: null,
+        profiles: [],
+      },
       search: { active_profile_id: null, profiles: [] },
     },
   };
@@ -160,15 +171,62 @@ function stringifyExtraHeaders(value: CatalogProfile["extra_headers"]): string {
   }
 }
 
+function formatContextWindowSource(
+  source: string | undefined,
+  t: (key: string) => string,
+): string {
+  if (source === "manual") return t("Manual");
+  if (source === "metadata") return t("Auto");
+  if (source === "default") return t("Default");
+  return t("Unset");
+}
+
+function formatContextWindowUpdatedAt(
+  value: string | undefined,
+  language: "en" | "zh",
+): string {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleString(language === "zh" ? "zh-CN" : "en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Tour onboarding steps
 // ---------------------------------------------------------------------------
 
 const TOUR_GUIDE_STEPS = [
-  { target: "tour-llm", title: "1 / 4  —  LLM", desc: "Configure your language model endpoint. This powers all chat and reasoning." },
-  { target: "tour-embedding", title: "2 / 4  —  Embedding", desc: "Set the embedding model for knowledge retrieval." },
-  { target: "tour-search", title: "3 / 4  —  Search", desc: "Optional: add a web search provider for real-time information." },
-  { target: "tour-complete", title: "4 / 4  —  Complete", desc: "When you are ready, click here to test and launch DeepTutor." },
+  {
+    target: "tour-llm",
+    service: "llm" as const,
+    titleKey: "settingsTour.llm.title",
+    descKey: "settingsTour.llm.desc",
+  },
+  {
+    target: "tour-embedding",
+    service: "embedding" as const,
+    titleKey: "settingsTour.embedding.title",
+    descKey: "settingsTour.embedding.desc",
+  },
+  {
+    target: "tour-search",
+    service: "search" as const,
+    titleKey: "settingsTour.search.title",
+    descKey: "settingsTour.search.desc",
+  },
+  {
+    target: "tour-save-test",
+    titleKey: "settingsTour.saveTest.title",
+    descKey: "settingsTour.saveTest.desc",
+  },
+  {
+    target: "tour-actions",
+    titleKey: "settingsTour.apply.title",
+    descKey: "settingsTour.apply.desc",
+  },
 ];
 
 const supportedSearchProviders = [
@@ -179,7 +237,12 @@ const supportedSearchProviders = [
   "duckduckgo",
   "perplexity",
 ] as const;
-const deprecatedSearchProviders = new Set(["exa", "serper", "baidu", "openrouter"]);
+const deprecatedSearchProviders = new Set([
+  "exa",
+  "serper",
+  "baidu",
+  "openrouter",
+]);
 
 // ---------------------------------------------------------------------------
 // Spotlight overlay component
@@ -238,10 +301,10 @@ function SpotlightOverlay({
         style={{ top: tooltipTop, left: tooltipLeft }}
       >
         <div className="mb-1 text-[13px] font-semibold text-[var(--foreground)]">
-          {t(guideStep.title)}
+          {t(guideStep.titleKey)}
         </div>
         <p className="mb-4 text-[12px] leading-relaxed text-[var(--muted-foreground)]">
-          {t(guideStep.desc)}
+          {t(guideStep.descKey)}
         </p>
         <div className="flex items-center justify-between">
           <button
@@ -263,111 +326,17 @@ function SpotlightOverlay({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Test results modal
-// ---------------------------------------------------------------------------
-
-function TestResultsModal({
-  results,
-  testing,
-  onConfirm,
-  onCancel,
-}: {
-  results: TourTestResults;
-  testing: boolean;
-  onConfirm: () => void;
-  onCancel: () => void;
-}) {
-  const { t } = useTranslation();
-  const hasCriticalFailure = results.llm === "fail" || results.embedding === "fail";
-  const allDone = !testing && results.llm !== "pending" && results.embedding !== "pending";
-
-  const dot = (r: TourTestResult) => {
-    if (r === "pass") return "bg-emerald-500";
-    if (r === "fail") return "bg-red-400";
-    if (r === "skip") return "bg-[var(--border)]";
-    return "bg-amber-400 animate-pulse";
-  };
-
-  const label = (r: TourTestResult) => {
-    if (r === "pass") return t("Passed");
-    if (r === "fail") return t("Failed");
-    if (r === "skip") return t("Skipped");
-    return t("Testing...");
-  };
-
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40">
-      <div className="w-[400px] rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-2xl">
-        <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-[16px] font-semibold text-[var(--foreground)]">
-            {testing ? t("Running tests...") : t("Test Results")}
-          </h2>
-          {!testing && (
-            <button onClick={onCancel} className="text-[var(--muted-foreground)] hover:text-[var(--foreground)]">
-              <X className="h-4 w-4" />
-            </button>
-          )}
-        </div>
-
-        <div className="mb-6 space-y-3">
-          {(["llm", "embedding", "search"] as const).map((svc) => (
-            <div key={svc} className="flex items-center justify-between rounded-lg border border-[var(--border)]/50 px-4 py-3">
-              <div className="flex items-center gap-2.5">
-                {serviceIcon(svc)}
-                <span className="text-[13px] font-medium text-[var(--foreground)]">{svc.toUpperCase()}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className={`inline-block h-2 w-2 rounded-full ${dot(results[svc])}`} />
-                <span className="text-[12px] text-[var(--muted-foreground)]">{label(results[svc])}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {allDone && (
-          <div className="flex items-center gap-3">
-            <button
-              onClick={onCancel}
-              className="flex-1 rounded-lg border border-[var(--border)] px-4 py-2 text-[13px] font-medium text-[var(--muted-foreground)] transition-colors hover:border-[var(--foreground)]/20 hover:text-[var(--foreground)]"
-            >
-              {t("Back to editing")}
-            </button>
-            <button
-              onClick={onConfirm}
-              className={`flex-1 rounded-lg px-4 py-2 text-[13px] font-medium transition-opacity hover:opacity-80 ${
-                hasCriticalFailure
-                  ? "bg-red-500 text-white"
-                  : "bg-[var(--foreground)] text-[var(--background)]"
-              }`}
-            >
-              {hasCriticalFailure ? t("Launch anyway") : t("Confirm & Launch")}
-            </button>
-          </div>
-        )}
-
-        {testing && (
-          <div className="flex items-center justify-center gap-2 py-2 text-[13px] text-[var(--muted-foreground)]">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            {t("Please wait...")}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ═══════════════════════════════════════════════════════════════════════════
 // Main component
 // ═══════════════════════════════════════════════════════════════════════════
 
 function SettingsPageContent() {
   const { t } = useTranslation();
-  const searchParams = useSearchParams();
-  const isTourMode = searchParams.get("tour") === "true";
 
   const [status, setStatus] = useState<SystemStatus | null>(null);
-  const [theme, setTheme] = useState<"light" | "dark" | "glass">("light");
+  const [theme, setTheme] = useState<"light" | "dark" | "glass" | "snow">(
+    "light",
+  );
   const [language, setLanguage] = useState<"en" | "zh">("en");
   const [catalog, setCatalog] = useState<Catalog>(defaultCatalog());
   const [draft, setDraft] = useState<Catalog>(defaultCatalog());
@@ -376,25 +345,24 @@ function SettingsPageContent() {
   const [testRunning, setTestRunning] = useState<ServiceName | null>(null);
   const [saving, setSaving] = useState(false);
   const [applying, setApplying] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
   const [toast, setToast] = useState<string>("");
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
-  const [providers, setProviders] = useState<Record<ServiceName, ProviderOption[]>>({ llm: [], embedding: [], search: [] });
+  const [providers, setProviders] = useState<
+    Record<ServiceName, ProviderOption[]>
+  >({ llm: [], embedding: [], search: [] });
   const eventSourceRef = useRef<EventSource | null>(null);
 
   // Tour-specific state
-  const [tourGuideStep, setTourGuideStep] = useState(isTourMode ? 0 : -1);
-  const [tourTestPhase, setTourTestPhase] = useState<"idle" | "testing" | "results">("idle");
-  const [tourTestResults, setTourTestResults] = useState<TourTestResults>({ llm: "pending", embedding: "pending", search: "pending" });
-  const [tourCompleted, setTourCompleted] = useState(false);
-  const [tourRedirectAt, setTourRedirectAt] = useState<number | null>(null);
-  const [redirectCountdown, setRedirectCountdown] = useState(-1);
+  const [tourGuideStep, setTourGuideStep] = useState(-1);
 
   // -- Data loading -------------------------------------------------------
 
   useEffect(() => {
     const load = async () => {
       const settingsResponse = await fetch(apiUrl("/api/v1/settings"));
-      const settingsPayload = (await settingsResponse.json()) as SettingsPayload;
+      const settingsPayload =
+        (await settingsResponse.json()) as SettingsPayload;
       setCatalog(settingsPayload.catalog);
       setDraft(cloneCatalog(settingsPayload.catalog));
       setTheme(settingsPayload.ui.theme);
@@ -417,31 +385,13 @@ function SettingsPageContent() {
     return () => clearTimeout(timer);
   }, [toast]);
 
-  // -- Redirect countdown after tour complete -----------------------------
-
-  useEffect(() => {
-    if (!tourCompleted || !tourRedirectAt) return;
-    const tick = () => {
-      const secondsLeft = Math.max(0, Math.ceil(tourRedirectAt - Date.now() / 1000));
-      setRedirectCountdown(secondsLeft);
-    };
-    tick();
-    const timer = setInterval(tick, 250);
-    return () => clearInterval(timer);
-  }, [tourCompleted, tourRedirectAt]);
-
-  useEffect(() => {
-    if (redirectCountdown === 0 && tourCompleted) {
-      window.location.href = "/";
-    }
-  }, [redirectCountdown, tourCompleted]);
-
   // -- Tour guide auto-switch active service tab --------------------------
 
   useEffect(() => {
-    if (tourGuideStep === 0) setActiveService("llm");
-    else if (tourGuideStep === 1) setActiveService("embedding");
-    else if (tourGuideStep === 2) setActiveService("search");
+    const currentStep = TOUR_GUIDE_STEPS[tourGuideStep];
+    if (currentStep?.service) {
+      setActiveService(currentStep.service);
+    }
   }, [tourGuideStep]);
 
   // -- Derived ------------------------------------------------------------
@@ -449,18 +399,32 @@ function SettingsPageContent() {
   const activeProfile = getActiveProfile(draft, activeService);
   const activeModel = getActiveModel(draft, activeService);
   const hasUnsavedChanges = JSON.stringify(catalog) !== JSON.stringify(draft);
-  const searchProviderRaw = activeService === "search" ? (activeProfile?.provider || "").trim().toLowerCase() : "";
-  const showSearchProviderWarning = activeService === "search" && Boolean(searchProviderRaw);
-  const isDeprecatedSearchProvider = deprecatedSearchProviders.has(searchProviderRaw);
-  const isSupportedSearchProvider = supportedSearchProviders.includes(searchProviderRaw as (typeof supportedSearchProviders)[number]);
+  const searchProviderRaw =
+    activeService === "search"
+      ? (activeProfile?.provider || "").trim().toLowerCase()
+      : "";
+  const showSearchProviderWarning =
+    activeService === "search" && Boolean(searchProviderRaw);
+  const isDeprecatedSearchProvider =
+    deprecatedSearchProviders.has(searchProviderRaw);
+  const isSupportedSearchProvider = supportedSearchProviders.includes(
+    searchProviderRaw as (typeof supportedSearchProviders)[number],
+  );
   const isPerplexityMissingKey =
     activeService === "search" &&
     searchProviderRaw === "perplexity" &&
     !String(activeProfile?.api_key || "").trim();
 
+  useEffect(() => {
+    setShowApiKey(false);
+  }, [activeService, activeProfile?.id]);
+
   // -- UI preference helpers ----------------------------------------------
 
-  const persistUi = async (nextTheme: "light" | "dark" | "glass", nextLanguage: "en" | "zh") => {
+  const persistUi = async (
+    nextTheme: "light" | "dark" | "glass" | "snow",
+    nextLanguage: "en" | "zh",
+  ) => {
     await fetch(apiUrl("/api/v1/settings/ui"), {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -468,7 +432,9 @@ function SettingsPageContent() {
     });
   };
 
-  const updateTheme = async (nextTheme: "light" | "dark" | "glass") => {
+  const updateTheme = async (
+    nextTheme: "light" | "dark" | "glass" | "snow",
+  ) => {
     setTheme(nextTheme);
     applyThemePreference(nextTheme);
     await persistUi(nextTheme, language);
@@ -488,6 +454,13 @@ function SettingsPageContent() {
       mutator(next);
       return next;
     });
+  };
+
+  const embeddingDefaultDim = (binding?: string) => {
+    const match = (providers.embedding || []).find(
+      (p) => p.value === (binding || "openai"),
+    );
+    return match?.default_dim || "3072";
   };
 
   const addProfile = () => {
@@ -512,7 +485,9 @@ function SettingsPageContent() {
           id: modelId,
           name: "New Model",
           model: "",
-          ...(activeService === "embedding" ? { dimension: "3072" } : {}),
+          ...(activeService === "embedding"
+            ? { dimension: embeddingDefaultDim(), send_dimensions: true }
+            : {}),
         });
         service.active_model_id = modelId;
       }
@@ -524,7 +499,9 @@ function SettingsPageContent() {
   const removeActiveProfile = () => {
     mutateCatalog((next) => {
       const service = next.services[activeService];
-      service.profiles = service.profiles.filter((profile) => profile.id !== service.active_profile_id);
+      service.profiles = service.profiles.filter(
+        (profile) => profile.id !== service.active_profile_id,
+      );
       service.active_profile_id = service.profiles[0]?.id ?? null;
       if (activeService !== "search") {
         service.active_model_id = service.profiles[0]?.models?.[0]?.id ?? null;
@@ -536,14 +513,22 @@ function SettingsPageContent() {
     if (activeService === "search") return;
     mutateCatalog((next) => {
       const service = next.services[activeService];
-      const profile = service.profiles.find((item) => item.id === service.active_profile_id) ?? null;
+      const profile =
+        service.profiles.find(
+          (item) => item.id === service.active_profile_id,
+        ) ?? null;
       if (!profile) return;
       const modelId = `${activeService}-model-${Date.now()}`;
       profile.models.push({
         id: modelId,
         name: "New Model",
         model: "",
-        ...(activeService === "embedding" ? { dimension: "3072" } : {}),
+        ...(activeService === "embedding"
+          ? {
+              dimension: embeddingDefaultDim(profile.binding),
+              send_dimensions: true,
+            }
+          : {}),
       });
       service.active_model_id = modelId;
     });
@@ -553,9 +538,14 @@ function SettingsPageContent() {
     if (activeService === "search") return;
     mutateCatalog((next) => {
       const service = next.services[activeService];
-      const profile = service.profiles.find((item) => item.id === service.active_profile_id) ?? null;
+      const profile =
+        service.profiles.find(
+          (item) => item.id === service.active_profile_id,
+        ) ?? null;
       if (!profile) return;
-      profile.models = profile.models.filter((item) => item.id !== service.active_model_id);
+      profile.models = profile.models.filter(
+        (item) => item.id !== service.active_model_id,
+      );
       service.active_model_id = profile.models[0]?.id ?? null;
     });
   };
@@ -574,6 +564,36 @@ function SettingsPageContent() {
       const model = getActiveModel(next, activeService);
       if (!model) return;
       (model[field] as string | undefined) = value;
+    });
+  };
+
+  const updateContextWindowField = (value: string) => {
+    if (activeService !== "llm") return;
+    const normalized = value.replace(/[^\d]/g, "");
+    mutateCatalog((next) => {
+      const model = getActiveModel(next, activeService);
+      if (!model) return;
+      if (normalized) {
+        model.context_window = normalized;
+        model.context_window_source = "manual";
+        delete model.context_window_detected_at;
+      } else {
+        delete model.context_window;
+        delete model.context_window_source;
+        delete model.context_window_detected_at;
+      }
+    });
+  };
+
+  const updateModelBoolField = (
+    field: keyof CatalogModel,
+    value: boolean,
+  ) => {
+    if (activeService === "search") return;
+    mutateCatalog((next) => {
+      const model = getActiveModel(next, activeService);
+      if (!model) return;
+      (model[field] as boolean | undefined) = value;
     });
   };
 
@@ -625,22 +645,38 @@ function SettingsPageContent() {
     setLogs(`Preparing ${activeService} diagnostics...\n`);
     setTestRunning(activeService);
     try {
-      const response = await fetch(apiUrl(`/api/v1/settings/tests/${activeService}/start`), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ catalog: draft }),
-      });
-      const payload = (await response.json()) as { run_id?: string; detail?: string };
+      const response = await fetch(
+        apiUrl(`/api/v1/settings/tests/${activeService}/start`),
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ catalog: draft }),
+        },
+      );
+      const payload = (await response.json()) as {
+        run_id?: string;
+        detail?: string;
+      };
       if (!response.ok || !payload.run_id) {
         throw new Error(payload.detail || "Could not start diagnostics.");
       }
       const source = new EventSource(
-        apiUrl(`/api/v1/settings/tests/${activeService}/${payload.run_id}/events`),
+        apiUrl(
+          `/api/v1/settings/tests/${activeService}/${payload.run_id}/events`,
+        ),
       );
       eventSourceRef.current = source;
       source.onmessage = (event) => {
-        const entry = JSON.parse(event.data) as { type: string; message: string };
+        const entry = JSON.parse(event.data) as {
+          type: string;
+          message: string;
+          catalog?: Catalog;
+        };
         setLogs((current) => `${current}[${entry.type}] ${entry.message}\n`);
+        if (entry.catalog) {
+          setCatalog(entry.catalog);
+          setDraft(cloneCatalog(entry.catalog));
+        }
         if (entry.type === "completed" || entry.type === "failed") {
           source.close();
           eventSourceRef.current = null;
@@ -652,121 +688,25 @@ function SettingsPageContent() {
         source.close();
         eventSourceRef.current = null;
         setTestRunning(null);
-        setLogs((current) => `${current}[failed] Diagnostics stream disconnected.\n`);
+        setLogs(
+          (current) => `${current}[failed] Diagnostics stream disconnected.\n`,
+        );
         setToast(t("Diagnostics stream disconnected"));
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Could not start diagnostics.";
+      const message =
+        error instanceof Error ? error.message : "Could not start diagnostics.";
       setLogs((current) => `${current}[failed] ${message}\n`);
       setToast(message);
       setTestRunning(null);
     }
   };
 
-  // -- Tour: run a single service test and return pass/fail ---------------
+  // -- Tour ---------------------------------------------------------------
 
-  const runSingleTest = useCallback(async (svc: ServiceName, catalogSnapshot: Catalog): Promise<"pass" | "fail"> => {
-    try {
-      const response = await fetch(apiUrl(`/api/v1/settings/tests/${svc}/start`), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ catalog: catalogSnapshot }),
-      });
-      const payload = (await response.json()) as { run_id?: string };
-      if (!response.ok || !payload.run_id) return "fail";
-
-      return new Promise((resolve) => {
-        const source = new EventSource(
-          apiUrl(`/api/v1/settings/tests/${svc}/${payload.run_id}/events`),
-        );
-        const timeout = setTimeout(() => { source.close(); resolve("fail"); }, 30000);
-        source.onmessage = (event) => {
-          const entry = JSON.parse(event.data) as { type: string };
-          if (entry.type === "completed") {
-            clearTimeout(timeout);
-            source.close();
-            resolve("pass");
-          } else if (entry.type === "failed") {
-            clearTimeout(timeout);
-            source.close();
-            resolve("fail");
-          }
-        };
-        source.onerror = () => { clearTimeout(timeout); source.close(); resolve("fail"); };
-      });
-    } catch {
-      return "fail";
-    }
+  const runTour = useCallback(() => {
+    setTourGuideStep(0);
   }, []);
-
-  // -- Tour: Complete & Launch flow ---------------------------------------
-
-  const startTourComplete = async () => {
-    setTourTestPhase("testing");
-    const results: TourTestResults = { llm: "pending", embedding: "pending", search: "pending" };
-    setTourTestResults({ ...results });
-
-    // Apply catalog first so backend picks up config
-    await fetch(apiUrl("/api/v1/settings/apply"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ catalog: draft }),
-    });
-
-    const catalogSnapshot = cloneCatalog(draft);
-
-    // Test LLM
-    results.llm = await runSingleTest("llm", catalogSnapshot);
-    setTourTestResults({ ...results });
-
-    // Test Embedding
-    results.embedding = await runSingleTest("embedding", catalogSnapshot);
-    setTourTestResults({ ...results });
-
-    // Test Search (skip if no provider configured)
-    const searchProfile = getActiveProfile(catalogSnapshot, "search");
-    const hasSearchProvider = searchProfile?.provider && searchProfile.provider.trim() !== "";
-    if (hasSearchProvider) {
-      results.search = await runSingleTest("search", catalogSnapshot);
-    } else {
-      results.search = "skip";
-    }
-    setTourTestResults({ ...results });
-
-    setTourTestPhase("results");
-  };
-
-  const confirmTourComplete = async () => {
-    setTourTestPhase("idle");
-    try {
-      const response = await fetch(apiUrl("/api/v1/settings/tour/complete"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ catalog: draft, test_results: tourTestResults }),
-      });
-      if (response.ok) {
-        const payload = (await response.json()) as TourCompleteResponse;
-        setTourCompleted(true);
-        setTourRedirectAt(payload.redirect_at ?? Math.floor(Date.now() / 1000) + 5);
-      } else {
-        setToast(t("Failed to complete tour"));
-      }
-    } catch {
-      setToast(t("Failed to complete tour"));
-    }
-  };
-
-  const cancelTourTest = () => {
-    setTourTestPhase("idle");
-  };
-
-  // -- Reopen tour --------------------------------------------------------
-
-  const reopenTour = async () => {
-    const response = await fetch(apiUrl("/api/v1/settings/tour/reopen"), { method: "POST" });
-    const payload = (await response.json()) as { command?: string; message?: string };
-    setToast(payload.command ? t("Run {{command}} in your terminal.", { command: payload.command }) : payload.message || t("Run python scripts/start_tour.py in your terminal."));
-  };
 
   // ═══════════════════════════════════════════════════════════════════════
   // Render
@@ -775,46 +715,6 @@ function SettingsPageContent() {
   return (
     <div className="h-full overflow-y-auto [scrollbar-gutter:stable]">
       <div className="mx-auto max-w-[960px] px-6 py-8">
-
-        {/* ── Tour Banner ── */}
-        {isTourMode && !tourCompleted && (
-          <div className="mb-6 flex items-center justify-between rounded-xl border border-[var(--primary)]/20 bg-[var(--primary)]/5 px-5 py-4">
-            <div>
-              <div className="flex items-center gap-2 text-[14px] font-semibold text-[var(--foreground)]">
-                <Rocket className="h-4 w-4 text-[var(--primary)]" />
-                {t("Setup Tour")}
-              </div>
-              <p className="mt-1 text-[13px] text-[var(--muted-foreground)]">
-                {t("Configure your endpoints below, run tests, then launch DeepTutor.")}
-              </p>
-            </div>
-            <button
-              data-tour="tour-complete"
-              onClick={startTourComplete}
-              disabled={tourTestPhase === "testing"}
-              className="ml-4 inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[var(--foreground)] px-4 py-2 text-[13px] font-medium text-[var(--background)] transition-opacity hover:opacity-80 disabled:opacity-40"
-            >
-              {tourTestPhase === "testing" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-              {t("Complete & Launch")}
-            </button>
-          </div>
-        )}
-
-        {/* Tour completed banner with countdown */}
-        {isTourMode && tourCompleted && (
-          <div className="mb-6 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-5 py-4 text-center">
-            <div className="flex items-center justify-center gap-2 text-[14px] font-semibold text-emerald-600 dark:text-emerald-400">
-              <CheckCircle2 className="h-4 w-4" />
-              {t("Configuration saved")}
-            </div>
-            <p className="mt-1 text-[13px] text-[var(--muted-foreground)]">
-              {redirectCountdown > 0
-                ? t("Redirecting to DeepTutor in {{count}}s...", { count: redirectCountdown })
-                : t("Redirecting...")}
-            </p>
-          </div>
-        )}
-
         {/* ── Header ── */}
         <div className="mb-6 flex items-start justify-between">
           <div>
@@ -827,30 +727,44 @@ function SettingsPageContent() {
               </p>
             ) : (
               <p className="mt-1 text-[13px] text-[var(--muted-foreground)]">
-                {hasUnsavedChanges ? t("Draft has unsaved changes") : t("All changes saved")}
+                {hasUnsavedChanges
+                  ? t("Draft has unsaved changes")
+                  : t("All changes saved")}
               </p>
             )}
           </div>
           <div className="flex items-center gap-2">
             <button
+              onClick={runTour}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)]/50 px-3 py-1.5 text-[12px] font-medium text-[var(--muted-foreground)] transition-colors hover:border-[var(--border)] hover:text-[var(--foreground)]"
+            >
+              <Rocket className="h-3 w-3" />
+              {t("Tour")}
+            </button>
+            <button
+              data-tour="tour-save-test"
               onClick={saveCatalog}
               disabled={saving}
               className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)]/50 px-3 py-1.5 text-[12px] font-medium text-[var(--muted-foreground)] transition-colors hover:border-[var(--border)] hover:text-[var(--foreground)] disabled:opacity-40"
             >
-              {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+              {saving ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Save className="h-3 w-3" />
+              )}
               {t("Save Draft")}
             </button>
             <button
+              data-tour="tour-actions"
               onClick={applyCatalog}
-              disabled={applying || isTourMode}
-              title={isTourMode ? t("Complete the tour first") : undefined}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-medium transition-opacity disabled:opacity-40 ${
-                isTourMode
-                  ? "cursor-not-allowed border border-[var(--border)]/30 bg-[var(--muted)] text-[var(--muted-foreground)]"
-                  : "bg-[var(--foreground)] text-[var(--background)] hover:opacity-80"
-              }`}
+              disabled={applying}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--foreground)] px-3 py-1.5 text-[12px] font-medium text-[var(--background)] transition-opacity hover:opacity-80 disabled:opacity-40"
             >
-              {applying ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wand2 className="h-3 w-3" />}
+              {applying ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Wand2 className="h-3 w-3" />
+              )}
               {t("Apply")}
             </button>
           </div>
@@ -859,9 +773,11 @@ function SettingsPageContent() {
         {/* ── Preferences & Runtime ── */}
         <div className="mb-8 flex flex-wrap items-center gap-x-8 gap-y-3 border-b border-[var(--border)]/50 pb-6">
           <div className="flex items-center gap-2">
-            <span className="text-[12px] text-[var(--muted-foreground)]">{t("Theme")}</span>
+            <span className="text-[12px] text-[var(--muted-foreground)]">
+              {t("Theme")}
+            </span>
             <div className="flex gap-0.5 rounded-lg bg-[var(--muted)] p-0.5">
-              {(["light", "dark", "glass"] as const).map((v) => (
+              {(["snow", "light", "dark", "glass"] as const).map((v) => (
                 <button
                   key={v}
                   onClick={() => updateTheme(v)}
@@ -871,14 +787,22 @@ function SettingsPageContent() {
                       : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
                   }`}
                 >
-                  {v === "light" ? t("Light") : v === "dark" ? t("Dark") : t("Glass")}
+                  {v === "snow"
+                    ? t("Snow")
+                    : v === "light"
+                      ? t("Light")
+                      : v === "dark"
+                        ? t("Dark")
+                        : t("Glass")}
                 </button>
               ))}
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-[12px] text-[var(--muted-foreground)]">{t("Language")}</span>
+            <span className="text-[12px] text-[var(--muted-foreground)]">
+              {t("Language")}
+            </span>
             <div className="flex gap-0.5 rounded-lg bg-[var(--muted)] p-0.5">
               {(["en", "zh"] as const).map((v) => (
                 <button
@@ -890,7 +814,7 @@ function SettingsPageContent() {
                       : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
                   }`}
                 >
-                  {v === "en" ? "English" : "中文"}
+                  {v === "en" ? t("language.english") : t("language.chinese")}
                 </button>
               ))}
             </div>
@@ -898,20 +822,32 @@ function SettingsPageContent() {
 
           <div className="ml-auto flex items-center gap-4 text-[12px] text-[var(--muted-foreground)]">
             <span className="flex items-center gap-1.5">
-              <span className={`inline-block h-1.5 w-1.5 rounded-full ${statusDotClass(status?.backend.status === "online", false)}`} />
+              <span
+                className={`inline-block h-1.5 w-1.5 rounded-full ${statusDotClass(status?.backend.status === "online", false)}`}
+              />
               {t("Backend")}
             </span>
             <span className="flex items-center gap-1.5">
-              <span className={`inline-block h-1.5 w-1.5 rounded-full ${statusDotClass(Boolean(status?.llm.model), Boolean(status?.llm.error))}`} />
+              <span
+                className={`inline-block h-1.5 w-1.5 rounded-full ${statusDotClass(Boolean(status?.llm.model), Boolean(status?.llm.error))}`}
+              />
               {t("LLM")}
-              {status?.llm.model && <span className="text-[var(--muted-foreground)]/50">· {status.llm.model}</span>}
+              {status?.llm.model && (
+                <span className="text-[var(--muted-foreground)]/50">
+                  · {status.llm.model}
+                </span>
+              )}
             </span>
             <span className="flex items-center gap-1.5">
-              <span className={`inline-block h-1.5 w-1.5 rounded-full ${statusDotClass(Boolean(status?.embeddings.model), Boolean(status?.embeddings.error))}`} />
+              <span
+                className={`inline-block h-1.5 w-1.5 rounded-full ${statusDotClass(Boolean(status?.embeddings.model), Boolean(status?.embeddings.error))}`}
+              />
               {t("Emb")}
             </span>
             <span className="flex items-center gap-1.5">
-              <span className={`inline-block h-1.5 w-1.5 rounded-full ${statusDotClass(Boolean(status?.search.provider), false)}`} />
+              <span
+                className={`inline-block h-1.5 w-1.5 rounded-full ${statusDotClass(Boolean(status?.search.provider), false)}`}
+              />
               {t("Search")}
             </span>
           </div>
@@ -969,7 +905,8 @@ function SettingsPageContent() {
                     key={profile.id}
                     onClick={() =>
                       mutateCatalog((next) => {
-                        next.services[activeService].active_profile_id = profile.id;
+                        next.services[activeService].active_profile_id =
+                          profile.id;
                         if (activeService !== "search") {
                           next.services[activeService].active_model_id =
                             profile.models[0]?.id ?? null;
@@ -977,12 +914,15 @@ function SettingsPageContent() {
                       })
                     }
                     className={`w-full rounded-lg px-3 py-2.5 text-left transition-colors ${
-                      profile.id === draft.services[activeService].active_profile_id
+                      profile.id ===
+                      draft.services[activeService].active_profile_id
                         ? "bg-[var(--muted)] text-[var(--foreground)]"
                         : "text-[var(--muted-foreground)] hover:bg-[var(--muted)]/50"
                     }`}
                   >
-                    <div className="text-[13px] font-medium">{profile.name}</div>
+                    <div className="text-[13px] font-medium">
+                      {profile.name}
+                    </div>
                     <div className="mt-0.5 truncate text-[11px] text-[var(--muted-foreground)]">
                       {profile.base_url || t("No endpoint")}
                     </div>
@@ -1006,11 +946,15 @@ function SettingsPageContent() {
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div>
-                      <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">{t("Name")}</div>
+                      <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
+                        {t("Name")}
+                      </div>
                       <input
                         className={inputClass}
                         value={activeProfile.name}
-                        onChange={(e) => updateProfileField("name", e.target.value)}
+                        onChange={(e) =>
+                          updateProfileField("name", e.target.value)
+                        }
                       />
                     </div>
                     <div>
@@ -1027,17 +971,30 @@ function SettingsPageContent() {
                           }
                           onChange={(e) => {
                             const val = e.target.value;
-                            const field = activeService === "search" ? "provider" : "binding";
+                            const field =
+                              activeService === "search"
+                                ? "provider"
+                                : "binding";
                             updateProfileField(field, val);
-                            const match = (providers[activeService] || []).find((p) => p.value === val);
+                            const match = (providers[activeService] || []).find(
+                              (p) => p.value === val,
+                            );
                             if (match?.base_url) {
                               updateProfileField("base_url", match.base_url);
+                            }
+                            if (
+                              activeService === "embedding" &&
+                              match?.default_dim
+                            ) {
+                              updateModelField("dimension", match.default_dim);
                             }
                           }}
                         >
                           <option value="">{t("Select provider...")}</option>
                           {(providers[activeService] || []).map((p) => (
-                            <option key={p.value} value={p.value}>{p.label}</option>
+                            <option key={p.value} value={p.value}>
+                              {p.label}
+                            </option>
                           ))}
                         </select>
                         <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--muted-foreground)]" />
@@ -1054,48 +1011,92 @@ function SettingsPageContent() {
                         >
                           {isSupportedSearchProvider
                             ? isPerplexityMissingKey
-                              ? t("Perplexity requires API key. It will fail hard without credentials.")
+                              ? t(
+                                  "Perplexity requires API key. It will fail hard without credentials.",
+                                )
                               : t("Supported provider.")
                             : isDeprecatedSearchProvider
-                              ? t("Deprecated provider. Switch to brave/tavily/jina/searxng/duckduckgo/perplexity.")
-                              : t("Unsupported provider. Use brave/tavily/jina/searxng/duckduckgo/perplexity.")}
+                              ? t(
+                                  "Deprecated provider. Switch to brave/tavily/jina/searxng/duckduckgo/perplexity.",
+                                )
+                              : t(
+                                  "Unsupported provider. Use brave/tavily/jina/searxng/duckduckgo/perplexity.",
+                                )}
                         </p>
                       )}
                     </div>
                     <div className="sm:col-span-2">
-                      <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">{t("Base URL")}</div>
+                      <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
+                        {t("Base URL")}
+                      </div>
                       <input
                         className={inputClass}
                         value={activeProfile.base_url}
-                        onChange={(e) => updateProfileField("base_url", e.target.value)}
+                        onChange={(e) =>
+                          updateProfileField("base_url", e.target.value)
+                        }
                         placeholder="https://api.openai.com/v1"
                       />
                     </div>
                     <div className="sm:col-span-2">
-                      <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">{t("API Key")}</div>
-                      <input
-                        className={inputClass}
-                        value={activeProfile.api_key}
-                        onChange={(e) => updateProfileField("api_key", e.target.value)}
-                        placeholder="sk-..."
-                      />
+                      <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
+                        {t("API Key")}
+                      </div>
+                      <div className="relative">
+                        <input
+                          type={showApiKey ? "text" : "password"}
+                          autoComplete="new-password"
+                          spellCheck={false}
+                          className={`${inputClass} pr-10 font-mono`}
+                          value={activeProfile.api_key}
+                          onChange={(e) =>
+                            updateProfileField("api_key", e.target.value)
+                          }
+                          placeholder="sk-..."
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowApiKey((prev) => !prev)}
+                          className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
+                          aria-label={
+                            showApiKey ? t("Hide API key") : t("Show API key")
+                          }
+                          title={
+                            showApiKey ? t("Hide API key") : t("Show API key")
+                          }
+                        >
+                          {showApiKey ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
                     </div>
                     <div>
-                      <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">{t("API Version")}</div>
+                      <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
+                        {t("API Version")}
+                      </div>
                       <input
                         className={inputClass}
                         value={activeProfile.api_version}
-                        onChange={(e) => updateProfileField("api_version", e.target.value)}
+                        onChange={(e) =>
+                          updateProfileField("api_version", e.target.value)
+                        }
                         placeholder={t("Optional")}
                       />
                     </div>
                     {activeService === "search" ? (
                       <div>
-                        <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">{t("Proxy")}</div>
+                        <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
+                          {t("Proxy")}
+                        </div>
                         <input
                           className={inputClass}
                           value={activeProfile.proxy || ""}
-                          onChange={(e) => updateProfileField("proxy", e.target.value)}
+                          onChange={(e) =>
+                            updateProfileField("proxy", e.target.value)
+                          }
                           placeholder="http://127.0.0.1:7890 (optional)"
                         />
                       </div>
@@ -1106,8 +1107,12 @@ function SettingsPageContent() {
                         </div>
                         <textarea
                           className={`${inputClass} min-h-[84px] resize-y`}
-                          value={stringifyExtraHeaders(activeProfile.extra_headers)}
-                          onChange={(e) => updateProfileField("extra_headers", e.target.value)}
+                          value={stringifyExtraHeaders(
+                            activeProfile.extra_headers,
+                          )}
+                          onChange={(e) =>
+                            updateProfileField("extra_headers", e.target.value)
+                          }
                           placeholder='{"APP-Code":"your-app-code"}'
                         />
                       </div>
@@ -1118,7 +1123,9 @@ function SettingsPageContent() {
                 {activeService !== "search" && (
                   <div className="rounded-xl border border-[var(--border)] p-5">
                     <div className="mb-4 flex items-center justify-between">
-                      <div className="text-[13px] font-medium text-[var(--foreground)]">{t("Models")}</div>
+                      <div className="text-[13px] font-medium text-[var(--foreground)]">
+                        {t("Models")}
+                      </div>
                       <button
                         onClick={removeActiveModel}
                         disabled={!activeModel}
@@ -1135,11 +1142,13 @@ function SettingsPageContent() {
                             key={model.id}
                             onClick={() =>
                               mutateCatalog((next) => {
-                                next.services[activeService].active_model_id = model.id;
+                                next.services[activeService].active_model_id =
+                                  model.id;
                               })
                             }
                             className={`rounded-lg px-3 py-1.5 text-[13px] transition-colors ${
-                              model.id === draft.services[activeService].active_model_id
+                              model.id ===
+                              draft.services[activeService].active_model_id
                                 ? "bg-[var(--muted)] font-medium text-[var(--foreground)]"
                                 : "text-[var(--muted-foreground)] hover:bg-[var(--muted)]/50"
                             }`}
@@ -1152,17 +1161,136 @@ function SettingsPageContent() {
                     {activeModel && (
                       <div className="grid gap-4 sm:grid-cols-2">
                         <div>
-                          <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">{t("Label")}</div>
-                          <input className={inputClass} value={activeModel.name} onChange={(e) => updateModelField("name", e.target.value)} />
+                          <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
+                            {t("Label")}
+                          </div>
+                          <input
+                            className={inputClass}
+                            value={activeModel.name}
+                            onChange={(e) =>
+                              updateModelField("name", e.target.value)
+                            }
+                          />
                         </div>
                         <div>
-                          <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">{t("Model ID")}</div>
-                          <input className={inputClass} value={activeModel.model} onChange={(e) => updateModelField("model", e.target.value)} placeholder="gpt-4o" />
+                          <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
+                            {t("Model ID")}
+                          </div>
+                          <input
+                            className={inputClass}
+                            value={activeModel.model}
+                            onChange={(e) =>
+                              updateModelField("model", e.target.value)
+                            }
+                            placeholder="gpt-4o"
+                          />
                         </div>
+                        {activeService === "llm" && (
+                          <>
+                            <div>
+                              <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
+                                {t("Context Window")}
+                              </div>
+                              <input
+                                className={inputClass}
+                                inputMode="numeric"
+                                value={activeModel.context_window || ""}
+                                onChange={(e) =>
+                                  updateContextWindowField(e.target.value)
+                                }
+                                placeholder="65536"
+                              />
+                            </div>
+                            <div className="rounded-xl border border-[var(--border)]/70 bg-[var(--muted)]/30 px-3.5 py-3">
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="text-[11px] uppercase tracking-[0.16em] text-[var(--muted-foreground)]/70">
+                                  {t("Source")}
+                                </div>
+                                <span className="rounded-full border border-[var(--border)]/70 bg-[var(--card)] px-2.5 py-1 text-[11px] font-medium text-[var(--foreground)]">
+                                  {formatContextWindowSource(
+                                    activeModel.context_window_source,
+                                    t,
+                                  )}
+                                </span>
+                              </div>
+                              <p className="mt-2 text-[12px] leading-relaxed text-[var(--muted-foreground)]">
+                                {activeModel.context_window_source ===
+                                "metadata"
+                                  ? t(
+                                      "Detected from the provider during the latest LLM test and saved into model_catalog.json.",
+                                    )
+                                  : activeModel.context_window_source ===
+                                      "default"
+                                    ? t(
+                                        "The provider did not expose a context window, so the runtime fallback was saved during the latest LLM test.",
+                                      )
+                                    : activeModel.context_window_source ===
+                                        "manual"
+                                      ? t(
+                                          "Manual override from Settings. Save Draft to persist your edit.",
+                                        )
+                                      : t(
+                                          "Run the LLM test to auto-fill this field, or enter a value manually.",
+                                        )}
+                              </p>
+                              {activeModel.context_window_detected_at && (
+                                <div className="mt-2 text-[11px] text-[var(--muted-foreground)]/70">
+                                  {t("Detected at")}:{" "}
+                                  {formatContextWindowUpdatedAt(
+                                    activeModel.context_window_detected_at,
+                                    language,
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </>
+                        )}
                         {activeService === "embedding" && (
                           <div>
-                            <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">{t("Dimension")}</div>
-                            <input className={inputClass} value={activeModel.dimension || "3072"} onChange={(e) => updateModelField("dimension", e.target.value)} />
+                            <div className="mb-1.5 flex items-center justify-between gap-2">
+                              <span className="text-[12px] text-[var(--muted-foreground)]">
+                                {t("Dimension")}
+                              </span>
+                              <label className="inline-flex cursor-pointer items-center gap-1.5 text-[11px] text-[var(--muted-foreground)] select-none">
+                                <input
+                                  type="checkbox"
+                                  className="h-3 w-3 cursor-pointer accent-[var(--foreground)]"
+                                  checked={activeModel.send_dimensions !== false}
+                                  onChange={(e) =>
+                                    updateModelBoolField(
+                                      "send_dimensions",
+                                      e.target.checked,
+                                    )
+                                  }
+                                />
+                                <span>{t("Send dimensions")}</span>
+                                <span
+                                  tabIndex={0}
+                                  className="group/info relative inline-flex cursor-help focus:outline-none"
+                                >
+                                  <Info className="h-3 w-3 opacity-50 transition-opacity group-hover/info:opacity-100 group-focus/info:opacity-100" />
+                                  <span
+                                    role="tooltip"
+                                    className="pointer-events-none absolute top-full left-1/2 z-20 mt-1.5 w-64 -translate-x-1/2 rounded-lg border border-[var(--border)] bg-[var(--card)] p-2.5 text-[11px] leading-relaxed text-[var(--foreground)] opacity-0 shadow-lg transition-opacity duration-75 group-hover/info:opacity-100 group-focus/info:opacity-100"
+                                  >
+                                    {t(
+                                      "Some embedding models (e.g. Qwen text-embedding-v4) reject the `dimensions` request param. Turn this off if your provider returns HTTP 400.",
+                                    )}
+                                  </span>
+                                </span>
+                              </label>
+                            </div>
+                            <input
+                              className={inputClass}
+                              value={
+                                activeModel.dimension ||
+                                embeddingDefaultDim(activeProfile?.binding)
+                              }
+                              onChange={(e) =>
+                                updateModelField("dimension", e.target.value)
+                              }
+                              disabled={activeModel.send_dimensions === false}
+                            />
                           </div>
                         )}
                       </div>
@@ -1188,13 +1316,20 @@ function SettingsPageContent() {
               aria-expanded={diagnosticsOpen}
             >
               <Terminal className="h-3.5 w-3.5 text-[var(--muted-foreground)]" />
-              <span className="text-[13px] font-medium text-[var(--foreground)]">{t("Diagnostics")}</span>
-              {testRunning && <Loader2 className="h-3 w-3 animate-spin text-[var(--primary)]" />}
+              <span className="text-[13px] font-medium text-[var(--foreground)]">
+                {t("Diagnostics")}
+              </span>
+              {testRunning && (
+                <Loader2 className="h-3 w-3 animate-spin text-[var(--primary)]" />
+              )}
             </button>
             <div className="ml-3 flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => { if (!diagnosticsOpen) setDiagnosticsOpen(true); runDetailedTest(); }}
+                onClick={() => {
+                  if (!diagnosticsOpen) setDiagnosticsOpen(true);
+                  runDetailedTest();
+                }}
                 disabled={testRunning !== null}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)]/50 px-2.5 py-1 text-[12px] text-[var(--muted-foreground)] transition-colors hover:border-[var(--border)] hover:text-[var(--foreground)] disabled:opacity-40"
               >
@@ -1205,17 +1340,26 @@ function SettingsPageContent() {
                 type="button"
                 onClick={() => setDiagnosticsOpen((v) => !v)}
                 className="text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)]"
-                aria-label={diagnosticsOpen ? t("Collapse diagnostics") : t("Expand diagnostics")}
+                aria-label={
+                  diagnosticsOpen
+                    ? t("Collapse diagnostics")
+                    : t("Expand diagnostics")
+                }
                 aria-expanded={diagnosticsOpen}
               >
-                <ChevronDown className={`h-4 w-4 transition-transform ${diagnosticsOpen ? "rotate-180" : ""}`} />
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform ${diagnosticsOpen ? "rotate-180" : ""}`}
+                />
               </button>
             </div>
           </div>
           {diagnosticsOpen && (
             <div className="border-t border-[var(--border)] px-5 py-4">
               <p className="mb-3 text-[12px] leading-relaxed text-[var(--muted-foreground)]">
-                {t("Streams config snapshot, request target, response summary, and service-specific validation for the active {{service}} profile.", { service: activeService })}
+                {t(
+                  "Streams config snapshot, request target, response summary, and service-specific validation for the active {{service}} profile.",
+                  { service: activeService },
+                )}
               </p>
               <pre className="max-h-[360px] overflow-y-auto rounded-lg bg-[#0f0f0f] p-4 font-mono text-[12px] leading-6 text-[#777] dark:bg-[#0a0a0a]">
                 {logs}
@@ -1224,47 +1368,28 @@ function SettingsPageContent() {
           )}
         </div>
 
-        {/* ── Footer ── */}
-        <div className="flex items-center justify-between border-t border-[var(--border)]/30 pt-4 pb-2">
-          {!isTourMode && (
-            <button
-              onClick={reopenTour}
-              className="inline-flex items-center gap-1.5 text-[12px] text-[var(--muted-foreground)]/40 transition-colors hover:text-[var(--muted-foreground)]"
-            >
-              <RotateCcw className="h-3 w-3" />
-              {t("Run Terminal Tour")}
-            </button>
-          )}
-          <span className="text-[11px] text-[var(--muted-foreground)]/30 ml-auto">
-            v{draft.version}
-          </span>
-        </div>
+        {/* ── Footer note ── */}
+        <p className="mt-2 pb-4 text-[11px] leading-relaxed text-[var(--muted-foreground)]/40">
+          {t("settings.configNote")}
+        </p>
       </div>
 
       {/* ── Spotlight overlay (tour onboarding) ── */}
-      {isTourMode && tourGuideStep >= 0 && tourGuideStep < TOUR_GUIDE_STEPS.length && !tourCompleted && (
-        <SpotlightOverlay
-          stepIndex={tourGuideStep}
-          onNext={() => {
-            if (tourGuideStep < TOUR_GUIDE_STEPS.length - 1) {
-              setTourGuideStep((s) => s + 1);
-            } else {
-              setTourGuideStep(-1);
-            }
-          }}
-          onSkip={() => setTourGuideStep(-1)}
-        />
-      )}
-
-      {/* ── Test results modal (tour) ── */}
-      {isTourMode && tourTestPhase !== "idle" && (
-        <TestResultsModal
-          results={tourTestResults}
-          testing={tourTestPhase === "testing"}
-          onConfirm={confirmTourComplete}
-          onCancel={cancelTourTest}
-        />
-      )}
+      {tourGuideStep >= 0 &&
+        tourGuideStep < TOUR_GUIDE_STEPS.length &&
+        (
+          <SpotlightOverlay
+            stepIndex={tourGuideStep}
+            onNext={() => {
+              if (tourGuideStep < TOUR_GUIDE_STEPS.length - 1) {
+                setTourGuideStep((s) => s + 1);
+              } else {
+                setTourGuideStep(-1);
+              }
+            }}
+            onSkip={() => setTourGuideStep(-1)}
+          />
+        )}
     </div>
   );
 }

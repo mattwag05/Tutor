@@ -32,13 +32,12 @@ from deeptutor.knowledge.add_documents import DocumentAdder
 from deeptutor.knowledge.initializer import KnowledgeBaseInitializer
 from deeptutor.knowledge.manager import KnowledgeBaseManager
 from deeptutor.knowledge.progress_tracker import ProgressStage, ProgressTracker
-from deeptutor.services.rag.components.routing import FileTypeRouter
-from deeptutor.services.rag.factory import DEFAULT_PROVIDER, has_pipeline, normalize_provider_name
-from deeptutor.utils.document_validator import DocumentValidator
-from deeptutor.utils.error_utils import format_exception_message
-
 from deeptutor.logging import get_logger
 from deeptutor.services.config import PROJECT_ROOT, load_config_with_main
+from deeptutor.services.rag.factory import DEFAULT_PROVIDER
+from deeptutor.services.rag.file_routing import FileTypeRouter
+from deeptutor.utils.document_validator import DocumentValidator
+from deeptutor.utils.error_utils import format_exception_message
 
 # Initialize logger with config
 config = load_config_with_main("main.yaml", PROJECT_ROOT)
@@ -80,6 +79,8 @@ class KnowledgeBaseInfo(BaseModel):
     name: str
     is_default: bool
     statistics: dict
+    metadata: dict | None = None
+    path: str | None = None
     status: str | None = None
     progress: dict | None = None
 
@@ -99,6 +100,15 @@ class LinkedFolderInfo(BaseModel):
     file_count: int
 
 
+class SupportedFileTypesInfo(BaseModel):
+    """Upload constraints exposed to the web client."""
+
+    extensions: list[str]
+    accept: str
+    max_file_size_bytes: int
+    max_pdf_size_bytes: int
+
+
 def _build_unique_task_id(task_type: str, task_key_prefix: str) -> str:
     task_manager = TaskIDManager.get_instance()
     task_key = f"{task_key_prefix}_{datetime.now().isoformat()}_{uuid4().hex[:8]}"
@@ -112,50 +122,123 @@ def _save_uploaded_files(
 ) -> tuple[list[str], list[str]]:
     uploaded_files: list[str] = []
     uploaded_file_paths: list[str] = []
+    written_file_paths: list[Path] = []
 
-    for file in files:
-        file_path = None
-        original_filename = file.filename or "upload"
-        try:
-            sanitized_filename = DocumentValidator.validate_upload_safety(
-                original_filename, None, allowed_extensions=allowed_extensions
-            )
-            file.filename = sanitized_filename
+    try:
+        for file in files:
+            file_path = None
+            original_filename = file.filename or "upload"
+            try:
+                sanitized_filename = DocumentValidator.validate_upload_safety(
+                    original_filename,
+                    _get_upload_file_size(file),
+                    allowed_extensions=allowed_extensions,
+                )
+                file.filename = sanitized_filename
 
-            file_path = target_dir / sanitized_filename
-            max_size = DocumentValidator.MAX_FILE_SIZE
-            written_bytes = 0
+                file_path = target_dir / sanitized_filename
+                max_size = DocumentValidator.MAX_FILE_SIZE
+                written_bytes = 0
 
-            with open(file_path, "wb") as buffer:
-                for chunk in iter(lambda: file.file.read(8192), b""):
-                    written_bytes += len(chunk)
-                    if written_bytes > max_size:
-                        size_str = format_bytes_human_readable(max_size)
-                        raise HTTPException(
-                            status_code=400,
-                            detail=f"File '{sanitized_filename}' exceeds maximum size limit of {size_str}",
-                        )
-                    buffer.write(chunk)
+                file.file.seek(0)
+                with open(file_path, "wb") as buffer:
+                    for chunk in iter(lambda: file.file.read(8192), b""):
+                        written_bytes += len(chunk)
+                        if written_bytes > max_size:
+                            size_str = format_bytes_human_readable(max_size)
+                            raise HTTPException(
+                                status_code=400,
+                                detail=(
+                                    f"File '{sanitized_filename}' exceeds maximum size "
+                                    f"limit of {size_str}"
+                                ),
+                            )
+                        buffer.write(chunk)
 
-            DocumentValidator.validate_upload_safety(
-                sanitized_filename, written_bytes, allowed_extensions=allowed_extensions
-            )
-            uploaded_files.append(sanitized_filename)
-            uploaded_file_paths.append(str(file_path))
-        except Exception as e:
-            if file_path and file_path.exists():
+                DocumentValidator.validate_upload_safety(
+                    sanitized_filename, written_bytes, allowed_extensions=allowed_extensions
+                )
+                written_file_paths.append(file_path)
+                uploaded_files.append(sanitized_filename)
+                uploaded_file_paths.append(str(file_path))
+            except Exception as e:
+                if file_path and file_path.exists():
+                    try:
+                        os.unlink(file_path)
+                    except OSError:
+                        pass
+
+                error_message = (
+                    f"Validation failed for file '{original_filename}': {format_exception_message(e)}"
+                )
+                logger.error(error_message, exc_info=True)
+                raise HTTPException(status_code=400, detail=error_message) from e
+    except Exception:
+        for written_path in written_file_paths:
+            if written_path.exists():
                 try:
-                    os.unlink(file_path)
+                    os.unlink(written_path)
                 except OSError:
                     pass
+        raise
 
+    return uploaded_files, uploaded_file_paths
+
+
+def _get_upload_file_size(file: UploadFile) -> int | None:
+    """Best-effort byte size detection without consuming the uploaded stream."""
+    try:
+        current_position = file.file.tell()
+        file.file.seek(0, os.SEEK_END)
+        size = file.file.tell()
+        file.file.seek(current_position)
+        return size
+    except Exception:
+        return None
+
+
+def _validate_upload_batch(
+    files: list[UploadFile],
+    allowed_extensions: set[str] | None = None,
+) -> list[dict[str, int | str | None]]:
+    """Validate upload metadata before mutating KB state or writing any files."""
+    validated: list[dict[str, int | str | None]] = []
+    seen_names: set[str] = set()
+
+    for file in files:
+        original_filename = file.filename or "upload"
+        size_bytes = _get_upload_file_size(file)
+        try:
+            sanitized_filename = DocumentValidator.validate_upload_safety(
+                original_filename,
+                size_bytes,
+                allowed_extensions=allowed_extensions,
+            )
+        except Exception as e:
             error_message = (
                 f"Validation failed for file '{original_filename}': {format_exception_message(e)}"
             )
-            logger.error(error_message, exc_info=True)
             raise HTTPException(status_code=400, detail=error_message) from e
 
-    return uploaded_files, uploaded_file_paths
+        if sanitized_filename in seen_names:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Duplicate filename after sanitization: '{sanitized_filename}'. "
+                    "Rename one of the files and try again."
+                ),
+            )
+
+        seen_names.add(sanitized_filename)
+        validated.append(
+            {
+                "original_filename": original_filename,
+                "sanitized_filename": sanitized_filename,
+                "size_bytes": size_bytes,
+            }
+        )
+
+    return validated
 
 
 def _task_log(task_id: str, message: str, level: str = "info") -> None:
@@ -171,23 +254,8 @@ def _task_log(task_id: str, message: str, level: str = "info") -> None:
 
 
 def _validate_registered_provider(raw_provider: str | None) -> str:
-    candidate = (raw_provider or DEFAULT_PROVIDER).strip().lower()
-    if not candidate:
-        candidate = DEFAULT_PROVIDER
-
-    if not has_pipeline(candidate):
-        from deeptutor.services.rag.service import RAGService
-
-        available_providers = [item["id"] for item in RAGService.list_providers()]
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"Unsupported RAG provider '{candidate}'. "
-                f"Available providers: {available_providers}"
-            ),
-        )
-
-    return normalize_provider_name(candidate)
+    """Always return the canonical provider; field is kept as a stub."""
+    return DEFAULT_PROVIDER
 
 
 def _load_kb_entry_or_404(manager: KnowledgeBaseManager, kb_name: str) -> dict:
@@ -232,7 +300,10 @@ async def run_initialization_task(initializer: KnowledgeBaseInitializer, task_id
             _task_log(task_id, "Finalizing initialization")
 
             initializer.progress_tracker.update(
-                ProgressStage.COMPLETED, "Knowledge base initialization complete!", current=1, total=1
+                ProgressStage.COMPLETED,
+                "Knowledge base initialization complete!",
+                current=1,
+                total=1,
             )
 
             manager = get_kb_manager()
@@ -250,7 +321,9 @@ async def run_initialization_task(initializer: KnowledgeBaseInitializer, task_id
                 },
             )
 
-            _task_log(task_id, f"Knowledge base '{initializer.kb_name}' initialized", level="success")
+            _task_log(
+                task_id, f"Knowledge base '{initializer.kb_name}' initialized", level="success"
+            )
             task_manager.update_task_status(task_id, "completed")
             task_stream_manager.emit_complete(
                 task_id, f"Knowledge base '{initializer.kb_name}' initialization complete"
@@ -363,7 +436,9 @@ async def run_upload_processing_task(
                     )
                     _task_log(task_id, f"Updated folder sync state: {folder_id}")
                 except Exception as sync_err:
-                    _task_log(task_id, f"Folder sync state update failed: {sync_err}", level="warning")
+                    _task_log(
+                        task_id, f"Folder sync state update failed: {sync_err}", level="warning"
+                    )
 
             num_processed = len(processed_files) if processed_files else 0
             progress_tracker.update(
@@ -373,7 +448,9 @@ async def run_upload_processing_task(
                 total=num_processed,
             )
 
-            _task_log(task_id, f"Processed {num_processed} file(s) for '{kb_name}'", level="success")
+            _task_log(
+                task_id, f"Processed {num_processed} file(s) for '{kb_name}'", level="success"
+            )
             task_manager.update_task_status(task_id, "completed")
             task_stream_manager.emit_complete(
                 task_id, f"Successfully processed {num_processed} files for '{kb_name}'"
@@ -420,6 +497,18 @@ async def get_rag_providers():
     except Exception as e:
         logger.error(f"Error getting RAG providers: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/supported-file-types", response_model=SupportedFileTypesInfo)
+async def get_supported_file_types():
+    """Return the current upload policy so the web client stays in sync."""
+    extensions = sorted(FileTypeRouter.get_supported_extensions())
+    return SupportedFileTypesInfo(
+        extensions=extensions,
+        accept=",".join(extensions),
+        max_file_size_bytes=DocumentValidator.MAX_FILE_SIZE,
+        max_pdf_size_bytes=DocumentValidator.MAX_PDF_SIZE,
+    )
 
 
 @router.get("/configs")
@@ -538,6 +627,8 @@ async def list_knowledge_bases():
                         name=info["name"],
                         is_default=info["is_default"],
                         statistics=info.get("statistics", {}),
+                        metadata=info.get("metadata"),
+                        path=info.get("path"),
                         status=info.get("status"),
                         progress=info.get("progress"),
                     )
@@ -560,6 +651,8 @@ async def list_knowledge_bases():
                                     "content_lists": 0,
                                     "rag_initialized": False,
                                 },
+                                metadata=None,
+                                path=str(kb_dir),
                                 status="unknown",
                                 progress=None,
                             )
@@ -647,7 +740,9 @@ async def upload_files(
 
         kb_entry = _load_kb_entry_or_404(manager, kb_name)
         _assert_kb_writable_or_409(kb_name, kb_entry)
-        kb_provider = _validate_registered_provider(kb_entry.get("rag_provider") or DEFAULT_PROVIDER)
+        kb_provider = _validate_registered_provider(
+            kb_entry.get("rag_provider") or DEFAULT_PROVIDER
+        )
         if requested_provider and requested_provider != kb_provider:
             raise HTTPException(
                 status_code=400,
@@ -656,7 +751,8 @@ async def upload_files(
                     "Update KB config first."
                 ),
             )
-        allowed_extensions = FileTypeRouter.get_extensions_for_provider(kb_provider)
+        allowed_extensions = FileTypeRouter.get_supported_extensions()
+        _validate_upload_batch(files, allowed_extensions=allowed_extensions)
         uploaded_files, uploaded_file_paths = _save_uploaded_files(
             files, raw_dir, allowed_extensions=allowed_extensions
         )
@@ -703,6 +799,8 @@ async def create_knowledge_base(
             raise HTTPException(status_code=400, detail=f"Knowledge base '{name}' already exists")
 
         rag_provider = _validate_registered_provider(rag_provider)
+        allowed_extensions = FileTypeRouter.get_supported_extensions()
+        _validate_upload_batch(files, allowed_extensions=allowed_extensions)
 
         logger.info(f"Creating KB: {name}")
         task_id = _build_unique_task_id("kb_init", name)
@@ -746,7 +844,6 @@ async def create_knowledge_base(
             logger.warning(f"KB {name} not found in config, registering manually")
             initializer._register_to_config()
 
-        allowed_extensions = FileTypeRouter.get_extensions_for_provider(rag_provider)
         uploaded_files, _ = _save_uploaded_files(
             files, initializer.raw_dir, allowed_extensions=allowed_extensions
         )
@@ -837,24 +934,29 @@ async def websocket_progress(websocket: WebSocket, kb_name: str):
 
         if not has_active_task and not expected_task_id:
             if kb_is_ready:
-                await websocket.send_json({
-                    "type": "progress",
-                    "data": {
-                        "stage": "completed",
-                        "message": "Knowledge base is ready.",
-                        "percent": 100,
-                        "current": 1,
-                        "total": 1,
-                    },
-                })
+                await websocket.send_json(
+                    {
+                        "type": "progress",
+                        "data": {
+                            "stage": "completed",
+                            "message": "Knowledge base is ready.",
+                            "percent": 100,
+                            "current": 1,
+                            "total": 1,
+                        },
+                    }
+                )
             else:
-                await websocket.send_json({
-                    "type": "progress",
-                    "data": initial_progress or {
-                        "stage": "error",
-                        "message": "Knowledge base needs reindex or initialization.",
-                    },
-                })
+                await websocket.send_json(
+                    {
+                        "type": "progress",
+                        "data": initial_progress
+                        or {
+                            "stage": "error",
+                            "message": "Knowledge base needs reindex or initialization.",
+                        },
+                    }
+                )
             return
 
         if initial_progress:
@@ -891,7 +993,11 @@ async def websocket_progress(websocket: WebSocket, kb_name: str):
                     current_progress = progress_tracker.get_progress()
                     if current_progress:
                         progress_task_id = current_progress.get("task_id")
-                        if expected_task_id and progress_task_id and progress_task_id != expected_task_id:
+                        if (
+                            expected_task_id
+                            and progress_task_id
+                            and progress_task_id != expected_task_id
+                        ):
                             continue
                         current_timestamp = current_progress.get("timestamp")
                         if current_timestamp != last_timestamp:
@@ -993,7 +1099,9 @@ async def sync_folder(kb_name: str, folder_id: str, background_tasks: Background
         manager = get_kb_manager()
         kb_entry = _load_kb_entry_or_404(manager, kb_name)
         _assert_kb_writable_or_409(kb_name, kb_entry)
-        kb_provider = _validate_registered_provider(kb_entry.get("rag_provider") or DEFAULT_PROVIDER)
+        kb_provider = _validate_registered_provider(
+            kb_entry.get("rag_provider") or DEFAULT_PROVIDER
+        )
 
         # Get linked folders and find the one with matching ID
         folders = manager.get_linked_folders(kb_name)

@@ -4,9 +4,8 @@ DecomposeAgent - Topic decomposition Agent
 Responsible for decomposing topics into multiple subtopics and generating overviews for each subtopic
 """
 
-from typing import Any
-
 import json
+from typing import Any
 
 from deeptutor.agents.base_agent import BaseAgent
 from deeptutor.agents.research.data_structures import ToolTrace
@@ -44,7 +43,7 @@ class DecomposeAgent(BaseAgent):
         api_key: str | None = None,
         base_url: str | None = None,
         api_version: str | None = None,
-        kb_name: str = "ai_textbook",
+        kb_name: str | None = None,
     ):
         language = config.get("system", {}).get("language", "zh")
         super().__init__(
@@ -56,11 +55,17 @@ class DecomposeAgent(BaseAgent):
             language=language,
             config=config,
         )
-        rag_cfg = config.get("rag", {})
-        self.kb_name = rag_cfg.get("kb_name", kb_name or "ai_textbook")
+        rag_cfg = config.get("rag", {}) or {}
+        self.kb_name = rag_cfg.get("kb_name") or kb_name or None
 
         researching_cfg = config.get("researching", {})
         self.enable_rag = researching_cfg.get("enable_rag", True)
+        # Defensive: never attempt RAG without a real KB name. The
+        # capability/runtime config layer is responsible for stripping
+        # ``kb`` from sources when no KB is attached, but this guard keeps
+        # the agent safe even when called directly.
+        if not self.kb_name:
+            self.enable_rag = False
 
         self.conversation_history: list[dict[str, Any]] = config.get("conversation_history", [])
 
@@ -90,15 +95,12 @@ class DecomposeAgent(BaseAgent):
             "\n<conversation_history>\n"
             "The following is the conversation history of this session. "
             "If the user's current request references or modifies a previous outline, "
-            "use this history as context.\n\n"
-            + "\n\n".join(parts)
-            + "\n</conversation_history>\n"
+            "use this history as context.\n\n" + "\n\n".join(parts) + "\n</conversation_history>\n"
         )
 
     def _get_mode_contract(self, stage: str) -> str:
         return (
-            self.get_prompt("mode_contracts", f"{self._research_style}_{stage}", "")
-            or ""
+            self.get_prompt("mode_contracts", f"{self._research_style}_{stage}", "") or ""
         ).strip()
 
     async def process(
@@ -173,6 +175,9 @@ class DecomposeAgent(BaseAgent):
         source_query = (topic or "").strip()
         if not source_query:
             return "", ""
+        if not self.kb_name:
+            print("  ⚠️ No knowledge base configured; skipping RAG retrieval.")
+            return "", source_query
 
         try:
             result = await rag_search(query=source_query, kb_name=self.kb_name)
@@ -269,7 +274,7 @@ Generate exactly {num_subtopics} subtopics. Please ensure exactly {num_subtopics
         response = "".join(_chunks)
 
         # Parse JSON output
-        from ..utils.json_utils import ensure_json_dict, ensure_keys, extract_json_from_text
+        from ..utils.json_utils import ensure_json_dict, ensure_keys
 
         data = extract_json_from_text(response)
         try:
@@ -355,7 +360,7 @@ Dynamically generate no more than {max_subtopics} subtopics. Please carefully an
         response = "".join(_chunks)
 
         # Parse JSON output (strict validation)
-        from ..utils.json_utils import ensure_json_dict, ensure_keys, extract_json_from_text
+        from ..utils.json_utils import ensure_json_dict, ensure_keys
 
         data = extract_json_from_text(response)
         try:
@@ -427,7 +432,7 @@ Explicitly generate {num_subtopics} subtopics. Please ensure exactly {num_subtop
         response = "".join(_chunks)
 
         # Parse JSON output (strict validation)
-        from ..utils.json_utils import ensure_json_dict, ensure_keys, extract_json_from_text
+        from ..utils.json_utils import ensure_json_dict, ensure_keys
 
         data = extract_json_from_text(response)
         try:

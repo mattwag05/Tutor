@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
+    "test:node": "node ./scripts/run-node-tests.mjs",
     "perf:check": "node ./scripts/route_budgets.mjs",
     "build:perf": "npm run build && npm run perf:check",
     "i18n:parity": "node ./scripts/i18n_parity.mjs",
@@ -49,7 +50,7 @@
     "@types/react-syntax-highlighter": "^15.5.13",
     "autoprefixer": "^10.4.20",
     "eslint": "^9",
-    "eslint-config-next": "16.1.1",
+    "eslint-config-next": "16.2.3",
     "postcss": "^8",
     "tailwindcss": "^3.4.17",
     "typescript": "^5"
