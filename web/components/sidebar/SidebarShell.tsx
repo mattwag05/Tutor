@@ -42,7 +42,7 @@ const PRIMARY_NAV: NavEntry[] = [
   { href: "/book", label: "Book", icon: Library },
   { href: "/knowledge", label: "Knowledge", icon: BookOpen },
   { href: "/memory", label: "Memory", icon: Brain },
-  { href: "/classroom", label: "Classroom", icon: Presentation, external: "https://deeptutor.tail6e035b.ts.net:3100" },
+  { href: "/classroom", label: "Classroom", icon: Presentation, external: "https://openmaic.tail6e035b.ts.net" },
 ];
 
 const SECONDARY_NAV: NavEntry[] = [
