@@ -209,8 +209,10 @@ export async function POST(req: NextRequest) {
     // Build teacher context from agents (if available)
     const teacherContext = formatTeacherPersonaForPrompt(agents);
 
-    // Enrich research context with DeepTutor RAG if KB selected
-    let enrichedResearchContext = researchContext || (requirements.language === 'zh-CN' ? '无' : 'None');
+    // Enrich research context with DeepTutor RAG if KB selected.
+    // Default to "None" — upstream now infers language downstream via
+    // languageDirective, so we no longer branch on requirements.language here.
+    let enrichedResearchContext = researchContext || 'None';
     if (knowledgeBase && isDeepTutorEnabled()) {
       try {
         const ragContext = await getRAGContextForGeneration(knowledgeBase, requirements.requirement);
