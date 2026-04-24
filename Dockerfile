@@ -266,7 +266,7 @@ echo "[Frontend] 🚀 Starting Next.js frontend on port ${FRONTEND_PORT}..."
 
 # Replace placeholder in built Next.js files
 # This is necessary because NEXT_PUBLIC_* vars are inlined at build time
-find /app/web/.next -type f \( -name "*.js" -o -name "*.json" \) -exec \
+find /app/web/.next -type f \( -name "*.js" -o -name "*.json" -o -name "*.html" \) -exec \
     sed -i "s|__NEXT_PUBLIC_API_BASE_PLACEHOLDER__|${API_BASE}|g; s|__NEXT_PUBLIC_OPENMAIC_URL_PLACEHOLDER__|${OPENMAIC_URL}|g" {} \; 2>/dev/null || true
 
 # Start Next.js standalone server
