@@ -18,16 +18,19 @@ This document covers only what's different in this fork.
 
 Running on a single Raspberry Pi 5 (`pironman`, 100.75.2.44) via Docker Compose.
 
-| Surface | URL | Internal → External |
+| Surface | URL | Internal port |
 |---|---|---|
-| Frontend (DeepTutor web) | https://deeptutor.tail6e035b.ts.net | 3782 → 443 |
-| Backend (FastAPI) | https://deeptutor.tail6e035b.ts.net:8001 | 8002 → 8001 |
-| OpenMAIC (Classroom / Course Builder) | https://deeptutor.tail6e035b.ts.net:3100 | 3101 → 3100 |
+| Frontend (DeepTutor web) | https://deeptutor.tail6e035b.ts.net | 3782 |
+| Backend (FastAPI) | https://deeptutor-api.tail6e035b.ts.net | 8001 |
+| OpenMAIC (Classroom / Course Builder) | https://openmaic.tail6e035b.ts.net | 3101 |
 
-All three containers share a Tailscale network namespace
-(`network_mode: service:tailscale-deeptutor`). The sidecar's
-[tailscale/ts-serve.json](tailscale/ts-serve.json) proxies each external port
-to its internal service.
+Each service is fronted by [caddy-tailscale](https://github.com/tailscale/caddy-tailscale)
+running on Pironman — the Caddyfile uses `bind tailscale/<hostname>` to create
+a tsnet node per service and reverse-proxy to the local Docker container.
+The containers themselves bind to `127.0.0.1` on the host and are only
+reachable through Caddy. Compose file for the running stack is
+`docker-compose.pironman.yml` (Pi-local, not in this repo — bridge-network
+topology with an env-file per service). See the Deployment section below.
 
 ---
 
@@ -51,8 +54,8 @@ DeepTutor/
 │   ├── lib/integrations/         ← fork-only: DeepTutor RAG client
 │   └── lib/generation/           Outline + scene pipelines (LangChain + AI SDK)
 ├── config/                       main.yaml · agents.yaml
-├── tailscale/ts-serve.json       Reverse-proxy topology for the sidecar
-├── docker-compose.yml            Three-service stack (tailscale + deeptutor + openmaic)
+├── tailscale/ts-serve.json       Tailscale-sidecar reverse-proxy config (reference topology — NOT used in production, see below)
+├── docker-compose.yml            Reference Tailscale-sidecar stack (committed, not the deployed compose file)
 └── scripts/start_web.py          Local dev entry point
 ```
 
@@ -180,53 +183,55 @@ DEEPTUTOR_ENABLED=true
 
 ### Pironman (production)
 
-```bash
-ssh root@100.75.2.44
-cd /home/matthewwagner/DeepTutor
+Deployed path: `/home/matthewwagner/homelab/deeptutor/`. SSH as `matthewwagner`
+(`ssh pironman` with the configured alias).
 
+The production compose is `docker-compose.pironman.yml` — a **Pi-local file not
+in this repo's git history** — using `ghcr.io/hkuds/deeptutor:latest` (upstream's
+prebuilt image, mounted with `./data/{user,knowledge_bases}`) and a locally-built
+`openmaic:latest`. Both containers sit on a bridge network named
+`deeptutor-network`; external access is via `caddy-tailscale` on Pironman
+(separate container), which owns the three tsnet nodes `deeptutor`,
+`deeptutor-api`, and `openmaic`.
+
+The committed [docker-compose.yml](docker-compose.yml) in this repo is a
+reference topology (Tailscale sidecar + shared network namespace). It's not
+what runs on Pironman — don't be confused by the port gymnastics in it.
+
+**Deploy the fork:**
+
+```bash
+ssh pironman
+cd /home/matthewwagner/homelab/deeptutor
+
+# Pull latest (or, during preview, apply via git-bundle instead of `git pull`)
 git pull origin main
 
-# Rebuild OpenMAIC image (separate build context)
-cd services/openmaic && docker build -t openmaic:latest . && cd ../..
+# Rebuild OpenMAIC from fork source
+cd services/openmaic
+sudo docker build -t openmaic:latest .
+cd ../..
 
-# Rebuild DeepTutor + recreate stack
-docker compose build deeptutor
-docker compose up -d                      # use `up -d`, not `restart` — `restart` won't re-read compose file
+# (optional) pull a newer upstream DeepTutor image
+sudo docker pull ghcr.io/hkuds/deeptutor:latest
 
-docker ps                                 # should show 3 running: tailscale-deeptutor, deeptutor, openmaic
+# Recreate stack
+sudo docker compose -f docker-compose.pironman.yml up -d
+
+sudo docker ps --filter name=deeptutor --filter name=openmaic
 ```
 
-### Port-collision rules (shared Tailscale namespace)
-
-Because `deeptutor` and `openmaic` both use `network_mode: service:tailscale-deeptutor`,
-they share an IP with the Tailscale Serve process. Tailscale Serve binds **external**
-ports (443, 3100, 8001) in that namespace — so internal services must listen on
-**different** ports.
-
-| Service | Must listen on | Exposed as |
-|---|---|---|
-| DeepTutor backend (uvicorn) | **8002** | 8001 |
-| DeepTutor frontend (Next.js) | 3782 | 443 |
-| OpenMAIC (Next.js) | **3101** | 3100 |
-
-Putting the backend on 8001 or OpenMAIC on 3100 causes `EADDRINUSE` in the
-namespace. The `.env` and `docker-compose.yml` already have the correct values —
-don't "fix" them.
-
-### pnpm lockfile regeneration
-
-When `services/openmaic/package.json` gets new deps, regenerate the lockfile
-before building:
+**pnpm lockfile gotcha:** an upstream OpenMAIC sync will almost always bump
+enough deps to invalidate `services/openmaic/pnpm-lock.yaml`, and the Dockerfile
+runs `pnpm install --frozen-lockfile` — so the build will fail until the
+lockfile is regenerated:
 
 ```bash
 cd services/openmaic
-docker run --rm -v "$(pwd):/app" -w /app node:22-alpine \
+sudo docker run --rm -v "$(pwd):/app" -w /app node:22-alpine \
   sh -c 'corepack enable && corepack prepare pnpm@10.28.0 --activate && pnpm install --no-frozen-lockfile'
+# commit the regenerated pnpm-lock.yaml back on M4 before shipping
 ```
-
-### Tailscale auth key
-
-From Vaultwarden: `get-secret "Tailscale Auth Key"` → set `TS_AUTHKEY` in `.env`.
 
 ---
 
