@@ -49,31 +49,23 @@ cd web && npm run dev                                            # frontend
 
 ## Architecture
 
-### Backend (`src/`)
+### Backend (`deeptutor/`)
+
+Python package root is `deeptutor/` (not `src/`). Repo also has top-level `services/` for OpenMAIC and other sidecars.
 
 ```
-src/
-├── main.py                  # FastAPI app entry point
-├── agents/                  # Multi-agent system
-│   ├── base_agent.py        # Abstract agent base class
-│   ├── chat/                # Conversational QA agent
-│   ├── solve/               # Problem-solving agent
-│   ├── research/            # Deep research agent
-│   ├── guide/               # Learning guidance agent
-│   ├── question/            # Question generation agent
-│   ├── ideagen/             # Idea generation agent
-│   ├── co_writer/           # Co-writing assistant agent
-│   └── course/              # Course generation agent (Phase 1)
-├── services/
-│   ├── llm/                 # LLM abstraction layer
-│   │   ├── factory.py       # Provider routing (cloud vs local)
-│   │   ├── config.py        # Config loader (.env + unified service)
-│   │   └── providers/       # Per-provider implementations
-│   ├── embedding/           # Embedding abstraction layer
-│   │   ├── config.py        # Embedding config loader
-│   │   └── adapters/        # ollama.py, openai_compatible.py, jina.py, cohere.py
-│   └── config/              # Unified config service (runtime settings DB)
+deeptutor/
+├── __main__.py              # FastAPI app entry point
+├── agents/                  # Multi-agent system (chat, solve, research, guide, question, ideagen, co_writer)
+├── api/                     # FastAPI routers + main.py wiring
+├── app/
+├── capabilities/
+├── core/
+├── events/
+├── knowledge/               # RAG / retrieval / embedding adapters
+├── logging/
 └── ...
+services/openmaic/           # OpenMAIC (classroom/reader layer) — separate container
 ```
 
 ### Frontend (`web/`)
@@ -100,11 +92,11 @@ source .venv/bin/activate
 .venv/bin/python -m pytest tests/
 
 # Lint (Ruff)
-.venv/bin/ruff check src/
-.venv/bin/ruff format src/
+.venv/bin/ruff check deeptutor/
+.venv/bin/ruff format deeptutor/
 
 # Type checking
-.venv/bin/mypy src/
+.venv/bin/mypy deeptutor/
 ```
 
 **Runtime:** Python 3.11 (pinned via `.venv`)
@@ -151,7 +143,7 @@ npx tsc --noEmit  # TypeScript type check (run from web/ dir)
 
 ## Course Builder
 
-The Course Builder feature lives **entirely in `services/openmaic/`** (Oboe.com-style reader), NOT in `src/agents/course/` which does not exist. Entry points:
+The Course Builder feature lives **entirely in `services/openmaic/`** (Oboe.com-style reader), NOT in `deeptutor/agents/course/` which does not exist. Entry points:
 - `services/openmaic/app/course/page.tsx` — landing (topic input + outline streaming)
 - `services/openmaic/app/course/[id]/page.tsx` — article-reader viewer
 - `services/openmaic/lib/generation/prompts/templates/course-{outline,section}/` — prompts
@@ -217,13 +209,13 @@ git merge upstream/main
 
 Five places must be updated to wire in a new module (e.g. `mymodule`):
 
-1. **`src/agents/mymodule/`** — Create agent files inheriting from `BaseAgent(module_name="mymodule", ...)`
+1. **`deeptutor/agents/mymodule/`** — Create agent files inheriting from `BaseAgent(module_name="mymodule", ...)`
 2. **`config/agents.yaml`** — Add `mymodule:` section with `temperature` and `max_tokens`; section key MUST match `module_name` exactly or params silently default
-3. **`src/api/routers/mymodule.py`** — Create router; inject LLM config via `get_llm_config()`
-4. **`src/api/main.py`** — Add import + `app.include_router(mymodule.router, prefix="/api/v1/mymodule", tags=["mymodule"])`
+3. **`deeptutor/api/routers/mymodule.py`** — Create router; inject LLM config via `get_llm_config()`
+4. **`deeptutor/api/main.py`** — Add import + `app.include_router(mymodule.router, prefix="/api/v1/mymodule", tags=["mymodule"])`
 5. **Frontend nav** — Add entry to `ALL_NAV_ITEMS` in `web/components/Sidebar.tsx` (import icon) AND add path to `DEFAULT_NAV_ORDER.learnResearch` in `web/context/GlobalContext.tsx`. Existing users' saved nav orders auto-merge new defaults on page load.
 
-**Verify wiring:** `source .venv/bin/activate && python -c "from src.api.routers import mymodule; print('OK')"`
+**Verify wiring:** `source .venv/bin/activate && python -c "from deeptutor.api.routers import mymodule; print('OK')"`
 
 **Storage:** New modules must call `mkdir(parents=True, exist_ok=True)` on their own data dirs — `init_user_directories()` only creates pre-declared dirs.
 
