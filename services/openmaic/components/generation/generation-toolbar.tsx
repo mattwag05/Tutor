@@ -27,6 +27,13 @@ import { MediaPopover } from '@/components/generation/media-popover';
 const MAX_PDF_SIZE_MB = 50;
 const MAX_PDF_SIZE_BYTES = MAX_PDF_SIZE_MB * 1024 * 1024;
 
+// Module-scope KB cache — survives toolbar remounts within the same page session.
+// Cleared on full reload, which is the right TTL for "configured KBs on this server."
+let kbCache: {
+  available: boolean;
+  knowledgeBases: Array<{ name: string; documentCount: number }>;
+} | null = null;
+
 // ─── Types ───────────────────────────────────────────────────
 export interface GenerationToolbarProps {
   webSearch: boolean;
@@ -66,20 +73,51 @@ export function GenerationToolbar({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
 
-  // Knowledge Base state
-  const [kbList, setKbList] = useState<Array<{ name: string; documentCount: number }>>([]);
-  const [kbAvailable, setKbAvailable] = useState(false);
-  const [kbLoading, setKbLoading] = useState(true);
+  // Knowledge Base state — lazy-fetched the first time the user opens the
+  // KB popover. Cached at module scope so subsequent toolbar mounts (after
+  // navigation) reuse the result without an extra round-trip.
+  const [kbList, setKbList] = useState<Array<{ name: string; documentCount: number }>>(
+    () => kbCache?.knowledgeBases ?? [],
+  );
+  const [kbAvailable, setKbAvailable] = useState<boolean>(
+    () => kbCache?.available ?? false,
+  );
+  const [kbLoading, setKbLoading] = useState(false);
+  const kbFetchedRef = useRef<boolean>(kbCache !== null);
+  const kbAbortRef = useRef<AbortController | null>(null);
 
-  useEffect(() => {
-    fetch('/api/knowledge-bases')
+  const loadKbList = () => {
+    if (kbFetchedRef.current || kbLoading) return;
+    setKbLoading(true);
+    const controller = new AbortController();
+    kbAbortRef.current = controller;
+    fetch('/api/knowledge-bases', { signal: controller.signal })
       .then((r) => r.json())
       .then((data) => {
-        setKbAvailable(data.available ?? false);
-        setKbList(data.knowledgeBases ?? []);
+        const available = data.available ?? false;
+        const knowledgeBases = data.knowledgeBases ?? [];
+        kbCache = { available, knowledgeBases };
+        setKbAvailable(available);
+        setKbList(knowledgeBases);
+        kbFetchedRef.current = true;
       })
-      .catch(() => setKbAvailable(false))
-      .finally(() => setKbLoading(false));
+      .catch((err) => {
+        if (err?.name !== 'AbortError') {
+          setKbAvailable(false);
+          kbFetchedRef.current = true;
+        }
+      })
+      .finally(() => {
+        if (kbAbortRef.current === controller) kbAbortRef.current = null;
+        setKbLoading(false);
+      });
+  };
+
+  useEffect(() => {
+    return () => {
+      kbAbortRef.current?.abort();
+      kbAbortRef.current = null;
+    };
   }, []);
 
   // Check if the selected web search provider has a valid config (API key or server-configured)
@@ -375,14 +413,18 @@ export function GenerationToolbar({
         </Tooltip>
       )}
 
-      {/* ── Knowledge Base pill ── */}
-      {kbLoading ? (
-        <button className={pillMuted} disabled>
-          <Loader2 className="size-3.5 animate-spin" />
-          <span>{t('toolbar.knowledgeBaseLoading')}</span>
-        </button>
-      ) : kbAvailable ? (
-        <Popover>
+      {/* ── Knowledge Base pill ── lazy-fetches list on first open */}
+      {kbFetchedRef.current && !kbAvailable ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button className={pillMuted} disabled style={{ opacity: 0.5 }}>
+              <BookOpen className="size-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>{t('toolbar.knowledgeBaseUnavailable')}</TooltipContent>
+        </Tooltip>
+      ) : (
+        <Popover onOpenChange={(open) => { if (open) loadKbList(); }}>
           <PopoverTrigger asChild>
             <button className={knowledgeBase ? pillActive : pillMuted}>
               <BookOpen className="size-3.5" />
@@ -392,47 +434,51 @@ export function GenerationToolbar({
             </button>
           </PopoverTrigger>
           <PopoverContent className="w-64 p-2" align="start">
-            <button
-              onClick={() => onKnowledgeBaseChange(null)}
-              className={cn(
-                'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors hover:bg-muted/60',
-                !knowledgeBase && 'bg-muted/40 font-medium',
-              )}
-            >
-              <span className="flex-1">{t('toolbar.knowledgeBaseNone')}</span>
-              {!knowledgeBase && <Check className="size-3.5 text-violet-600 dark:text-violet-400" />}
-            </button>
-            {kbList.map((kb) => {
-              const isSelected = knowledgeBase === kb.name;
-              return (
+            {kbLoading ? (
+              <div className="flex items-center gap-2 px-2 py-2 text-xs text-muted-foreground">
+                <Loader2 className="size-3.5 animate-spin" />
+                <span>{t('toolbar.knowledgeBaseLoading')}</span>
+              </div>
+            ) : !kbAvailable ? (
+              <div className="px-2 py-2 text-xs text-muted-foreground">
+                {t('toolbar.knowledgeBaseUnavailable')}
+              </div>
+            ) : (
+              <>
                 <button
-                  key={kb.name}
-                  onClick={() => onKnowledgeBaseChange(kb.name)}
+                  onClick={() => onKnowledgeBaseChange(null)}
                   className={cn(
                     'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors hover:bg-muted/60',
-                    isSelected && 'bg-muted/40 font-medium',
+                    !knowledgeBase && 'bg-muted/40 font-medium',
                   )}
                 >
-                  <span className="flex-1 truncate">{kb.name}</span>
-                  <span className="text-[10px] text-muted-foreground">{kb.documentCount} docs</span>
-                  {isSelected && <Check className="size-3.5 text-violet-600 dark:text-violet-400" />}
+                  <span className="flex-1">{t('toolbar.knowledgeBaseNone')}</span>
+                  {!knowledgeBase && <Check className="size-3.5 text-violet-600 dark:text-violet-400" />}
                 </button>
-              );
-            })}
-            <p className="mt-1.5 px-2 text-[10px] text-muted-foreground/70">
-              {t('toolbar.knowledgeBaseHint')}
-            </p>
+                {kbList.map((kb) => {
+                  const isSelected = knowledgeBase === kb.name;
+                  return (
+                    <button
+                      key={kb.name}
+                      onClick={() => onKnowledgeBaseChange(kb.name)}
+                      className={cn(
+                        'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors hover:bg-muted/60',
+                        isSelected && 'bg-muted/40 font-medium',
+                      )}
+                    >
+                      <span className="flex-1 truncate">{kb.name}</span>
+                      <span className="text-[10px] text-muted-foreground">{kb.documentCount} docs</span>
+                      {isSelected && <Check className="size-3.5 text-violet-600 dark:text-violet-400" />}
+                    </button>
+                  );
+                })}
+                <p className="mt-1.5 px-2 text-[10px] text-muted-foreground/70">
+                  {t('toolbar.knowledgeBaseHint')}
+                </p>
+              </>
+            )}
           </PopoverContent>
         </Popover>
-      ) : (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button className={pillMuted} disabled style={{ opacity: 0.5 }}>
-              <BookOpen className="size-3.5" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>{t('toolbar.knowledgeBaseUnavailable')}</TooltipContent>
-        </Tooltip>
       )}
 
       {/* ── Separator ── */}
