@@ -375,7 +375,7 @@ export function GenerationToolbar({
         </Tooltip>
       )}
 
-      {/* ── Knowledge Base pill (fork: DeepTutor RAG integration) ── */}
+      {/* ── Knowledge Base pill ── */}
       {kbLoading ? (
         <button className={pillMuted} disabled>
           <Loader2 className="size-3.5 animate-spin" />
@@ -434,7 +434,6 @@ export function GenerationToolbar({
           <TooltipContent>{t('toolbar.knowledgeBaseUnavailable')}</TooltipContent>
         </Tooltip>
       )}
-
 
       {/* ── Separator ── */}
       <div className="w-px h-4 bg-border/60 mx-1" />

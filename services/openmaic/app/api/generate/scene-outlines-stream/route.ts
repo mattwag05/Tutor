@@ -24,7 +24,12 @@ import {
 } from '@/lib/generation/generation-pipeline';
 import type { AgentInfo } from '@/lib/generation/generation-pipeline';
 import { DEFAULT_LANGUAGE_DIRECTIVE } from '@/lib/generation/outline-generator';
-import { MAX_PDF_CONTENT_CHARS, MAX_VISION_IMAGES } from '@/lib/constants/generation';
+import {
+  MAX_PDF_CONTENT_CHARS,
+  MAX_VISION_IMAGES,
+  SSE_HEARTBEAT_INTERVAL_MS,
+  MAX_STREAM_RETRIES,
+} from '@/lib/constants/generation';
 import { nanoid } from 'nanoid';
 import type {
   UserRequirements,
@@ -209,9 +214,7 @@ export async function POST(req: NextRequest) {
     // Build teacher context from agents (if available)
     const teacherContext = formatTeacherPersonaForPrompt(agents);
 
-    // Enrich research context with DeepTutor RAG if KB selected.
-    // Default to "None" — upstream now infers language downstream via
-    // languageDirective, so we no longer branch on requirements.language here.
+    // Enrich research context with DeepTutor RAG if a KB was selected.
     let enrichedResearchContext = researchContext || 'None';
     if (knowledgeBase && isDeepTutorEnabled()) {
       try {
@@ -227,7 +230,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Check if Interactive Mode is enabled
     const interactiveMode = requirements.interactiveMode ?? false;
     const promptId = interactiveMode
       ? PROMPT_IDS.INTERACTIVE_OUTLINES
@@ -253,7 +255,6 @@ export async function POST(req: NextRequest) {
 
     // Create SSE stream with heartbeat to prevent connection timeout
     const encoder = new TextEncoder();
-    const HEARTBEAT_INTERVAL_MS = 15_000;
     const stream = new ReadableStream({
       async start(controller) {
         // Heartbeat: periodically send SSE comments to keep the connection alive.
@@ -266,7 +267,7 @@ export async function POST(req: NextRequest) {
             } catch {
               stopHeartbeat();
             }
-          }, HEARTBEAT_INTERVAL_MS);
+          }, SSE_HEARTBEAT_INTERVAL_MS);
         };
         const stopHeartbeat = () => {
           if (heartbeatTimer) {
@@ -275,7 +276,6 @@ export async function POST(req: NextRequest) {
           }
         };
 
-        const MAX_STREAM_RETRIES = 2;
 
         try {
           startHeartbeat();
