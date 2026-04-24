@@ -217,6 +217,51 @@ export async function queryKnowledgeBase(
 // Roughly 4k tokens at ~4 chars/token.
 const MAX_RAG_CONTEXT_CHARS = 16_000;
 
+// In-memory cache for getRAGContextForGeneration. Same KB + same requirement
+// inside the TTL skips the WebSocket round-trip — common during retries and
+// section-by-section generation against the same KB.
+const RAG_CTX_CACHE_TTL_MS = 120_000; // 2 minutes
+const RAG_CTX_CACHE_MAX_ENTRIES = 200;
+type RagCacheEntry = { value: string | null; expiresAt: number };
+const ragContextCache = new Map<string, RagCacheEntry>();
+
+// FNV-1a 32-bit — small, fast, no dependency. Cache key only, not security.
+function hashString(s: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(36);
+}
+
+export function ragContextCacheKey(kbName: string, requirement: string): string {
+  return `${kbName}:${hashString(requirement)}`;
+}
+
+function getCachedRagContext(key: string): string | null | undefined {
+  const entry = ragContextCache.get(key);
+  if (!entry) return undefined;
+  if (entry.expiresAt < Date.now()) {
+    ragContextCache.delete(key);
+    return undefined;
+  }
+  return entry.value;
+}
+
+function setCachedRagContext(key: string, value: string | null): void {
+  if (ragContextCache.size >= RAG_CTX_CACHE_MAX_ENTRIES) {
+    // Evict oldest insertion (Map preserves insertion order).
+    const oldestKey = ragContextCache.keys().next().value;
+    if (oldestKey !== undefined) ragContextCache.delete(oldestKey);
+  }
+  ragContextCache.set(key, { value, expiresAt: Date.now() + RAG_CTX_CACHE_TTL_MS });
+}
+
+export function clearRagContextCache(): void {
+  ragContextCache.clear();
+}
+
 /**
  * Fetch RAG context from DeepTutor and format it for injection into
  * OpenMAIC's outline generation pipeline.
@@ -231,11 +276,19 @@ export async function getRAGContextForGeneration(
   kbName: string,
   topic: string,
 ): Promise<string | null> {
+  const cacheKey = ragContextCacheKey(kbName, topic);
+  const cached = getCachedRagContext(cacheKey);
+  if (cached !== undefined) {
+    log.info(`RAG context cache hit for "${kbName}"`);
+    return cached;
+  }
+
   try {
     const { answer, sources } = await queryKnowledgeBase(kbName, topic);
 
     if (!answer && sources.length === 0) {
       log.info(`No KB metadata available for "${kbName}"`);
+      setCachedRagContext(cacheKey, null);
       return null;
     }
 
@@ -268,10 +321,12 @@ export async function getRAGContextForGeneration(
       );
     }
 
+    setCachedRagContext(cacheKey, result);
     return result;
   } catch (error) {
     if (error instanceof DeepTutorUnavailableError) {
       log.warn(`DeepTutor unavailable for RAG context: ${error.message}`);
+      // Don't cache transient errors — let the next request retry.
       return null;
     }
     log.error(`Error fetching RAG context: ${error}`);
