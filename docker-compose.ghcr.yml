@@ -75,6 +75,7 @@ services:
       # REMOTE: set to http://<your-server-ip>:8001 or https://your-domain.com:8001
       - NEXT_PUBLIC_API_BASE_EXTERNAL=${NEXT_PUBLIC_API_BASE_EXTERNAL:-}
       - NEXT_PUBLIC_API_BASE=${NEXT_PUBLIC_API_BASE:-}
+      - NEXT_PUBLIC_OPENMAIC_URL=${NEXT_PUBLIC_OPENMAIC_URL:-}
 
     volumes:
       # Persistent data (created automatically on first start)

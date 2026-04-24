@@ -109,6 +109,9 @@ services:
       - NEXT_PUBLIC_API_BASE_EXTERNAL=${NEXT_PUBLIC_API_BASE_EXTERNAL:-}
       # Alternative: Direct API base URL (same priority as NEXT_PUBLIC_API_BASE_EXTERNAL)
       - NEXT_PUBLIC_API_BASE=${NEXT_PUBLIC_API_BASE:-}
+      # OpenMAIC classroom layer URL (Sidebar → Classroom external link).
+      # Defaults to https://openmaic.tail6e035b.ts.net if unset.
+      - NEXT_PUBLIC_OPENMAIC_URL=${NEXT_PUBLIC_OPENMAIC_URL:-}
 
     volumes:
       # Mount local data directory for persistence (read-write)

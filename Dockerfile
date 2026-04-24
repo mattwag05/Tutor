@@ -44,7 +44,7 @@ COPY web/ ./
 
 # Create .env.local with placeholder that will be replaced at runtime
 # Use a unique placeholder that can be safely replaced
-RUN echo "NEXT_PUBLIC_API_BASE=__NEXT_PUBLIC_API_BASE_PLACEHOLDER__" > .env.local
+RUN printf 'NEXT_PUBLIC_API_BASE=__NEXT_PUBLIC_API_BASE_PLACEHOLDER__\nNEXT_PUBLIC_OPENMAIC_URL=__NEXT_PUBLIC_OPENMAIC_URL_PLACEHOLDER__\n' > .env.local
 
 # Build Next.js for production with standalone output
 # This allows runtime environment variable injection
@@ -259,12 +259,15 @@ else
     echo "[Frontend]    Example: -e NEXT_PUBLIC_API_BASE_EXTERNAL=https://your-server.com:${BACKEND_PORT}"
 fi
 
+OPENMAIC_URL="${NEXT_PUBLIC_OPENMAIC_URL:-https://openmaic.tail6e035b.ts.net}"
+echo "[Frontend] 📌 OpenMAIC classroom URL: ${OPENMAIC_URL}"
+
 echo "[Frontend] 🚀 Starting Next.js frontend on port ${FRONTEND_PORT}..."
 
 # Replace placeholder in built Next.js files
 # This is necessary because NEXT_PUBLIC_* vars are inlined at build time
 find /app/web/.next -type f \( -name "*.js" -o -name "*.json" \) -exec \
-    sed -i "s|__NEXT_PUBLIC_API_BASE_PLACEHOLDER__|${API_BASE}|g" {} \; 2>/dev/null || true
+    sed -i "s|__NEXT_PUBLIC_API_BASE_PLACEHOLDER__|${API_BASE}|g; s|__NEXT_PUBLIC_OPENMAIC_URL_PLACEHOLDER__|${OPENMAIC_URL}|g" {} \; 2>/dev/null || true
 
 # Start Next.js standalone server
 # The standalone server reads PORT and HOSTNAME from environment variables

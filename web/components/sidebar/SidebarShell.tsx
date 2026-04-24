@@ -35,6 +35,9 @@ interface NavEntry {
   external?: string; // If set, navigates to this external URL instead of href
 }
 
+const OPENMAIC_URL =
+  process.env.NEXT_PUBLIC_OPENMAIC_URL || "https://openmaic.tail6e035b.ts.net";
+
 const PRIMARY_NAV: NavEntry[] = [
   { href: "/chat", label: "Chat", icon: MessageSquare },
   { href: "/agents", label: "TutorBot", icon: Bot },
@@ -42,7 +45,7 @@ const PRIMARY_NAV: NavEntry[] = [
   { href: "/book", label: "Book", icon: Library },
   { href: "/knowledge", label: "Knowledge", icon: BookOpen },
   { href: "/memory", label: "Memory", icon: Brain },
-  { href: "/classroom", label: "Classroom", icon: Presentation, external: "https://openmaic.tail6e035b.ts.net" },
+  { href: "/classroom", label: "Classroom", icon: Presentation, external: OPENMAIC_URL },
 ];
 
 const SECONDARY_NAV: NavEntry[] = [
