@@ -15,6 +15,7 @@ import { resolveModelFromHeaders } from '@/lib/server/resolve-model';
 import { getRAGContextForGeneration, isDeepTutorEnabled } from '@/lib/integrations';
 import { createLogger } from '@/lib/logger';
 import { SSE_HEARTBEAT_INTERVAL_MS, MAX_STREAM_RETRIES } from '@/lib/constants/generation';
+import { formatStudentProfile } from '@/lib/generation/format-student-profile';
 import type { CourseSection, Language } from '@/lib/types/course';
 
 const log = createLogger('CourseOutlineStream');
@@ -146,10 +147,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const userProfile =
-      body.userNickname || body.userBio
-        ? `Student: ${body.userNickname || 'Unknown'}${body.userBio ? ` — ${body.userBio}` : ''}`
-        : '';
+    const userProfile = formatStudentProfile(body, 'inline');
 
     const prompts = buildPrompt(PROMPT_IDS.COURSE_OUTLINE, {
       topic,
