@@ -175,7 +175,14 @@ The working tree periodically accumulates `* 2.{py,ts,tsx,md,...}` duplicate fil
    - `components/generation/generation-toolbar.tsx`
    - `lib/generation/{generation-pipeline,outline-generator,pipeline-types}.ts`
    - `lib/integrations/*`, `lib/i18n/locales/*.json`, `package.json`
-4. **Never** use `git subtree pull` on OpenMAIC — it was added via plain file copy (not `git subtree add`), so subtree tooling produces 60+ spurious add/add conflicts.
+4. **Course Builder fork-local paths** (entirely fork-only — upstream has no `course/` namespace; restore from backup after `--delete` rsync, do not 3-way merge):
+   - `app/course/**`, `app/api/course/**`
+   - `app/api/generate/course-outline-stream/**`, `app/api/generate/course-section/**`
+   - `components/course/**`
+   - `lib/course/**`, `lib/server/course-storage.ts`, `lib/types/course.ts`
+   - `lib/generation/prompts/templates/course-outline/**`, `lib/generation/prompts/templates/course-section/**`
+   - After restore, verify `lib/generation/prompts/types.ts` `PromptId` union and `lib/generation/prompts/index.ts` `PROMPT_IDS` still include `course-outline` and `course-section`.
+5. **Never** use `git subtree pull` on OpenMAIC — it was added via plain file copy (not `git subtree add`), so subtree tooling produces 60+ spurious add/add conflicts.
 
 ---
 
@@ -187,7 +194,7 @@ upstream  https://github.com/HKUDS/DeepTutor.git      (HKUDS original)
 ```
 
 **Branches:**
-- `main` — latest upstream + all local customizations (synced 2026-04-10)
+- `main` — latest upstream + all local customizations (DeepTutor synced to v1.3.3 on 2026-04-30; OpenMAIC at 10b1fc83 / v0.2.1+6, no upstream changes since 2026-04-22)
 - `backup-pre-upstream-sync` — snapshot of old codebase before upstream sync
 
 To sync upstream changes:
