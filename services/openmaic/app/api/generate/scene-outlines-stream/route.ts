@@ -40,7 +40,7 @@ import type {
 } from '@/lib/types/generation';
 import { apiError } from '@/lib/server/api-response';
 import { createLogger } from '@/lib/logger';
-import { resolveModelFromHeaders } from '@/lib/server/resolve-model';
+import { resolveModelFromRequest } from '@/lib/server/resolve-model';
 import { getRAGContextForGeneration, isDeepTutorEnabled } from "@/lib/integrations";
 const log = createLogger('Outlines Stream');
 
@@ -139,8 +139,13 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
-    // Get API configuration from request headers
-    const { model: languageModel, modelInfo, modelString } = await resolveModelFromHeaders(req);
+    // Get API configuration from request headers/body
+    const {
+      model: languageModel,
+      modelInfo,
+      modelString,
+      thinkingConfig,
+    } = await resolveModelFromRequest(req, body);
     resolvedModelString = modelString;
 
     if (!body.requirements) {
@@ -193,20 +198,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Build media generation policy based on enabled flags
+    // Build media snippet conditions based on enabled flags.
     const imageGenerationEnabled = req.headers.get('x-image-generation-enabled') === 'true';
     const videoGenerationEnabled = req.headers.get('x-video-generation-enabled') === 'true';
-    let mediaGenerationPolicy = '';
-    if (!imageGenerationEnabled && !videoGenerationEnabled) {
-      mediaGenerationPolicy =
-        '**IMPORTANT: Do NOT include any mediaGenerations in the outlines. Both image and video generation are disabled.**';
-    } else if (!imageGenerationEnabled) {
-      mediaGenerationPolicy =
-        '**IMPORTANT: Do NOT include any image mediaGenerations (type: "image") in the outlines. Image generation is disabled. Video generation is allowed.**';
-    } else if (!videoGenerationEnabled) {
-      mediaGenerationPolicy =
-        '**IMPORTANT: Do NOT include any video mediaGenerations (type: "video") in the outlines. Video generation is disabled. Image generation is allowed.**';
-    }
+    const mediaGenerationEnabled = imageGenerationEnabled || videoGenerationEnabled;
+    const hasSourceImages = (pdfImages?.length ?? 0) > 0;
 
     // Build teacher context from agents (if available)
     const teacherContext = formatTeacherPersonaForPrompt(agents);
@@ -227,6 +223,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Check if Interactive Mode is enabled
     const interactiveMode = requirements.interactiveMode ?? false;
     const promptId = interactiveMode
       ? PROMPT_IDS.INTERACTIVE_OUTLINES
@@ -237,7 +234,10 @@ export async function POST(req: NextRequest) {
       pdfContent: pdfText ? pdfText.substring(0, MAX_PDF_CONTENT_CHARS) : 'None',
       availableImages: availableImagesText,
       researchContext: enrichedResearchContext,
-      mediaGenerationPolicy,
+      hasSourceImages,
+      imageEnabled: imageGenerationEnabled,
+      videoEnabled: videoGenerationEnabled,
+      mediaEnabled: mediaGenerationEnabled,
       teacherContext,
       userProfile: userProfileText,
     });
@@ -302,7 +302,7 @@ export async function POST(req: NextRequest) {
 
           for (let attempt = 1; attempt <= MAX_STREAM_RETRIES + 1; attempt++) {
             try {
-              const result = streamLLM(streamParams, 'scene-outlines-stream');
+              const result = streamLLM(streamParams, 'scene-outlines-stream', thinkingConfig);
 
               let fullText = '';
               parsedOutlines = [];

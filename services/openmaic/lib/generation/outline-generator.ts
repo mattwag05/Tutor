@@ -80,20 +80,11 @@ export async function generateSceneOutlinesFromRequirements(
 
   const userProfileText = formatStudentProfile(requirements);
 
-  // Build media generation policy based on enabled flags
+  // Build media snippet conditions based on enabled flags.
   const imageEnabled = options?.imageGenerationEnabled ?? false;
   const videoEnabled = options?.videoGenerationEnabled ?? false;
-  let mediaGenerationPolicy = '';
-  if (!imageEnabled && !videoEnabled) {
-    mediaGenerationPolicy =
-      '**IMPORTANT: Do NOT include any mediaGenerations in the outlines. Both image and video generation are disabled.**';
-  } else if (!imageEnabled) {
-    mediaGenerationPolicy =
-      '**IMPORTANT: Do NOT include any image mediaGenerations (type: "image") in the outlines. Image generation is disabled. Video generation is allowed.**';
-  } else if (!videoEnabled) {
-    mediaGenerationPolicy =
-      '**IMPORTANT: Do NOT include any video mediaGenerations (type: "video") in the outlines. Video generation is disabled. Image generation is allowed.**';
-  }
+  const mediaEnabled = imageEnabled || videoEnabled;
+  const hasSourceImages = (pdfImages?.length ?? 0) > 0;
 
   // Use simplified prompt variables
   const prompts = buildPrompt(PROMPT_IDS.REQUIREMENTS_TO_OUTLINES, {
@@ -102,7 +93,10 @@ export async function generateSceneOutlinesFromRequirements(
     pdfContent: pdfText ? pdfText.substring(0, MAX_PDF_CONTENT_CHARS) : 'None',
     availableImages: availableImagesText,
     userProfile: userProfileText,
-    mediaGenerationPolicy,
+    hasSourceImages,
+    imageEnabled,
+    videoEnabled,
+    mediaEnabled,
     researchContext: options?.researchContext || 'None',
     // Server-side generation populates this via options; client-side populates via formatTeacherPersonaForPrompt
     teacherContext: options?.teacherContext || '',
