@@ -18,6 +18,7 @@ import type { StreamEvent, ChatMessage } from "@/lib/unified-ws";
 import { UnifiedWSClient } from "@/lib/unified-ws";
 import { getSession, type SessionMessage } from "@/lib/session-api";
 import { normalizeMarkdownForDisplay } from "@/lib/markdown-display";
+import { normalizeMessageContent } from "@/lib/message-content";
 import { shouldAppendEventContent } from "@/lib/stream";
 
 type SessionRuntimeStatus =
@@ -44,6 +45,8 @@ interface NotebookReferencePayload {
 type HistoryReferencePayload = string[];
 
 type QuestionNotebookReferencePayload = number[];
+
+type MemoryReferencePayload = Array<"summary" | "profile">;
 
 export interface SendMessageOptions {
   displayUserMessage?: boolean;
@@ -94,6 +97,7 @@ export interface MessageRequestSnapshot {
   historyReferences?: HistoryReferencePayload;
   questionNotebookReferences?: QuestionNotebookReferencePayload;
   skills?: string[];
+  memoryReferences?: MemoryReferencePayload;
 }
 
 export interface MessageItem {
@@ -494,6 +498,7 @@ interface ChatContextValue {
     options?: SendMessageOptions,
     questionNotebookReferences?: QuestionNotebookReferencePayload,
     skills?: string[],
+    memoryReferences?: MemoryReferencePayload,
   ) => void;
   cancelStreamingTurn: () => void;
   regenerateLastMessage: () => void;
@@ -505,6 +510,99 @@ interface ChatContextValue {
 }
 
 const ChatCtx = createContext<ChatContextValue | null>(null);
+
+function hydrateMessageAttachments(
+  attachments: SessionMessage["attachments"],
+): MessageAttachment[] {
+  return Array.isArray(attachments)
+    ? attachments.map((item) => ({
+        type: item.type,
+        filename: item.filename,
+        base64: item.base64,
+        url: item.url,
+        mime_type: item.mime_type,
+        id: item.id,
+        extracted_text: item.extracted_text,
+      }))
+    : [];
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function asStringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string" && item.length > 0)
+    : [];
+}
+
+function asMemoryReferences(value: unknown): MemoryReferencePayload {
+  return asStringArray(value).filter(
+    (item): item is "summary" | "profile" => item === "summary" || item === "profile",
+  );
+}
+
+function asNotebookReferences(value: unknown): NotebookReferencePayload[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    const ref = asRecord(item);
+    const notebookId = typeof ref?.notebook_id === "string" ? ref.notebook_id : "";
+    const recordIds = asStringArray(ref?.record_ids);
+    return notebookId && recordIds.length
+      ? [{ notebook_id: notebookId, record_ids: recordIds }]
+      : [];
+  });
+}
+
+function asQuestionReferences(value: unknown): QuestionNotebookReferencePayload {
+  return Array.isArray(value)
+    ? value
+        .map((item) => (typeof item === "number" ? item : Number(item)))
+        .filter((item) => Number.isInteger(item))
+    : [];
+}
+
+function hydrateRequestSnapshot(
+  message: SessionMessage,
+  content: string,
+  attachments: MessageAttachment[],
+): MessageRequestSnapshot | undefined {
+  const metadata = asRecord(message.metadata);
+  const stored = asRecord(metadata?.request_snapshot ?? metadata?.requestSnapshot);
+  if (!stored) return undefined;
+
+  const snapshot: MessageRequestSnapshot = {
+    content: typeof stored.content === "string" ? stored.content : content,
+    capability:
+      typeof stored.capability === "string" ? stored.capability : message.capability || "",
+    enabledTools: asStringArray(stored.enabledTools),
+    knowledgeBases: asStringArray(stored.knowledgeBases),
+    language: typeof stored.language === "string" ? stored.language : "en",
+    ...(attachments.length ? { attachments } : {}),
+  };
+
+  const config = asRecord(stored.config);
+  const notebookReferences = asNotebookReferences(stored.notebookReferences);
+  const historyReferences = asStringArray(stored.historyReferences);
+  const questionNotebookReferences = asQuestionReferences(
+    stored.questionNotebookReferences,
+  );
+  const skills = asStringArray(stored.skills);
+  const memoryReferences = asMemoryReferences(stored.memoryReferences);
+
+  if (config && Object.keys(config).length) snapshot.config = config;
+  if (notebookReferences.length) snapshot.notebookReferences = notebookReferences;
+  if (historyReferences.length) snapshot.historyReferences = historyReferences;
+  if (questionNotebookReferences.length) {
+    snapshot.questionNotebookReferences = questionNotebookReferences;
+  }
+  if (skills.length) snapshot.skills = skills;
+  if (memoryReferences.length) snapshot.memoryReferences = memoryReferences;
+  return snapshot;
+}
 
 export function UnifiedChatProvider({
   children,
@@ -550,30 +648,26 @@ export function UnifiedChatProvider({
 
   const hydrateMessages = useCallback(
     (messages: SessionMessage[]): MessageItem[] => {
-      // System messages (e.g. quiz follow-up grounding context written by the
-      // backend turn runtime) are LLM-only and must not surface in the chat UI.
       return messages
         .filter((message) => message.role !== "system")
-        .map((message) => ({
-          role: message.role,
-          content:
-            message.role === "assistant"
-              ? normalizeMarkdownForDisplay(message.content)
-              : message.content,
-          capability: message.capability || "",
-          events: Array.isArray(message.events) ? message.events : [],
-          attachments: Array.isArray(message.attachments)
-            ? message.attachments.map((item) => ({
-                type: item.type,
-                filename: item.filename,
-                base64: item.base64,
-                url: item.url,
-                mime_type: item.mime_type,
-                id: item.id,
-                extracted_text: item.extracted_text,
-              }))
-            : [],
-        }));
+        .map((message) => {
+          const raw = normalizeMessageContent(
+            message.content as unknown,
+          );
+          const attachments = hydrateMessageAttachments(message.attachments);
+          const requestSnapshot = hydrateRequestSnapshot(message, raw, attachments);
+          return {
+            role: message.role,
+            content:
+              message.role === "assistant"
+                ? normalizeMarkdownForDisplay(raw)
+                : raw,
+            capability: message.capability || "",
+            events: Array.isArray(message.events) ? message.events : [],
+            attachments,
+            ...(requestSnapshot ? { requestSnapshot } : {}),
+          };
+        });
     },
     [],
   );
@@ -827,6 +921,7 @@ export function UnifiedChatProvider({
       options?: SendMessageOptions,
       questionNotebookReferences?: QuestionNotebookReferencePayload,
       skills?: string[],
+      memoryReferences?: MemoryReferencePayload,
     ) => {
       const msgAttachments = attachments?.map((a) => ({
         type: a.type,
@@ -860,6 +955,8 @@ export function UnifiedChatProvider({
         (effectiveCapability === "deep_research" &&
           researchSources.includes("kb"));
       const effectiveSkills = replaySnapshot?.skills ?? skills;
+      const effectiveMemoryReferences =
+        replaySnapshot?.memoryReferences ?? memoryReferences;
       const requestSnapshot: MessageRequestSnapshot = replaySnapshot ?? {
         content,
         capability: effectiveCapability,
@@ -878,6 +975,9 @@ export function UnifiedChatProvider({
           ? { questionNotebookReferences: [...questionNotebookReferences] }
           : {}),
         ...(effectiveSkills?.length ? { skills: [...effectiveSkills] } : {}),
+        ...(effectiveMemoryReferences?.length
+          ? { memoryReferences: [...effectiveMemoryReferences] }
+          : {}),
       };
       if (options?.displayUserMessage !== false) {
         dispatch({
@@ -915,6 +1015,9 @@ export function UnifiedChatProvider({
           ? { question_notebook_references: questionNotebookReferences }
           : {}),
         ...(effectiveSkills?.length ? { skills: effectiveSkills } : {}),
+        ...(effectiveMemoryReferences?.length
+          ? { memory_references: effectiveMemoryReferences }
+          : {}),
         ...(effectiveConfig && Object.keys(effectiveConfig).length > 0
           ? { config: effectiveConfig }
           : {}),
