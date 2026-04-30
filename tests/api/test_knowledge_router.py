@@ -53,6 +53,10 @@ class _FakeKBManager:
         entry["status"] = status
         entry["progress"] = progress or {}
 
+    def get_default(self) -> str | None:
+        names = self.list_knowledge_bases()
+        return names[0] if names else None
+
     def get_knowledge_base_path(self, name: str) -> Path:
         kb_dir = self.base_dir / name
         kb_dir.mkdir(parents=True, exist_ok=True)
@@ -80,6 +84,10 @@ def _upload_payload() -> list[tuple[str, tuple[str, bytes, str]]]:
 
 def _invalid_upload_payload() -> list[tuple[str, tuple[str, bytes, str]]]:
     return [("files", ("archive.zip", b"PK\x03\x04", "application/zip"))]
+
+
+def _uppercase_upload_payload() -> list[tuple[str, tuple[str, bytes, str]]]:
+    return [("files", ("报告.PDF", b"%PDF-1.4\n", "application/pdf"))]
 
 
 def test_rag_providers_returns_llamaindex_only() -> None:
@@ -184,6 +192,50 @@ def test_create_rejects_invalid_files_before_registering_kb(
     assert "kb-invalid" not in manager.config["knowledge_bases"]
 
 
+def test_create_rejects_invalid_kb_name_before_registering_kb(
+    monkeypatch, tmp_path: Path
+) -> None:
+    manager = _FakeKBManager(tmp_path / "knowledge_bases")
+    monkeypatch.setattr(knowledge_router_module, "get_kb_manager", lambda: manager)
+    monkeypatch.setattr(knowledge_router_module, "_kb_base_dir", tmp_path / "knowledge_bases")
+
+    with TestClient(_build_app()) as client:
+        response = client.post(
+            "/api/v1/knowledge/create",
+            data={"name": "bad/name", "rag_provider": "llamaindex"},
+            files=_upload_payload(),
+        )
+
+    assert response.status_code == 400
+    assert "reserved characters" in response.json()["detail"].lower()
+    assert manager.config["knowledge_bases"] == {}
+
+
+def test_create_normalizes_uploaded_extension_to_lowercase(
+    monkeypatch, tmp_path: Path
+) -> None:
+    manager = _FakeKBManager(tmp_path / "knowledge_bases")
+    monkeypatch.setattr(knowledge_router_module, "get_kb_manager", lambda: manager)
+    monkeypatch.setattr(knowledge_router_module, "KnowledgeBaseInitializer", _FakeInitializer)
+    monkeypatch.setattr(knowledge_router_module, "_kb_base_dir", tmp_path / "knowledge_bases")
+
+    async def _noop_init_task(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setattr(knowledge_router_module, "run_initialization_task", _noop_init_task)
+
+    with TestClient(_build_app()) as client:
+        response = client.post(
+            "/api/v1/knowledge/create",
+            data={"name": "kb-uppercase", "rag_provider": "llamaindex"},
+            files=_uppercase_upload_payload(),
+        )
+
+    assert response.status_code == 200
+    assert response.json()["files"] == ["报告.pdf"]
+    assert (tmp_path / "knowledge_bases" / "kb-uppercase" / "raw" / "报告.pdf").exists()
+
+
 def test_upload_returns_409_when_kb_needs_reindex(monkeypatch, tmp_path: Path) -> None:
     manager = _FakeKBManager(tmp_path / "knowledge_bases")
     manager.config["knowledge_bases"]["legacy-kb"] = {
@@ -223,6 +275,82 @@ def test_upload_ready_kb_returns_task_id(monkeypatch, tmp_path: Path) -> None:
     assert response.status_code == 200
     body = response.json()
     assert isinstance(body.get("task_id"), str) and body["task_id"]
+
+
+def test_list_files_accepts_default_alias(monkeypatch, tmp_path: Path) -> None:
+    manager = _FakeKBManager(tmp_path / "knowledge_bases")
+    manager.config["knowledge_bases"]["actual-kb"] = {
+        "path": "actual-kb",
+        "status": "ready",
+    }
+    raw_dir = manager.base_dir / "actual-kb" / "raw"
+    raw_dir.mkdir(parents=True)
+    (raw_dir / "demo.txt").write_text("hello", encoding="utf-8")
+    monkeypatch.setattr(knowledge_router_module, "get_kb_manager", lambda: manager)
+
+    with TestClient(_build_app()) as client:
+        response = client.get("/api/v1/knowledge/default/files")
+
+    assert response.status_code == 200
+    assert response.json()["files"][0]["name"] == "demo.txt"
+
+
+def test_list_files_preserves_kb_named_default(monkeypatch, tmp_path: Path) -> None:
+    manager = _FakeKBManager(tmp_path / "knowledge_bases")
+    manager.config["knowledge_bases"]["actual-kb"] = {
+        "path": "actual-kb",
+        "status": "ready",
+    }
+    manager.config["knowledge_bases"]["default"] = {
+        "path": "default",
+        "status": "ready",
+    }
+    actual_raw = manager.base_dir / "actual-kb" / "raw"
+    actual_raw.mkdir(parents=True)
+    (actual_raw / "actual.txt").write_text("hello", encoding="utf-8")
+    default_raw = manager.base_dir / "default" / "raw"
+    default_raw.mkdir(parents=True)
+    (default_raw / "default.txt").write_text("hello", encoding="utf-8")
+    monkeypatch.setattr(knowledge_router_module, "get_kb_manager", lambda: manager)
+
+    with TestClient(_build_app()) as client:
+        response = client.get("/api/v1/knowledge/default/files")
+
+    assert response.status_code == 200
+    assert response.json()["files"][0]["name"] == "default.txt"
+
+
+def test_reindex_accepts_default_alias(monkeypatch, tmp_path: Path) -> None:
+    manager = _FakeKBManager(tmp_path / "knowledge_bases")
+    manager.config["knowledge_bases"]["actual-kb"] = {
+        "path": "actual-kb",
+        "status": "ready",
+    }
+    monkeypatch.setattr(knowledge_router_module, "get_kb_manager", lambda: manager)
+    monkeypatch.setattr(knowledge_router_module, "_kb_base_dir", manager.base_dir)
+
+    class _Signature:
+        def hash(self) -> str:
+            return "sig"
+
+    embedding_signature = importlib.import_module("deeptutor.services.rag.embedding_signature")
+    index_versioning = importlib.import_module("deeptutor.services.rag.index_versioning")
+    monkeypatch.setattr(embedding_signature, "signature_from_embedding_config", lambda: _Signature())
+    monkeypatch.setattr(index_versioning, "find_matching_version", lambda *_args, **_kwargs: None)
+
+    async def _noop_reindex_task(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setattr(knowledge_router_module, "run_reindex_task", _noop_reindex_task)
+
+    with TestClient(_build_app()) as client:
+        response = client.post("/api/v1/knowledge/default/reindex")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["noop"] is False
+    assert isinstance(body.get("task_id"), str) and body["task_id"]
+    assert manager.config["knowledge_bases"]["actual-kb"]["status"] == "initializing"
 
 
 def test_update_config_coerces_legacy_provider_to_llamaindex() -> None:

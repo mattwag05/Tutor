@@ -30,6 +30,7 @@ import {
   ATTACHMENT_ACCEPT,
   docIconFor,
   formatBytes,
+  isSvgFilename,
 } from "@/lib/doc-attachments";
 import { useTranslation } from "react-i18next";
 import type { SelectedHistorySession } from "@/components/chat/HistorySessionPicker";
@@ -157,6 +158,7 @@ export default memo(function ChatComposer({
   onToggleResearchSource,
   onSend,
   onRemoveAttachment,
+  onPreviewAttachment,
   onRemoveHistory,
   onRemoveNotebook,
   onRemoveQuestion,
@@ -238,6 +240,7 @@ export default memo(function ChatComposer({
   onToggleResearchSource: (source: ResearchSource) => void;
   onSend: (content: string) => void;
   onRemoveAttachment: (index: number) => void;
+  onPreviewAttachment?: (index: number) => void;
   onRemoveHistory: (sessionId: string) => void;
   onRemoveNotebook: (notebookId: string) => void;
   onRemoveQuestion: (entryId: number) => void;
@@ -333,7 +336,7 @@ export default memo(function ChatComposer({
           className="absolute bottom-full left-0 right-0 z-50 mb-1"
         >
           <div className="mx-auto">
-            <div className="w-[280px] rounded-xl border border-[var(--border)] bg-[var(--card)] py-1.5 shadow-lg">
+            <div className="w-[280px] rounded-xl border border-[var(--border)] bg-[var(--popover)] py-1.5 shadow-lg backdrop-blur-md">
               {capabilities.map((cap) => {
                 const Icon = cap.icon;
                 const selected = activeCap.value === cap.value;
@@ -392,7 +395,7 @@ export default memo(function ChatComposer({
                   {t("Drop files here")}
                 </span>
                 <span className="text-[11px] text-[var(--primary)]/70">
-                  {t("Images, PDF, DOCX, XLSX, PPTX")}
+                  {t("Images, Office docs, code & text")}
                 </span>
               </div>
             </div>
@@ -439,13 +442,21 @@ export default memo(function ChatComposer({
           {!!attachments.length && (
             <div className="flex flex-wrap gap-2 px-4 pb-2">
               {attachments.map((a, i) => {
+                const previewLabel = t("Preview");
+                const removeLabel = t("Remove attachment");
                 if (a.type === "image" && a.previewUrl) {
                   return (
                     <div
                       key={`${a.filename}-${i}`}
                       className="group relative"
                     >
-                      <div className="relative h-16 w-16 overflow-hidden rounded-lg border border-[var(--border)]">
+                      <button
+                        type="button"
+                        onClick={() => onPreviewAttachment?.(i)}
+                        title={a.filename || previewLabel}
+                        aria-label={previewLabel}
+                        className="relative block h-16 w-16 overflow-hidden rounded-lg border border-[var(--border)] transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/40"
+                      >
                         <Image
                           src={a.previewUrl}
                           alt={a.filename || t("Attachment preview")}
@@ -453,13 +464,55 @@ export default memo(function ChatComposer({
                           unoptimized
                           className="object-cover"
                         />
-                        <button
-                          onClick={() => onRemoveAttachment(i)}
-                          className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--foreground)] text-[var(--background)] opacity-0 shadow-sm transition-opacity group-hover:opacity-100"
-                        >
-                          <X size={10} />
-                        </button>
-                      </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRemoveAttachment(i);
+                        }}
+                        aria-label={removeLabel}
+                        className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--foreground)] text-[var(--background)] opacity-0 shadow-sm transition-opacity group-hover:opacity-100"
+                      >
+                        <X size={10} />
+                      </button>
+                    </div>
+                  );
+                }
+                if (isSvgFilename(a.filename) && a.previewUrl) {
+                  return (
+                    <div
+                      key={`${a.filename}-${i}`}
+                      className="group relative"
+                      title={a.filename}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => onPreviewAttachment?.(i)}
+                        aria-label={previewLabel}
+                        className="relative block h-16 w-16 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--card)] transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/40"
+                      >
+                        {/* Native <img> is safe for SVG: scripts inside an
+                            SVG don't execute under <img> context. Next.js
+                            <Image> rejects SVG by default. */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={a.previewUrl}
+                          alt={a.filename || t("Attachment preview")}
+                          className="h-full w-full object-contain p-1"
+                        />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRemoveAttachment(i);
+                        }}
+                        aria-label={removeLabel}
+                        className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--foreground)] text-[var(--background)] opacity-0 shadow-sm transition-opacity group-hover:opacity-100"
+                      >
+                        <X size={10} />
+                      </button>
                     </div>
                   );
                 }
@@ -472,7 +525,12 @@ export default memo(function ChatComposer({
                     className="group relative"
                     title={a.filename}
                   >
-                    <div className="flex h-16 w-[160px] items-center gap-2.5 rounded-lg border border-[var(--border)] bg-[var(--card)] px-2.5">
+                    <button
+                      type="button"
+                      onClick={() => onPreviewAttachment?.(i)}
+                      aria-label={previewLabel}
+                      className="flex h-16 w-[160px] items-center gap-2.5 rounded-lg border border-[var(--border)] bg-[var(--card)] px-2.5 text-left transition-colors hover:border-[var(--primary)]/40 hover:bg-[var(--muted)]/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/40"
+                    >
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[var(--muted)]/60">
                         <Icon
                           size={22}
@@ -488,9 +546,14 @@ export default memo(function ChatComposer({
                           {sizeLabel ? `${spec.label} · ${sizeLabel}` : spec.label}
                         </div>
                       </div>
-                    </div>
+                    </button>
                     <button
-                      onClick={() => onRemoveAttachment(i)}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRemoveAttachment(i);
+                      }}
+                      aria-label={removeLabel}
                       className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--foreground)] text-[var(--background)] opacity-0 shadow-sm transition-opacity group-hover:opacity-100"
                     >
                       <X size={10} />
@@ -567,7 +630,7 @@ export default memo(function ChatComposer({
                     {toolMenuOpen && (
                       <div
                         ref={toolMenuRef}
-                        className="absolute bottom-full left-0 z-50 mb-1.5 min-w-[180px] rounded-lg border border-[var(--border)] bg-[var(--card)] py-1 shadow-lg"
+                        className="absolute bottom-full left-0 z-50 mb-1.5 min-w-[180px] rounded-lg border border-[var(--border)] bg-[var(--popover)] py-1 shadow-lg backdrop-blur-md"
                       >
                         {researchSources.map((source) => {
                           const active = researchConfig.sources.includes(
@@ -635,7 +698,7 @@ export default memo(function ChatComposer({
                     {toolMenuOpen && (
                       <div
                         ref={toolMenuRef}
-                        className="absolute bottom-full left-0 z-50 mb-1.5 min-w-[180px] rounded-lg border border-[var(--border)] bg-[var(--card)] py-1 shadow-lg"
+                        className="absolute bottom-full left-0 z-50 mb-1.5 min-w-[180px] rounded-lg border border-[var(--border)] bg-[var(--popover)] py-1 shadow-lg backdrop-blur-md"
                       >
                         {visibleTools.map((tool) => {
                           const active = selectedTools.has(tool.name);
@@ -701,7 +764,7 @@ export default memo(function ChatComposer({
                   {refMenuOpen && (
                     <div
                       ref={refMenuRef}
-                      className="absolute bottom-full left-0 z-50 mb-1.5 min-w-[180px] rounded-lg border border-[var(--border)] bg-[var(--card)] py-1 shadow-lg"
+                      className="absolute bottom-full left-0 z-50 mb-1.5 min-w-[180px] rounded-lg border border-[var(--border)] bg-[var(--popover)] py-1 shadow-lg backdrop-blur-md"
                     >
                       <button
                         onClick={() => {
@@ -798,7 +861,7 @@ export default memo(function ChatComposer({
                     {skillMenuOpen && (
                       <div
                         ref={skillMenuRef}
-                        className="absolute bottom-full left-0 z-50 mb-1.5 max-h-[280px] min-w-[220px] overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--card)] py-1 shadow-lg"
+                        className="absolute bottom-full left-0 z-50 mb-1.5 max-h-[280px] min-w-[220px] overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--popover)] py-1 shadow-lg backdrop-blur-md"
                       >
                         <button
                           onClick={() => onSetSkillsAuto(!skillsAutoMode)}

@@ -4,6 +4,7 @@
 
 @layer base {
   :root {
+    color-scheme: light;
     --background: #faf9f6;
     --foreground: #1f1d1b;
     --card: #ffffff;
@@ -26,6 +27,7 @@
   }
 
   .dark {
+    color-scheme: dark;
     --background: #1a1918;
     --foreground: #e8e4de;
     --card: #242220;
@@ -48,6 +50,7 @@
   }
 
   .theme-snow {
+    color-scheme: light;
     --background: #f8fafc;
     --foreground: #0f172a;
     --card: #ffffff;
@@ -70,11 +73,12 @@
   }
 
   .theme-glass {
+    color-scheme: dark;
     --background: #111111;
     --foreground: #ffffff;
     --card: rgba(255, 255, 255, 0.05);
     --card-foreground: #ffffff;
-    --popover: rgba(255, 255, 255, 0.1);
+    --popover: rgba(24, 22, 36, 0.92);
     --popover-foreground: #ffffff;
     --primary: #9d50bb;
     --primary-foreground: #ffffff;
@@ -547,4 +551,19 @@
 
 .session-pulse {
   animation: session-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* ----- Chat shell ↔ file preview drawer ---------------------------------
+   Squeezes the chat column when the drawer is open. The transition
+   timing here MUST match FilePreviewDrawer's transform transition so the
+   slide-in and the squeeze animate as one motion. Stays a no-op below
+   the lg breakpoint, where the drawer overlays instead. */
+.chat-preview-shell {
+  transition: padding-right 220ms ease-out;
+  padding-right: 0;
+}
+@media (min-width: 1024px) {
+  .chat-preview-shell[data-preview-open="true"] {
+    padding-right: min(560px, 92vw);
+  }
 }

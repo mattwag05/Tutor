@@ -17,6 +17,12 @@ from deeptutor.services.provider_registry import (
     find_gateway,
 )
 
+from .embedding_endpoint import (
+    EMBEDDING_PROVIDER_ALIASES,
+    EMBEDDING_PROVIDER_DEFAULT_ENDPOINTS,
+    embedding_endpoint_validation_error,
+    normalize_embedding_endpoint_for_display,
+)
 from .env_store import EnvStore, get_env_store
 from .loader import load_config_with_main
 from .model_catalog import ModelCatalogService, get_model_catalog_service
@@ -42,19 +48,14 @@ SEARCH_ENV_FALLBACK = {
 
 LLM_LOCALHOST_PROVIDERS = ("ollama", "vllm")
 
-EMBEDDING_PROVIDER_ALIASES = {
-    "google": "openai",
-    "gemini": "openai",
-    "huggingface": "custom",
-    "lm_studio": "vllm",
-    "llama_cpp": "vllm",
-    "openai_compatible": "custom",
-}
-
-
 @dataclass(frozen=True)
 class EmbeddingProviderSpec:
-    """Single embedding-provider metadata entry."""
+    """Single embedding-provider metadata entry.
+
+    Note on `default_api_base`: as of v1.3.0 this is the **fully-qualified
+    embedding endpoint URL** (e.g. ``https://api.openai.com/v1/embeddings``),
+    not a base. Adapters use the configured URL verbatim — no path appending.
+    """
 
     label: str
     default_api_base: str
@@ -65,12 +66,18 @@ class EmbeddingProviderSpec:
     mode: str = "standard"
     default_model: str = ""
     default_dim: int = 0
+    # Per-provider cap on items per embedding request batch. Adapters/clients
+    # clamp `batch_size` against this. SiliconFlow Qwen3 family caps at 32;
+    # DashScope caps at 20; most others have generous limits.
+    max_batch_items: int = 256
+    # Whether the active default model supports multimodal `contents` input.
+    multimodal: bool = False
 
 
 EMBEDDING_PROVIDERS: dict[str, EmbeddingProviderSpec] = {
     "openai": EmbeddingProviderSpec(
         label="OpenAI",
-        default_api_base="https://api.openai.com/v1",
+        default_api_base=EMBEDDING_PROVIDER_DEFAULT_ENDPOINTS["openai"],
         keywords=("openai", "text-embedding", "ada-002", "embedding-3"),
         is_local=False,
         api_key_envs=("OPENAI_API_KEY",),
@@ -88,17 +95,18 @@ EMBEDDING_PROVIDERS: dict[str, EmbeddingProviderSpec] = {
     "cohere": EmbeddingProviderSpec(
         label="Cohere",
         adapter="cohere",
-        default_api_base="https://api.cohere.ai",
+        default_api_base=EMBEDDING_PROVIDER_DEFAULT_ENDPOINTS["cohere"],
         keywords=("cohere", "embed-v4", "embed-english", "embed-multilingual"),
         is_local=False,
         api_key_envs=("COHERE_API_KEY",),
         default_model="embed-v4.0",
         default_dim=1024,
+        multimodal=True,
     ),
     "jina": EmbeddingProviderSpec(
         label="Jina",
         adapter="jina",
-        default_api_base="https://api.jina.ai/v1",
+        default_api_base=EMBEDDING_PROVIDER_DEFAULT_ENDPOINTS["jina"],
         keywords=("jina", "jina-embeddings"),
         is_local=False,
         api_key_envs=("JINA_API_KEY",),
@@ -109,7 +117,7 @@ EMBEDDING_PROVIDERS: dict[str, EmbeddingProviderSpec] = {
         label="Ollama",
         adapter="ollama",
         mode="local",
-        default_api_base="http://localhost:11434",
+        default_api_base=EMBEDDING_PROVIDER_DEFAULT_ENDPOINTS["ollama"],
         keywords=("ollama", "nomic-embed", "mxbai", "snowflake-arctic", "all-minilm"),
         is_local=True,
         api_key_envs=(),
@@ -119,10 +127,40 @@ EMBEDDING_PROVIDERS: dict[str, EmbeddingProviderSpec] = {
     "vllm": EmbeddingProviderSpec(
         label="vLLM / LM Studio",
         mode="local",
-        default_api_base="http://localhost:8000/v1",
+        default_api_base=EMBEDDING_PROVIDER_DEFAULT_ENDPOINTS["vllm"],
         keywords=("vllm", "lmstudio"),
         is_local=True,
         api_key_envs=("HOSTED_VLLM_API_KEY",),
+    ),
+    "siliconflow": EmbeddingProviderSpec(
+        label="SiliconFlow",
+        adapter="openai_compat",
+        default_api_base=EMBEDDING_PROVIDER_DEFAULT_ENDPOINTS["siliconflow"],
+        keywords=(
+            "siliconflow",
+            "qwen3-embedding",
+            "qwen3-vl-embedding",
+            "bge-m3",
+            "Pro/BAAI",
+        ),
+        is_local=False,
+        api_key_envs=("SILICONFLOW_API_KEY",),
+        default_model="Qwen/Qwen3-Embedding-8B",
+        default_dim=4096,
+        max_batch_items=32,
+        multimodal=True,
+    ),
+    "aliyun": EmbeddingProviderSpec(
+        label="Aliyun DashScope",
+        adapter="dashscope_native",
+        default_api_base=EMBEDDING_PROVIDER_DEFAULT_ENDPOINTS["aliyun"],
+        keywords=("dashscope", "qwen3-vl-embedding", "qwen3-embedding", "aliyun", "bailian"),
+        is_local=False,
+        api_key_envs=("DASHSCOPE_API_KEY",),
+        default_model="qwen3-vl-embedding",
+        default_dim=2560,
+        max_batch_items=20,
+        multimodal=True,
     ),
     "custom": EmbeddingProviderSpec(
         label="OpenAI Compatible",
@@ -131,6 +169,25 @@ EMBEDDING_PROVIDERS: dict[str, EmbeddingProviderSpec] = {
         keywords=(),
         is_local=False,
         api_key_envs=("OPENAI_API_KEY",),
+    ),
+    # Retained for legacy configs only. Public Settings providers use exact
+    # endpoint URLs and raw HTTP adapters so no request path is hidden.
+    "custom_openai_sdk": EmbeddingProviderSpec(
+        label="Custom (OpenAI SDK)",
+        adapter="openai_sdk",
+        mode="direct",
+        default_api_base="",
+        keywords=(),
+        is_local=False,
+        api_key_envs=("OPENAI_API_KEY",),
+    ),
+    "openrouter": EmbeddingProviderSpec(
+        label="OpenRouter",
+        adapter="openai_compat",
+        default_api_base=EMBEDDING_PROVIDER_DEFAULT_ENDPOINTS["openrouter"],
+        keywords=("openrouter",),
+        is_local=False,
+        api_key_envs=("OPENROUTER_API_KEY",),
     ),
 }
 
@@ -178,7 +235,7 @@ class ResolvedEmbeddingConfig:
     effective_url: str | None = None
     api_version: str | None = None
     extra_headers: dict[str, str] = field(default_factory=dict)
-    dimension: int = 3072
+    dimension: int = 0
     send_dimensions: bool | None = None
     request_timeout: int = 60
     batch_size: int = 10
@@ -427,12 +484,20 @@ def _collect_embedding_provider_pool(
     return providers
 
 
-def _resolve_embedding_dimension(value: Any, default: int = 3072) -> int:
+def _resolve_embedding_dimension(value: Any, default: int = 0) -> int:
+    """Parse the dimension value. Returns 0 when unknown/unparseable.
+
+    A value of 0 means "use the provider's native default" downstream;
+    test_runner auto-fills the catalog with the actual response dim on
+    first successful connection test.
+    """
     try:
         parsed = int(str(value).strip())
-        return max(1, parsed)
     except (TypeError, ValueError):
         return default
+    if parsed <= 0:
+        return default
+    return parsed
 
 
 def _coerce_optional_bool(value: Any) -> bool | None:
@@ -546,8 +611,13 @@ def resolve_embedding_runtime_config(
         "api_version", ""
     )
     active_extra_headers = _to_headers((profile or {}).get("extra_headers"))
+    # Default 0 means "not yet known" — the test_runner auto-fills on first
+    # successful connection. Adapters/clients should treat 0 as "let the
+    # provider use its native default". 3072 used to be hard-coded here, which
+    # forced every non-OpenAI provider to fail dim validation on first use.
     dimension = _resolve_embedding_dimension(
-        (model or {}).get("dimension") or summary.embedding.get("dimension") or 3072
+        (model or {}).get("dimension") or summary.embedding.get("dimension") or 0,
+        default=0,
     )
     # Catalog wins over env. ``None`` means "fall back to adapter heuristic".
     send_dimensions = _coerce_optional_bool((model or {}).get("send_dimensions"))
@@ -731,6 +801,8 @@ __all__ = [
     "EmbeddingProviderSpec",
     "EMBEDDING_PROVIDERS",
     "EMBEDDING_PROVIDER_ALIASES",
+    "embedding_endpoint_validation_error",
+    "normalize_embedding_endpoint_for_display",
     "NormalizedProviderConfig",
     "ResolvedLLMConfig",
     "ResolvedEmbeddingConfig",

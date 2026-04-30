@@ -48,6 +48,7 @@ class FileTypeRouter:
     PARSER_EXTENSIONS = {".pdf"}
 
     TEXT_EXTENSIONS = {
+        # Plain text & docs
         ".txt",
         ".text",
         ".log",
@@ -55,50 +56,118 @@ class FileTypeRouter:
         ".markdown",
         ".rst",
         ".asciidoc",
+        # Data / config
         ".json",
+        ".jsonc",
+        ".json5",
         ".yaml",
         ".yml",
         ".toml",
         ".csv",
         ".tsv",
-        ".tex",
-        ".latex",
-        ".bib",
-        ".py",
-        ".js",
-        ".ts",
-        ".jsx",
-        ".tsx",
-        ".java",
-        ".c",
-        ".cpp",
-        ".h",
-        ".hpp",
-        ".go",
-        ".rs",
-        ".rb",
-        ".php",
-        ".swift",
-        ".kt",
-        ".scala",
-        ".r",
-        ".sql",
-        ".sh",
-        ".bash",
-        ".zsh",
-        ".ps1",
-        ".html",
-        ".htm",
-        ".xml",
-        ".css",
-        ".scss",
-        ".sass",
-        ".less",
         ".ini",
         ".cfg",
         ".conf",
         ".env",
         ".properties",
+        # Typesetting
+        ".tex",
+        ".latex",
+        ".bib",
+        # JavaScript / TypeScript family
+        ".js",
+        ".mjs",
+        ".cjs",
+        ".ts",
+        ".mts",
+        ".cts",
+        ".jsx",
+        ".tsx",
+        # Web frameworks
+        ".vue",
+        ".svelte",
+        # Python
+        ".py",
+        # JVM languages
+        ".java",
+        ".kt",
+        ".kts",
+        ".scala",
+        ".groovy",
+        ".gradle",
+        # Systems languages
+        ".c",
+        ".h",
+        ".cpp",
+        ".cc",
+        ".cxx",
+        ".hpp",
+        ".hh",
+        ".hxx",
+        ".cs",
+        ".go",
+        ".rs",
+        ".zig",
+        ".nim",
+        # Apple platforms
+        ".swift",
+        ".m",
+        ".mm",
+        # Scripting
+        ".rb",
+        ".php",
+        ".pl",
+        ".pm",
+        ".lua",
+        ".r",
+        ".jl",
+        ".dart",
+        # Functional
+        ".hs",
+        ".clj",
+        ".cljs",
+        ".cljc",
+        ".ex",
+        ".exs",
+        ".erl",
+        ".ml",
+        ".mli",
+        ".fs",
+        ".fsx",
+        ".lisp",
+        ".lsp",
+        ".scm",
+        ".rkt",
+        # Web markup / styles
+        ".html",
+        ".htm",
+        ".xml",
+        ".svg",
+        ".css",
+        ".scss",
+        ".sass",
+        ".less",
+        # Smart contracts
+        ".sol",
+        # Shells / editors
+        ".sh",
+        ".bash",
+        ".zsh",
+        ".fish",
+        ".ps1",
+        ".vim",
+        # Query / IDL
+        ".sql",
+        ".graphql",
+        ".gql",
+        ".proto",
+        # Build / infra
+        ".cmake",
+        ".mk",
+        ".tf",
+        ".hcl",
+        ".nginxconf",
+        ".dockerfile",
     }
 
     DOCX_EXTENSIONS = {".docx", ".doc"}
@@ -165,12 +234,34 @@ class FileTypeRouter:
             unsupported=unsupported,
         )
 
+    TEXT_DECODING_CANDIDATES = (
+        "utf-8",
+        "utf-8-sig",
+        "gbk",
+        "gb2312",
+        "gb18030",
+        "latin-1",
+        "cp1252",
+    )
+
+    @classmethod
+    def decode_bytes(cls, data: bytes) -> str:
+        """Decode raw bytes using the same fallback chain as read_text_file.
+
+        Used by the chat-attachment extractor so path-based and bytes-based
+        callers share one source of truth for supported encodings.
+        """
+        for encoding in cls.TEXT_DECODING_CANDIDATES:
+            try:
+                return data.decode(encoding)
+            except UnicodeDecodeError:
+                continue
+        return data.decode("utf-8", errors="replace")
+
     @classmethod
     async def read_text_file(cls, file_path: str) -> str:
         """Read a text file with automatic encoding detection."""
-        encodings = ["utf-8", "utf-8-sig", "gbk", "gb2312", "gb18030", "latin-1", "cp1252"]
-
-        for encoding in encodings:
+        for encoding in cls.TEXT_DECODING_CANDIDATES:
             try:
                 with open(file_path, "r", encoding=encoding) as f:
                     return f.read()
@@ -196,6 +287,30 @@ class FileTypeRouter:
     def get_supported_extensions(cls) -> set[str]:
         """Get the set of all supported file extensions."""
         return cls.PARSER_EXTENSIONS | cls.TEXT_EXTENSIONS
+
+    @classmethod
+    def has_supported_extension(cls, file_path: str | Path) -> bool:
+        """Return True when ``file_path`` has a supported extension.
+
+        The check is case-insensitive so files such as ``Report.PDF`` are
+        discovered consistently across upload, CLI, folder sync, and reindex.
+        """
+        return Path(file_path).suffix.lower() in cls.get_supported_extensions()
+
+    @classmethod
+    def collect_supported_files(
+        cls, directory: str | Path, recursive: bool = False
+    ) -> list[Path]:
+        """Collect supported files from a directory with case-insensitive suffix matching."""
+        root = Path(directory)
+        if not root.exists() or not root.is_dir():
+            return []
+
+        paths = root.rglob("*") if recursive else root.iterdir()
+        return sorted(
+            (path for path in paths if path.is_file() and cls.has_supported_extension(path)),
+            key=lambda path: str(path).lower(),
+        )
 
     @classmethod
     def get_glob_patterns(cls) -> list[str]:

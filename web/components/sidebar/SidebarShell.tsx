@@ -10,6 +10,7 @@ import {
   Bot,
   Brain,
   Github,
+  LayoutGrid,
   Library,
   MessageSquare,
   PanelLeftClose,
@@ -23,8 +24,6 @@ import {
 import { useTranslation } from "react-i18next";
 import SessionList from "@/components/SessionList";
 import { TutorBotRecent } from "@/components/sidebar/TutorBotRecent";
-import { BookRecent } from "@/components/sidebar/BookRecent";
-import { CoWriterRecent } from "@/components/sidebar/CoWriterRecent";
 import { VersionBadge } from "@/components/sidebar/VersionBadge";
 import type { SessionSummary } from "@/lib/session-api";
 
@@ -45,6 +44,7 @@ const PRIMARY_NAV: NavEntry[] = [
   { href: "/book", label: "Book", icon: Library },
   { href: "/knowledge", label: "Knowledge", icon: BookOpen },
   { href: "/memory", label: "Memory", icon: Brain },
+  { href: "/space", label: "Space", icon: LayoutGrid },
   { href: "/classroom", label: "Classroom", icon: Presentation, external: OPENMAIC_URL },
 ];
 
@@ -261,8 +261,6 @@ export function SidebarShell({
               onRenameSession &&
               onDeleteSession;
             const hasBots = item.href === "/agents";
-            const hasBooks = item.href === "/book";
-            const hasCoWriterDocs = item.href === "/co-writer";
             return (
               <div key={item.href}>
                 {item.external ? (
@@ -304,8 +302,6 @@ export function SidebarShell({
                   </div>
                 )}
                 {hasBots && <TutorBotRecent />}
-                {hasCoWriterDocs && <CoWriterRecent />}
-                {hasBooks && <BookRecent />}
               </div>
             );
           })}

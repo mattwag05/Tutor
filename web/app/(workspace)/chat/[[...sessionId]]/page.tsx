@@ -25,10 +25,17 @@ import type { SelectedHistorySession } from "@/components/chat/HistorySessionPic
 import type { SelectedQuestionEntry } from "@/components/chat/QuestionBankPicker";
 import ChatComposer from "@/components/chat/home/ChatComposer";
 import { ChatMessageList } from "@/components/chat/home/ChatMessages";
+// Imported eagerly so the drawer shell is always mounted off-screen —
+// clicking a chip becomes a single CSS class flip, no chunk fetch + double
+// render. The heavy renderers inside still load lazily.
+import FilePreviewDrawer from "@/components/chat/preview/FilePreviewDrawer";
 import {
   useUnifiedChat,
+  type MessageAttachment,
   type MessageRequestSnapshot,
 } from "@/context/UnifiedChatContext";
+import { useAppShell } from "@/context/AppShellContext";
+import type { FilePreviewSource } from "@/components/chat/preview/previewerFor";
 import type { StreamEvent } from "@/lib/unified-ws";
 import {
   extractBase64FromDataUrl,
@@ -36,6 +43,7 @@ import {
 } from "@/lib/file-attachments";
 import {
   classifyFile,
+  isSvgFilename,
   MAX_ATTACHMENT_BYTES,
   MAX_TOTAL_ATTACHMENT_BYTES,
 } from "@/lib/doc-attachments";
@@ -71,6 +79,7 @@ import {
 } from "@/lib/research-types";
 import { listKnowledgeBases } from "@/lib/knowledge-api";
 import { listSkills, type SkillInfo } from "@/lib/skills-api";
+import { downloadChatMarkdown } from "@/lib/chat-export";
 
 const NotebookRecordPicker = dynamic(
   () => import("@/components/notebook/NotebookRecordPicker"),
@@ -234,6 +243,7 @@ export default function ChatPage() {
   const router = useRouter();
   const { t } = useTranslation();
   const sessionIdParam = params.sessionId?.[0] ?? null;
+  const { setActiveSessionId } = useAppShell();
 
   const {
     state,
@@ -253,6 +263,9 @@ export default function ChatPage() {
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [dragging, setDragging] = useState(false);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [previewSource, setPreviewSource] = useState<FilePreviewSource | null>(
+    null,
+  );
   const attachmentErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [capMenuOpen, setCapMenuOpen] = useState(false);
   const [quizConfig, setQuizConfig] = useState<DeepQuestionFormConfig>({
@@ -505,11 +518,14 @@ export default function ChatPage() {
     }
   }, [state.sessionId, sessionIdParam, router]);
 
-  /* Load KBs */
   useEffect(() => {
-    (async () => {
+    setActiveSessionId(state.sessionId || sessionIdParam || null);
+  }, [state.sessionId, sessionIdParam, setActiveSessionId]);
+
+  const refreshKnowledgeBases = useCallback(
+    async (options?: { force?: boolean }) => {
       try {
-        const list = await listKnowledgeBases();
+        const list = await listKnowledgeBases({ force: options?.force });
         setKnowledgeBases(list);
         if (!state.knowledgeBases.length && list.length) {
           const def = list.find((k: KnowledgeBase) => k.is_default);
@@ -518,8 +534,32 @@ export default function ChatPage() {
       } catch {
         setKnowledgeBases([]);
       }
-    })();
-  }, [setKBs, state.knowledgeBases.length]);
+    },
+    [setKBs, state.knowledgeBases.length],
+  );
+
+  /* Load KBs */
+  useEffect(() => {
+    void refreshKnowledgeBases({ force: true });
+  }, [refreshKnowledgeBases]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const refresh = () => {
+      void refreshKnowledgeBases({ force: true });
+    };
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    window.addEventListener("focus", refresh);
+    window.addEventListener("pageshow", refresh);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("pageshow", refresh);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [refreshKnowledgeBases]);
 
   useEffect(() => {
     setCapabilityConfigs(loadCapabilityPlaygroundConfigs());
@@ -654,13 +694,17 @@ export default function ChatPage() {
       new Promise((resolve, reject) => {
         readFileAsDataUrl(f)
           .then((raw) => {
-            const isImage = f.type.startsWith("image/");
+            // SVG: treat as file (text extraction on server, vision models
+            // reject SVG) but keep the data URL so the chip can render a
+            // thumbnail via a raw <img> tag.
+            const svg = isSvgFilename(f.name) || f.type === "image/svg+xml";
+            const isImage = !svg && f.type.startsWith("image/");
             const b64 = extractBase64FromDataUrl(raw);
             resolve({
               type: isImage ? "image" : "file",
               filename: f.name,
               base64: b64,
-              previewUrl: isImage ? raw : undefined,
+              previewUrl: isImage || svg ? raw : undefined,
               size: f.size,
               mimeType: f.type || undefined,
             });
@@ -741,6 +785,40 @@ export default function ChatPage() {
 
   const removeAttachment = useCallback((index: number) => {
     setAttachments((prev) => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const handlePreviewPendingAttachment = useCallback(
+    (index: number) => {
+      const a = attachments[index];
+      if (!a) return;
+      setPreviewSource({
+        filename: a.filename,
+        mimeType: a.mimeType,
+        type: a.type,
+        base64: a.base64,
+        size: a.size,
+      });
+    },
+    [attachments],
+  );
+
+  const handlePreviewMessageAttachment = useCallback(
+    (a: MessageAttachment) => {
+      setPreviewSource({
+        filename: a.filename || "",
+        mimeType: a.mime_type,
+        type: a.type,
+        url: a.url,
+        base64: a.base64,
+        extractedText: a.extracted_text,
+        id: a.id,
+      });
+    },
+    [],
+  );
+
+  const handleClosePreview = useCallback(() => {
+    setPreviewSource(null);
   }, []);
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
@@ -998,8 +1076,28 @@ export default function ChatPage() {
     router.push("/chat");
   }, [router]);
 
+  const handleDownloadMarkdown = useCallback(() => {
+    if (!state.messages.length) return;
+    const title =
+      state.messages
+        .find((msg) => msg.role === "user")
+        ?.content.trim()
+        .slice(0, 80) || "Chat Session";
+    downloadChatMarkdown(state.messages, { title });
+  }, [state.messages]);
+
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-[var(--background)]">
+    <div
+      // When the preview drawer is open AND the viewport is wide enough,
+      // push the chat content to the left by the drawer's width so the two
+      // panels live side-by-side (matches Claude desktop). On smaller
+      // screens the drawer overlays — squeezing a phone-width chat into
+      // the remaining ~30 px would be useless. The actual padding +
+      // transition lives in `chat-preview-shell` (globals.css) so we can
+      // hand-tune it without fighting Tailwind's arbitrary-value parser.
+      data-preview-open={previewSource ? "true" : "false"}
+      className="chat-preview-shell flex h-full flex-col overflow-hidden bg-[var(--background)]"
+    >
       <div className="mx-auto flex w-full max-w-[960px] items-center justify-between px-6 pt-3 pb-0">
         <span className="text-[15px] font-semibold tracking-[-0.01em] text-[var(--foreground)]">
           {t(activeCap.label)}
@@ -1011,6 +1109,14 @@ export default function ChatPage() {
             className="rounded-lg border border-[var(--border)]/50 px-3 py-1.5 text-[12px] font-medium text-[var(--muted-foreground)] transition-colors hover:border-[var(--border)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[var(--border)]/50 disabled:hover:text-[var(--muted-foreground)]"
           >
             {t("Save to Notebook")}
+          </button>
+          <button
+            onClick={handleDownloadMarkdown}
+            disabled={!state.messages.length}
+            title={t("Download chat history as Markdown")}
+            className="rounded-lg border border-[var(--border)]/50 px-3 py-1.5 text-[12px] font-medium text-[var(--muted-foreground)] transition-colors hover:border-[var(--border)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[var(--border)]/50 disabled:hover:text-[var(--muted-foreground)]"
+          >
+            {t("Download Markdown")}
           </button>
           <button
             onClick={handleNewChat}
@@ -1061,6 +1167,7 @@ export default function ChatPage() {
               onCopyAssistantMessage={copyAssistantMessage}
               onRegenerateMessage={handleRegenerateMessage}
               onConfirmOutline={handleConfirmOutline}
+              onPreviewAttachment={handlePreviewMessageAttachment}
             />
             <div ref={messagesEndRef} className="h-px w-full shrink-0" />
           </div>
@@ -1126,6 +1233,7 @@ export default function ChatPage() {
           onToggleResearchSource={toggleResearchSource}
           onSend={handleSend}
           onRemoveAttachment={removeAttachment}
+          onPreviewAttachment={handlePreviewPendingAttachment}
           onRemoveHistory={handleRemoveHistory}
           onRemoveNotebook={handleRemoveNotebook}
           onRemoveQuestion={handleRemoveQuestion}
@@ -1165,6 +1273,11 @@ export default function ChatPage() {
         payload={chatSavePayload}
         messages={chatSaveMessages}
         onClose={handleCloseSaveModal}
+      />
+      <FilePreviewDrawer
+        open={previewSource !== null}
+        source={previewSource}
+        onClose={handleClosePreview}
       />
     </div>
   );
