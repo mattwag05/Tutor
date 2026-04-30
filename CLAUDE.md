@@ -6,7 +6,7 @@ AI tutoring platform — multi-agent RAG architecture, Python/FastAPI backend, N
 **Repo:** https://github.com/mattwag05/DeepTutor.git
 **Upstream:** https://github.com/HKUDS/DeepTutor (main at 445e762)
 **OpenMAIC Upstream:** https://github.com/THU-MAIC/OpenMAIC
-**Deployed:** https://deeptutor.tail6e035b.ts.net (Pironman — 100.75.2.44)
+**Deployed:** https://deeptutor.tail6e035b.ts.net (Pironman — 100.126.176.86)
 
 ---
 
@@ -236,33 +236,27 @@ Five places must be updated to wire in a new module (e.g. `mymodule`):
 
 ## Production Deployment (Pironman)
 
-The full stack runs on the Pironman (100.75.2.44) via Docker Compose with a Tailscale sidecar.
+The full stack runs on the Pironman (100.126.176.86) via Docker Compose, fronted by the existing `caddy-tailscale` container (no per-service Tailscale sidecar — DeepTutor binds to `127.0.0.1:*` and Caddy proxies HTTPS).
 
 **Host:** Pironman (Debian 13, ARM64, 16GB RAM, NVMe)
-**Path:** `/home/matthewwagner/DeepTutor/`
-**Access:** `ssh root@100.75.2.44`
+**Path:** `/home/matthewwagner/homelab/deeptutor/`
+**Active compose:** `docker-compose.pironman.yml` (untracked, local-only override of `docker-compose.yml`)
+**Access:** `ssh pironman` (key auth as `matthewwagner`)
 
 **Live URLs:**
 - Frontend: https://deeptutor.tail6e035b.ts.net (→ 127.0.0.1:3782)
-- API: https://deeptutor.tail6e035b.ts.net:8001 (→ 127.0.0.1:8002)
+- API: https://deeptutor.tail6e035b.ts.net:8001 (→ 127.0.0.1:8001)
 - OpenMAIC: https://deeptutor.tail6e035b.ts.net:3100 (→ 127.0.0.1:3101)
 
-**Containers:** `tailscale-deeptutor`, `deeptutor`, `openmaic`
+**Containers:** `deeptutor`, `openmaic` (caddy-tailscale runs separately under `~/homelab/caddy/pironman/`)
 
 **Rebuild & deploy:**
 ```bash
-ssh root@100.75.2.44
-cd /home/matthewwagner/DeepTutor
-
-# Pull latest from GitHub
-git pull origin main
-
-# Rebuild OpenMAIC image (separate build)
-cd services/openmaic && docker build -t openmaic:latest . && cd ../..
-
-# Rebuild DeepTutor + restart stack
-docker compose build deeptutor
-docker compose up -d
+ssh pironman "cd /home/matthewwagner/homelab/deeptutor && \
+  git pull origin main && \
+  cd services/openmaic && docker build -t openmaic:latest . && cd ../.. && \
+  docker compose -f docker-compose.pironman.yml build deeptutor && \
+  docker compose -f docker-compose.pironman.yml up -d"
 ```
 
 **pnpm lockfile:** If `services/openmaic/package.json` has new deps, update the lockfile before building:
