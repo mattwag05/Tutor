@@ -223,7 +223,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Check if Interactive Mode is enabled
     const interactiveMode = requirements.interactiveMode ?? false;
     const promptId = interactiveMode
       ? PROMPT_IDS.INTERACTIVE_OUTLINES

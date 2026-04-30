@@ -128,7 +128,6 @@ export function GenerationToolbar({
       .catch((err) => {
         if (err?.name !== 'AbortError') {
           setKbAvailable(false);
-          kbFetchedRef.current = true;
         }
       })
       .finally(() => {
