@@ -958,13 +958,6 @@ export const PROVIDERS: Record<ProviderId, ProviderConfig> = {
     icon: '/logos/ollama.svg',
     models: [
       {
-        id: 'llama3.3',
-        name: 'Llama 3.3 70B',
-        contextWindow: 131072,
-        outputWindow: 4096,
-        capabilities: { streaming: true, tools: true, vision: false },
-      },
-      {
         id: 'gemma3',
         name: 'Gemma 3 12B',
         contextWindow: 131072,
@@ -977,6 +970,27 @@ export const PROVIDERS: Record<ProviderId, ProviderConfig> = {
         contextWindow: 131072,
         outputWindow: 8192,
         capabilities: { streaming: true, tools: false, vision: false },
+      },
+      {
+        id: 'medgemma1.5:latest',
+        name: 'MedGemma 1.5',
+        contextWindow: 8192,
+        outputWindow: 4096,
+        capabilities: { streaming: true, tools: false, vision: false },
+      },
+      {
+        id: 'gemma4:latest',
+        name: 'Gemma 4',
+        contextWindow: 32768,
+        outputWindow: 8192,
+        capabilities: { streaming: true, tools: true, vision: false },
+      },
+      {
+        id: 'gemma4:26b',
+        name: 'Gemma 4 26B',
+        contextWindow: 32768,
+        outputWindow: 8192,
+        capabilities: { streaming: true, tools: true, vision: false },
       },
     ],
   },
