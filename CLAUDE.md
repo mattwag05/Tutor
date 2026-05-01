@@ -121,7 +121,7 @@ npx tsc --noEmit  # TypeScript type check (run from web/ dir)
 
 3. **DeepTutor.env priority** — `start_web.py` loads `DeepTutor.env` (parent of project root, `override=False`) before `.env`. If a `~/DeepTutor.env` exists, its values win. Our setup has no such file — safe.
 
-4. **Unified config service wins** — If you configured LLM/embedding via the UI Settings page, those DB values override `.env`. To reset, use the Settings UI or clear the DB.
+4. **Unified config service wins** — If you configured LLM/embedding via the UI Settings page, those values land in `data/user/settings/model_catalog.json` (in the bind-mounted volume) and override `.env`. They survive container restarts. After rotating an API key in `.env`, also `sudo grep '"api_key"' data/user/settings/model_catalog.json` and edit/restart, or use the Settings UI to clear.
 
 5. **`npm audit` warnings** — 24 known vulnerabilities in frontend deps (moderate/high). Not blocking for local dev. Track via a bd task when addressing.
 
@@ -138,6 +138,10 @@ npx tsc --noEmit  # TypeScript type check (run from web/ dir)
 11. **Tailscale sidecar** — `docker-compose.yml` includes `tailscale-deeptutor` sidecar (ScaleTail/coder pattern). `deeptutor` uses `network_mode: service:tailscale-deeptutor` — remove `ports:` and `networks:` directives as they conflict. Auth key in Vaultwarden: `get-secret "Tailscale Auth Key"`. Serve config: `tailscale/ts-serve.json`.
 
 12. **Tailscale sidecar port collision** — `BACKEND_PORT` must NOT be `8001`. Tailscale Serve binds `[tailscale-ip]:8001` in the shared network namespace, so uvicorn's `0.0.0.0:8001` collides and the backend fails to start. Current config: `BACKEND_PORT=8002` (internal); `tailscale/ts-serve.json` proxies `{HOST}:8001 → localhost:8002`; `NEXT_PUBLIC_API_BASE_EXTERNAL=https://deeptutor.tail6e035b.ts.net:8001` unchanged.
+
+13. **OpenMAIC TTS needs a direct OpenAI key, not OpenRouter** — Course Builder's `/api/generate/course-audio` calls OpenAI's `/v1/audio/speech` endpoint directly. Set `TTS_OPENAI_API_KEY=sk-proj-...` in `.env.openmaic` (separate from `OPENAI_API_KEY` which is the OpenRouter LLM key). Without it the route returns a clear "TTS_OPENAI_API_KEY is not set" error.
+
+14. **Artifact endpoints need long curl timeouts** — `/api/generate/course-{flashcards,study-guide,final-exam}` make non-streaming LLM calls that take 60–180s. When testing via curl, use `--max-time 180` minimum or you'll get an empty body and a misleading "JSON parse" error.
 
 ---
 
