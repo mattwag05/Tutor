@@ -9,6 +9,7 @@ import {
   BookOpen,
   Bot,
   Brain,
+  GraduationCap,
   Github,
   LayoutGrid,
   Library,
@@ -46,6 +47,7 @@ const PRIMARY_NAV: NavEntry[] = [
   { href: "/memory", label: "Memory", icon: Brain },
   { href: "/space", label: "Space", icon: LayoutGrid },
   { href: "/classroom", label: "Classroom", icon: Presentation, external: OPENMAIC_URL },
+  { href: "/course", label: "Course", icon: GraduationCap, external: `${OPENMAIC_URL}/course` },
 ];
 
 const SECONDARY_NAV: NavEntry[] = [
