@@ -6,7 +6,8 @@ import { apiError, API_ERROR_CODES } from '@/lib/server/api-response';
 import { resolveModelFromHeaders } from '@/lib/server/resolve-model';
 import { isValidCourseId, readCourse, writeCourse } from '@/lib/server/course-storage';
 import { createLogger } from '@/lib/logger';
-import type { CourseSection, FillBlankQuizBlock, MultipleChoiceQuizBlock } from '@/lib/types/course';
+import { sectionsToText } from '@/lib/course/sections-to-text';
+import type { FillBlankQuizBlock, MultipleChoiceQuizBlock } from '@/lib/types/course';
 
 const log = createLogger('CourseFinalExam');
 
@@ -14,27 +15,6 @@ export const maxDuration = 120;
 
 interface ExamShape {
   questions: Array<FillBlankQuizBlock | MultipleChoiceQuizBlock>;
-}
-
-function sectionsToText(sections: CourseSection[]): string {
-  return sections
-    .filter((s) => s.status === 'ready' && s.blocks.length > 0)
-    .map((s) => {
-      const body = s.blocks
-        .map((b) => {
-          if (b.type === 'prose') return b.markdown;
-          if (b.type === 'heading') return `### ${b.text}`;
-          if (b.type === 'pullQuote') return `> "${b.text}"`;
-          // Include existing quiz questions so the LLM avoids verbatim repetition
-          if (b.type === 'fillBlankQuiz') return `[Existing quiz: "${b.question}"]`;
-          if (b.type === 'multipleChoiceQuiz') return `[Existing quiz: "${b.question}"]`;
-          return '';
-        })
-        .filter(Boolean)
-        .join('\n\n');
-      return `## ${s.title}\n\n${body}`;
-    })
-    .join('\n\n---\n\n');
 }
 
 export async function POST(req: NextRequest) {
@@ -57,7 +37,7 @@ export async function POST(req: NextRequest) {
 
     const { model: languageModel, modelInfo, modelString } = await resolveModelFromHeaders(req);
 
-    const sections = sectionsToText(course.sections);
+    const sections = sectionsToText(course.sections, { quizStyle: 'bracket-existing' });
     if (!sections) {
       return apiError(API_ERROR_CODES.INVALID_REQUEST, 400, 'Course has no ready sections to generate an exam from');
     }

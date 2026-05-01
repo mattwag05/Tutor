@@ -7,6 +7,7 @@ import { apiError, API_ERROR_CODES } from '@/lib/server/api-response';
 import { resolveModelFromHeaders } from '@/lib/server/resolve-model';
 import { getRAGContextForGeneration, isDeepTutorEnabled } from '@/lib/integrations';
 import { createLogger } from '@/lib/logger';
+import { formatPersonalization } from '@/lib/generation/format-personalization';
 import type {
   CourseBlock,
   CourseCitation,
@@ -73,9 +74,7 @@ export async function POST(req: NextRequest) {
       .map((s) => `${s.order}. ${s.title}${s.description ? ` — ${s.description}` : ''}`)
       .join('\n');
 
-    const personalization = body.personalization
-      ? `Target reader depth: ${body.personalization.depth}\nAudience: ${body.personalization.audience}\nProse style: ${body.personalization.style}`
-      : 'Not specified — use intermediate depth, general audience, narrative style.';
+    const personalization = formatPersonalization(body.personalization);
 
     const prompts = buildPrompt(PROMPT_IDS.COURSE_SECTION, {
       courseTitle: body.courseTitle || body.topic,

@@ -16,6 +16,7 @@ import { getRAGContextForGeneration, isDeepTutorEnabled } from '@/lib/integratio
 import { createLogger } from '@/lib/logger';
 import { SSE_HEARTBEAT_INTERVAL_MS, MAX_STREAM_RETRIES } from '@/lib/constants/generation';
 import { formatStudentProfile } from '@/lib/generation/format-student-profile';
+import { formatPersonalization } from '@/lib/generation/format-personalization';
 import type { CourseSection, CoursePersonalization, Language } from '@/lib/types/course';
 
 const log = createLogger('CourseOutlineStream');
@@ -150,9 +151,7 @@ export async function POST(req: NextRequest) {
 
     const userProfile = formatStudentProfile(body, 'inline');
 
-    const personalization = body.personalization
-      ? `Target reader depth: ${body.personalization.depth}\nAudience: ${body.personalization.audience}\nProse style: ${body.personalization.style}`
-      : 'Not specified — use intermediate depth, general audience, narrative style.';
+    const personalization = formatPersonalization(body.personalization);
 
     const prompts = buildPrompt(PROMPT_IDS.COURSE_OUTLINE, {
       topic,

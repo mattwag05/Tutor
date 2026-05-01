@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useCourseStore } from '@/lib/course/store';
-import type { CourseBlock, CourseCitation, CourseSection } from '@/lib/types/course';
+import type { CourseArtifacts, CourseBlock, CourseCitation, CourseSection } from '@/lib/types/course';
 import { CourseTOCDrawer } from './CourseTOCDrawer';
 import { AdvanceBar } from './AdvanceBar';
 import { GoDeeperStrip } from './GoDeeperStrip';
@@ -95,6 +95,7 @@ export function CourseReader({ courseId }: Props) {
     });
   }, []);
 
+  const courseArtifacts = course?.artifacts;
   const onOpenArtifact = useCallback(
     (kind: 'podcast' | 'flashcards' | 'studyGuide' | 'finalExam') => {
       if (kind === 'podcast') {
@@ -102,12 +103,12 @@ export function CourseReader({ courseId }: Props) {
         return;
       }
       setActiveArtifact(kind);
-      const existing = course?.artifacts?.[kind];
+      const existing = courseArtifacts?.[kind];
       if (!existing || existing.status === 'error') {
         void generateArtifact(kind);
       }
     },
-    [course, generateArtifact],
+    [courseArtifacts, generateArtifact],
   );
 
   if (!course) {
@@ -161,6 +162,12 @@ export function CourseReader({ courseId }: Props) {
 
 type ArtifactKind = 'flashcards' | 'studyGuide' | 'finalExam';
 
+const ARTIFACT_LABELS: Record<ArtifactKind, string> = {
+  flashcards: 'Flash Cards',
+  studyGuide: 'Study Guide',
+  finalExam: 'Final Exam',
+};
+
 function ArtifactOverlay({
   kind,
   artifacts,
@@ -168,11 +175,11 @@ function ArtifactOverlay({
   onRetry,
 }: {
   kind: ArtifactKind;
-  artifacts: import('@/lib/types/course').CourseArtifacts | undefined;
+  artifacts: CourseArtifacts | undefined;
   onClose: () => void;
   onRetry: () => void;
 }) {
-  const label = kind === 'flashcards' ? 'Flash Cards' : kind === 'studyGuide' ? 'Study Guide' : 'Final Exam';
+  const label = ARTIFACT_LABELS[kind];
   const a = artifacts?.[kind];
 
   return (

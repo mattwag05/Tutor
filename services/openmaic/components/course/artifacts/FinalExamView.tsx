@@ -43,7 +43,7 @@ export function FinalExamView({ questions }: Props) {
     if (mode !== 'exam') return;
     timerRef.current = setInterval(() => {
       setSecondsLeft((s) => {
-        if (s <= 1) {
+        if (s <= 0) {
           submit();
           return 0;
         }

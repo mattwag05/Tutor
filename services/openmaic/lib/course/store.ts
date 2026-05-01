@@ -215,14 +215,22 @@ const useCourseStoreBase = create<CourseStoreState>((set, get) => ({
     const course = get().course;
     if (!course) return;
 
-    // Optimistic: mark as generating
-    get().applyArtifact({ [kind]: { status: 'generating' } });
+    // Optimistic status update — no persist, artifact data not yet available
+    set({
+      course: {
+        ...course,
+        artifacts: { ...(course.artifacts || {}), [kind]: { status: 'generating' } },
+      },
+    });
 
     const endpointMap = {
       flashcards: '/api/generate/course-flashcards',
       studyGuide: '/api/generate/course-study-guide',
       finalExam: '/api/generate/course-final-exam',
     };
+
+    type FlashcardItem = NonNullable<NonNullable<CourseArtifacts['flashcards']>['cards']>[number];
+    type ExamQuestion = NonNullable<NonNullable<CourseArtifacts['finalExam']>['questions']>[number];
 
     try {
       const res = await fetch(endpointMap[kind], {
@@ -239,11 +247,11 @@ const useCourseStoreBase = create<CourseStoreState>((set, get) => ({
 
       const data = (await res.json()) as Record<string, unknown>;
       if (kind === 'flashcards') {
-        get().applyArtifact({ flashcards: { status: 'ready', cards: data.cards as CourseArtifacts['flashcards'] extends {cards?: infer C} ? C : never } });
+        get().applyArtifact({ flashcards: { status: 'ready', cards: data.cards as FlashcardItem[] } });
       } else if (kind === 'studyGuide') {
         get().applyArtifact({ studyGuide: { status: 'ready', content: data.content as string } });
       } else if (kind === 'finalExam') {
-        get().applyArtifact({ finalExam: { status: 'ready', questions: data.questions as CourseArtifacts['finalExam'] extends {questions?: infer Q} ? Q : never } });
+        get().applyArtifact({ finalExam: { status: 'ready', questions: data.questions as ExamQuestion[] } });
       }
     } catch (error) {
       get().applyArtifact({ [kind]: { status: 'error', error: error instanceof Error ? error.message : String(error) } });

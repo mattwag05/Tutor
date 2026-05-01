@@ -6,7 +6,7 @@ import { apiError, API_ERROR_CODES } from '@/lib/server/api-response';
 import { resolveModelFromHeaders } from '@/lib/server/resolve-model';
 import { isValidCourseId, readCourse, writeCourse } from '@/lib/server/course-storage';
 import { createLogger } from '@/lib/logger';
-import type { CourseSection } from '@/lib/types/course';
+import { sectionsToText } from '@/lib/course/sections-to-text';
 
 const log = createLogger('CourseFlashcards');
 
@@ -14,24 +14,6 @@ export const maxDuration = 120;
 
 interface FlashcardShape {
   cards: Array<{ id: string; sectionId: string; front: string; back: string }>;
-}
-
-function sectionsToText(sections: CourseSection[]): string {
-  return sections
-    .filter((s) => s.status === 'ready' && s.blocks.length > 0)
-    .map((s) => {
-      const body = s.blocks
-        .map((b) => {
-          if (b.type === 'prose') return b.markdown;
-          if (b.type === 'heading') return `### ${b.text}`;
-          if (b.type === 'pullQuote') return `> "${b.text}"`;
-          return '';
-        })
-        .filter(Boolean)
-        .join('\n\n');
-      return `## ${s.title} (id: ${s.id})\n\n${body}`;
-    })
-    .join('\n\n---\n\n');
 }
 
 export async function POST(req: NextRequest) {
@@ -54,7 +36,7 @@ export async function POST(req: NextRequest) {
 
     const { model: languageModel, modelInfo, modelString } = await resolveModelFromHeaders(req);
 
-    const sections = sectionsToText(course.sections);
+    const sections = sectionsToText(course.sections, { includeSectionId: true });
     if (!sections) {
       return apiError(API_ERROR_CODES.INVALID_REQUEST, 400, 'Course has no ready sections to generate flashcards from');
     }

@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import type { CourseSummary } from '@/lib/server/course-storage';
-import { cn } from '@/lib/utils/cn';
+
 
 function formatDate(iso: string): string {
   try {
@@ -32,9 +32,7 @@ export function CourseHistoryGrid({ courses, loading }: Props) {
           {[0, 1, 2].map((i) => (
             <div
               key={i}
-              className={cn(
-                'h-24 animate-pulse rounded-xl border border-neutral-200 bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-900',
-              )}
+              className="h-24 animate-pulse rounded-xl border border-neutral-200 bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-900"
             />
           ))}
         </div>
