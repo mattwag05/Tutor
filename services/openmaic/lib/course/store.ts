@@ -26,6 +26,7 @@ interface CourseStoreState {
     status: NonNullable<CourseSection['status']>,
     error?: string,
   ) => void;
+  setSectionAudio: (sectionId: string, audio: NonNullable<CourseSection['audio']>) => void;
   markSectionComplete: (sectionId: string) => void;
 
   loadCourse: (id: string) => Promise<void>;
@@ -106,6 +107,15 @@ const useCourseStoreBase = create<CourseStoreState>((set, get) => ({
     set({
       course: updateSection(course, sectionId, (s) => ({ ...s, status, error })),
     });
+  },
+
+  setSectionAudio: (sectionId, audio) => {
+    const course = get().course;
+    if (!course) return;
+    set({
+      course: updateSection(course, sectionId, (s) => ({ ...s, audio })),
+    });
+    schedulePersist(() => get().course);
   },
 
   markSectionComplete: (sectionId) => {

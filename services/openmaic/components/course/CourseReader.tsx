@@ -176,12 +176,13 @@ function SectionView({ index, section, citations, onAsk, registerRef }: SectionV
 
   return (
     <section ref={registerRef} data-section-index={index} className="scroll-mt-20 py-12">
-      <h1 className="mb-6 font-serif text-4xl text-neutral-900 dark:text-neutral-50">
+      <h1 className="mb-3 font-serif text-4xl text-neutral-900 dark:text-neutral-50">
         {section.title}
       </h1>
 
       {status === 'ready' && section.blocks.length > 0 ? (
         <>
+          <SectionAudio section={section} />
           {blockList}
           <GoDeeperStrip prompts={section.goDeeperPrompts} onAsk={onAsk} />
         </>
@@ -193,6 +194,66 @@ function SectionView({ index, section, citations, onAsk, registerRef }: SectionV
         <GenerationSkeleton />
       )}
     </section>
+  );
+}
+
+function SectionAudio({ section }: { section: CourseSection }) {
+  const courseId = useCourseStore.use.course()?.id;
+  const setSectionAudio = useCourseStore.use.setSectionAudio();
+  const audioUrl = section.audio?.url;
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState<string | undefined>();
+
+  const onListen = useCallback(async () => {
+    if (!courseId) return;
+    if (audioUrl) return;
+    setGenerating(true);
+    setError(undefined);
+    try {
+      const res = await fetch('/api/generate/course-audio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ courseId, sectionId: section.id }),
+      });
+      const data = (await res.json()) as { success?: boolean; audioUrl?: string; error?: string };
+      if (!res.ok || !data.success || !data.audioUrl) {
+        throw new Error(data.error || `Synthesis failed (${res.status})`);
+      }
+      setSectionAudio(section.id, { status: 'ready', url: data.audioUrl });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Synthesis failed';
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setGenerating(false);
+    }
+  }, [audioUrl, courseId, section.id, setSectionAudio]);
+
+  if (audioUrl) {
+    return (
+      <audio
+        controls
+        preload="metadata"
+        src={audioUrl}
+        className="mb-6 w-full"
+        aria-label={`Audio for section: ${section.title}`}
+      />
+    );
+  }
+
+  return (
+    <div className="mb-6 flex items-center gap-3">
+      <button
+        type="button"
+        onClick={onListen}
+        disabled={generating}
+        className="inline-flex items-center gap-2 rounded-full border border-neutral-300 bg-white px-4 py-1.5 text-sm text-neutral-700 transition hover:bg-neutral-50 disabled:cursor-progress disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+      >
+        <span aria-hidden>▶</span>
+        {generating ? 'Synthesizing…' : 'Listen'}
+      </button>
+      {error ? <span className="text-sm text-rose-600 dark:text-rose-400">{error}</span> : null}
+    </div>
   );
 }
 

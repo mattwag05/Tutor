@@ -177,9 +177,9 @@ The working tree periodically accumulates `* 2.{py,ts,tsx,md,...}` duplicate fil
    - `lib/integrations/*`, `lib/i18n/locales/*.json`, `package.json`
 4. **Course Builder fork-local paths** (entirely fork-only — upstream has no `course/` namespace; restore from backup after `--delete` rsync, do not 3-way merge):
    - `app/course/**`, `app/api/course/**`
-   - `app/api/generate/course-outline-stream/**`, `app/api/generate/course-section/**`
+   - `app/api/generate/course-outline-stream/**`, `app/api/generate/course-section/**`, `app/api/generate/course-audio/**`
    - `components/course/**`
-   - `lib/course/**`, `lib/server/course-storage.ts`, `lib/types/course.ts`
+   - `lib/course/**`, `lib/server/course-storage.ts`, `lib/server/tts/**`, `lib/types/course.ts`
    - `lib/generation/prompts/templates/course-outline/**`, `lib/generation/prompts/templates/course-section/**`
    - After restore, verify `lib/generation/prompts/types.ts` `PromptId` union and `lib/generation/prompts/index.ts` `PROMPT_IDS` still include `course-outline` and `course-section`.
 5. **Never** use `git subtree pull` on OpenMAIC — it was added via plain file copy (not `git subtree add`), so subtree tooling produces 60+ spurious add/add conflicts.

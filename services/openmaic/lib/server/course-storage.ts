@@ -9,8 +9,30 @@ export function isValidCourseId(id: string): boolean {
   return /^[a-zA-Z0-9_-]+$/.test(id);
 }
 
+export function isValidSectionId(id: string): boolean {
+  return /^[a-zA-Z0-9_-]+$/.test(id);
+}
+
 async function ensureCoursesDir() {
   await fs.mkdir(COURSES_DIR, { recursive: true });
+}
+
+export function courseAudioPath(courseId: string, sectionId: string): string {
+  return path.join(COURSES_DIR, courseId, 'audio', `${sectionId}.mp3`);
+}
+
+export async function writeSectionAudio(
+  courseId: string,
+  sectionId: string,
+  data: Buffer,
+): Promise<string> {
+  if (!isValidCourseId(courseId) || !isValidSectionId(sectionId)) {
+    throw new Error('Invalid course or section id');
+  }
+  const filePath = courseAudioPath(courseId, sectionId);
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  await fs.writeFile(filePath, data);
+  return filePath;
 }
 
 export async function readCourse(id: string): Promise<Course | null> {

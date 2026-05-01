@@ -105,6 +105,14 @@ export interface CourseSection {
   /** Generation state for lazy section loading. */
   status?: 'pending' | 'generating' | 'ready' | 'error';
   error?: string;
+  /** On-demand TTS audio for this section. Absent until synthesized. */
+  audio?: {
+    status: 'pending' | 'generating' | 'ready' | 'error';
+    /** Path served by /api/course/[id]/audio/[sectionId]. */
+    url?: string;
+    durationSec?: number;
+    error?: string;
+  };
 }
 
 // ==================== Course ====================
