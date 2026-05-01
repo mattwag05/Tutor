@@ -62,7 +62,7 @@ The `citationId` must match an entry in the top-level `citations` array (see bel
 
 ### fillBlankQuiz
 
-An inline fill-in-the-blank knowledge check. Use exactly ONE `___` in the question. Placement: at most 1 quiz (fill-blank OR multiple-choice) per section, toward the middle or end.
+An inline fill-in-the-blank knowledge check. Use exactly ONE `___` in the question. Placement: place it immediately after introducing the section's central non-trivial concept — typically 40–60% of the way through the block sequence. If the section has fewer than 3 prose/heading blocks, omit the quiz entirely.
 
 ```json
 {
@@ -79,7 +79,7 @@ An inline fill-in-the-blank knowledge check. Use exactly ONE `___` in the questi
 
 ### multipleChoiceQuiz
 
-A standard multiple-choice question. Use instead of fillBlank when the knowledge check is about recognizing a concept, not filling in a word. At most 1 quiz per section.
+A standard multiple-choice question. Use instead of fillBlank when the knowledge check is about recognizing a concept, not filling in a word. Place it at the same mid-section position as fillBlankQuiz — at most 1 quiz block (of either type) per section.
 
 ```json
 {
@@ -127,7 +127,7 @@ The output is a **single JSON object** matching:
 - Start sections with a hook, not a heading. The title renders above the content; don't restate it.
 - Use concrete examples and analogies. A smart reader should finish each section thinking "oh, that clicked."
 - Include one pull-quote only when there's a good real-world source in the research context. Never fabricate attributions.
-- Include exactly one knowledge-check block per section, positioned where the reader has just been given the information the question tests.
+- Include exactly one knowledge-check block (fill-blank or multiple-choice) per section, placed immediately after the section's central non-trivial concept is introduced — 40–60% of the way through the block list. Omit entirely for short sections (fewer than 3 prose/heading blocks).
 - Include one display math block (`explainable: true`) per section only if the topic actually calls for a formula.
 
 ## Hard Rules
@@ -135,7 +135,7 @@ The output is a **single JSON object** matching:
 1. **JSON only.** No markdown fences, no explanatory prose outside the JSON object.
 2. **Block types**: only `prose`, `heading`, `math`, `pullQuote`, `fillBlankQuiz`, `multipleChoiceQuiz`.
 3. **Block IDs** follow `<sectionId>_b<N>`, starting from 1, incrementing.
-4. **At most 1 quiz block per section.**
+4. **At most 1 quiz block per section.** Place it mid-section (40–60% through blocks), after a key concept. Omit for sections with fewer than 3 prose/heading blocks.
 5. **At most 2 pullQuote blocks per section.**
 6. **Language**: write in the course language throughout.
 7. **No invented sources**: if the research context is empty, emit zero citations and zero pull-quotes.

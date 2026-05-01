@@ -35,4 +35,7 @@ export const PROMPT_IDS = {
   COURSE_SECTION: 'course-section',
   COURSE_FOLLOW_UP: 'course-follow-up',
   COURSE_EXPLAIN: 'course-explain',
+  COURSE_FLASHCARDS: 'course-flashcards',
+  COURSE_STUDY_GUIDE: 'course-study-guide',
+  COURSE_FINAL_EXAM: 'course-final-exam',
 } as const;

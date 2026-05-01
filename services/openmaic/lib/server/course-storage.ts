@@ -67,7 +67,9 @@ export async function deleteCourse(id: string): Promise<boolean> {
   }
 }
 
-export async function listCourses(): Promise<Array<{ id: string; title: string; createdAt: string }>> {
+export type CourseSummary = { id: string; title: string; topic: string; createdAt: string; sectionCount: number };
+
+export async function listCourses(): Promise<CourseSummary[]> {
   try {
     const files = await fs.readdir(COURSES_DIR);
     const summaries = await Promise.all(
@@ -77,13 +79,19 @@ export async function listCourses(): Promise<Array<{ id: string; title: string; 
           try {
             const content = await fs.readFile(path.join(COURSES_DIR, f), 'utf-8');
             const c = JSON.parse(content) as Course;
-            return { id: c.id, title: c.title, createdAt: c.createdAt };
+            return {
+              id: c.id,
+              title: c.title,
+              topic: c.topic,
+              createdAt: c.createdAt,
+              sectionCount: c.sections.length,
+            };
           } catch {
             return null;
           }
         }),
     );
-    return summaries.filter((s): s is { id: string; title: string; createdAt: string } => s !== null);
+    return summaries.filter((s): s is CourseSummary => s !== null);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       return [];

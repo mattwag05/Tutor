@@ -1,26 +1,47 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { nanoid } from 'nanoid';
 import { BookOpen, GraduationCap } from 'lucide-react';
 import type {
   CourseSection,
   CourseOutlineStreamEvent,
+  CoursePersonalization,
   Language,
 } from '@/lib/types/course';
+import type { CourseSummary } from '@/lib/server/course-storage';
+import { CourseHistoryGrid } from '@/components/course/CourseHistoryGrid';
 
 type StreamState =
   | { phase: 'idle' }
   | { phase: 'streaming'; sections: CourseSection[]; courseTitle: string }
   | { phase: 'error'; message: string };
 
+const selectClass =
+  'rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-800 disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-200';
+
 export default function CourseLandingPage() {
   const router = useRouter();
   const [topic, setTopic] = useState('');
   const [language, setLanguage] = useState<Language>('en-US');
+  const [depth, setDepth] = useState<CoursePersonalization['depth']>('introductory');
+  const [audience, setAudience] = useState<CoursePersonalization['audience']>('student');
+  const [style, setStyle] = useState<CoursePersonalization['style']>('narrative');
   const [state, setState] = useState<StreamState>({ phase: 'idle' });
+  const [courses, setCourses] = useState<CourseSummary[]>([]);
+  const [coursesLoading, setCoursesLoading] = useState(true);
   const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    fetch('/api/course')
+      .then((r) => r.json())
+      .then((data: CourseSummary[]) => setCourses(data))
+      .catch(() => setCourses([]))
+      .finally(() => setCoursesLoading(false));
+  }, []);
+
+  const personalization: CoursePersonalization = { depth, audience, style };
 
   const generate = async () => {
     const trimmed = topic.trim();
@@ -35,7 +56,7 @@ export default function CourseLandingPage() {
       const res = await fetch('/api/generate/course-outline-stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic: trimmed, language }),
+        body: JSON.stringify({ topic: trimmed, language, personalization }),
         signal: abort.signal,
       });
 
@@ -70,7 +91,6 @@ export default function CourseLandingPage() {
               setState({ phase: 'streaming', sections: [...sections], courseTitle });
             } else if (ev.type === 'done') {
               courseTitle = ev.title || courseTitle;
-              // Finalize: create server-side course and redirect
               const id = nanoid();
               const createRes = await fetch('/api/course', {
                 method: 'POST',
@@ -80,6 +100,7 @@ export default function CourseLandingPage() {
                   title: courseTitle,
                   topic: trimmed,
                   language,
+                  personalization,
                   sections: ev.sections,
                 }),
               });
@@ -107,9 +128,11 @@ export default function CourseLandingPage() {
     }
   };
 
+  const disabled = state.phase === 'streaming';
+
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col px-4 py-16 sm:px-6">
-      {/* Mode switcher — Classroom / Course Builder (current) */}
+      {/* Mode switcher */}
       <div className="mb-8 flex justify-center">
         <div
           role="tablist"
@@ -161,16 +184,55 @@ export default function CourseLandingPage() {
           onChange={(e) => setTopic(e.target.value)}
           placeholder="Teach me about the Standard Model…"
           rows={3}
-          disabled={state.phase === 'streaming'}
+          disabled={disabled}
           className="w-full resize-none rounded-xl border border-neutral-300 bg-white px-4 py-3 text-base text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-900 focus:outline-none disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100 dark:focus:border-neutral-300"
         />
 
+        {/* Personalization row */}
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={depth}
+            onChange={(e) => setDepth(e.target.value as CoursePersonalization['depth'])}
+            disabled={disabled}
+            aria-label="Depth"
+            className={selectClass}
+          >
+            <option value="introductory">Introductory</option>
+            <option value="intermediate">Intermediate</option>
+            <option value="advanced">Advanced</option>
+          </select>
+          <select
+            value={audience}
+            onChange={(e) => setAudience(e.target.value as CoursePersonalization['audience'])}
+            disabled={disabled}
+            aria-label="Audience"
+            className={selectClass}
+          >
+            <option value="student">Student</option>
+            <option value="professional">Professional</option>
+            <option value="hobbyist">Hobbyist</option>
+          </select>
+          <select
+            value={style}
+            onChange={(e) => setStyle(e.target.value as CoursePersonalization['style'])}
+            disabled={disabled}
+            aria-label="Style"
+            className={selectClass}
+          >
+            <option value="narrative">Narrative</option>
+            <option value="academic">Academic</option>
+            <option value="conversational">Conversational</option>
+          </select>
+        </div>
+
+        {/* Language + submit row */}
         <div className="flex items-center justify-between gap-3">
           <select
             value={language}
             onChange={(e) => setLanguage(e.target.value as Language)}
-            disabled={state.phase === 'streaming'}
-            className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-800 disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-200"
+            disabled={disabled}
+            aria-label="Language"
+            className={selectClass}
           >
             <option value="en-US">English</option>
             <option value="zh-CN">中文</option>
@@ -179,10 +241,10 @@ export default function CourseLandingPage() {
           </select>
           <button
             type="submit"
-            disabled={state.phase === 'streaming' || !topic.trim()}
+            disabled={disabled || !topic.trim()}
             className="rounded-lg bg-neutral-900 px-5 py-2 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-40 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-white"
           >
-            {state.phase === 'streaming' ? 'Generating…' : 'Generate course'}
+            {disabled ? 'Generating…' : 'Generate course'}
           </button>
         </div>
       </form>
@@ -226,6 +288,10 @@ export default function CourseLandingPage() {
             Try again
           </button>
         </div>
+      )}
+
+      {state.phase !== 'streaming' && (
+        <CourseHistoryGrid courses={courses} loading={coursesLoading} />
       )}
     </main>
   );

@@ -14,6 +14,10 @@ import { PullQuoteBlockView } from './blocks/PullQuoteBlock';
 import { IllustrationBlockView } from './blocks/IllustrationBlock';
 import { FillBlankQuizBlockView } from './blocks/FillBlankQuizBlock';
 import { MultipleChoiceQuizBlockView } from './blocks/MultipleChoiceQuizBlock';
+import { ArtifactModal, ArtifactGenerating, ArtifactError } from './artifacts/ArtifactModal';
+import { FlashcardDeck } from './artifacts/FlashcardDeck';
+import { StudyGuideView } from './artifacts/StudyGuideView';
+import { FinalExamView } from './artifacts/FinalExamView';
 
 interface Props {
   courseId: string;
@@ -24,9 +28,11 @@ export function CourseReader({ courseId }: Props) {
   const loadCourse = useCourseStore.use.loadCourse();
   const generateSection = useCourseStore.use.generateSection();
   const markSectionComplete = useCourseStore.use.markSectionComplete();
+  const generateArtifact = useCourseStore.use.generateArtifact();
 
   const [tocOpen, setTocOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [activeArtifact, setActiveArtifact] = useState<'flashcards' | 'studyGuide' | 'finalExam' | null>(null);
   const sectionRefs = useRef<Array<HTMLElement | null>>([]);
 
   useEffect(() => {
@@ -91,9 +97,17 @@ export function CourseReader({ courseId }: Props) {
 
   const onOpenArtifact = useCallback(
     (kind: 'podcast' | 'flashcards' | 'studyGuide' | 'finalExam') => {
-      toast(`${kind} generation coming soon`);
+      if (kind === 'podcast') {
+        toast('Podcast coming soon');
+        return;
+      }
+      setActiveArtifact(kind);
+      const existing = course?.artifacts?.[kind];
+      if (!existing || existing.status === 'error') {
+        void generateArtifact(kind);
+      }
     },
-    [],
+    [course, generateArtifact],
   );
 
   if (!course) {
@@ -132,7 +146,51 @@ export function CourseReader({ courseId }: Props) {
       </main>
 
       <AdvanceBar nextTitle={nextSection?.title} onAdvance={onAdvance} />
+
+      {activeArtifact && course && (
+        <ArtifactOverlay
+          kind={activeArtifact}
+          artifacts={course.artifacts}
+          onClose={() => setActiveArtifact(null)}
+          onRetry={() => void generateArtifact(activeArtifact)}
+        />
+      )}
     </div>
+  );
+}
+
+type ArtifactKind = 'flashcards' | 'studyGuide' | 'finalExam';
+
+function ArtifactOverlay({
+  kind,
+  artifacts,
+  onClose,
+  onRetry,
+}: {
+  kind: ArtifactKind;
+  artifacts: import('@/lib/types/course').CourseArtifacts | undefined;
+  onClose: () => void;
+  onRetry: () => void;
+}) {
+  const label = kind === 'flashcards' ? 'Flash Cards' : kind === 'studyGuide' ? 'Study Guide' : 'Final Exam';
+  const a = artifacts?.[kind];
+
+  return (
+    <ArtifactModal title={label} onClose={onClose}>
+      {!a || a.status === 'generating' || a.status === 'pending' ? (
+        <ArtifactGenerating label={`Generating ${label.toLowerCase()}…`} />
+      ) : a.status === 'error' ? (
+        <ArtifactError message={a.error ?? 'Generation failed'} onRetry={onRetry} />
+      ) : kind === 'flashcards' && 'cards' in a && a.cards ? (
+        <FlashcardDeck cards={a.cards} />
+      ) : kind === 'studyGuide' && 'content' in a && a.content ? (
+        <StudyGuideView content={a.content} />
+      ) : kind === 'finalExam' && 'questions' in a && a.questions ? (
+        <FinalExamView questions={a.questions} />
+      ) : (
+        <ArtifactGenerating label={`Generating ${label.toLowerCase()}…`} />
+      )}
+    </ArtifactModal>
   );
 }
 

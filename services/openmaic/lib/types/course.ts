@@ -158,6 +158,12 @@ export interface CourseProgress {
   lastVisitedSectionId?: string;
 }
 
+export interface CoursePersonalization {
+  depth: 'introductory' | 'intermediate' | 'advanced';
+  audience: 'student' | 'professional' | 'hobbyist';
+  style: 'narrative' | 'academic' | 'conversational';
+}
+
 export interface Course {
   id: string;
   /** Short title shown in the TOC header. */
@@ -169,6 +175,8 @@ export interface Course {
   createdAt: string;
   /** Optional DeepTutor KB name used for RAG citations. */
   knowledgeBase?: string;
+  /** Reader depth, audience, and prose style chosen at creation time. */
+  personalization?: CoursePersonalization;
   /** Top-level sections. Rendered linearly in the reader. */
   sections: CourseSection[];
   /** Citation store — block markers like {{cite:src_1}} resolve here. */

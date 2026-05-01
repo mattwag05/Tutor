@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { createSelectors } from '@/lib/utils/create-selectors';
 import type {
   Course,
+  CourseArtifacts,
   CourseBlock,
   CourseCitation,
   CourseSection,
@@ -31,6 +32,8 @@ interface CourseStoreState {
 
   loadCourse: (id: string) => Promise<void>;
   generateSection: (sectionId: string) => Promise<void>;
+  generateArtifact: (kind: 'flashcards' | 'studyGuide' | 'finalExam') => Promise<void>;
+  applyArtifact: (patch: Partial<CourseArtifacts>) => void;
 }
 
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
@@ -166,6 +169,7 @@ const useCourseStoreBase = create<CourseStoreState>((set, get) => ({
           topic: course.topic,
           language: course.language,
           knowledgeBase: course.knowledgeBase,
+          personalization: course.personalization,
           courseOutline: course.sections.map((s) => ({
             id: s.id,
             order: s.order,
@@ -198,6 +202,51 @@ const useCourseStoreBase = create<CourseStoreState>((set, get) => ({
         'error',
         error instanceof Error ? error.message : String(error),
       );
+    }
+  },
+  applyArtifact: (patch) => {
+    const course = get().course;
+    if (!course) return;
+    set({ course: { ...course, artifacts: { ...(course.artifacts || {}), ...patch } } });
+    schedulePersist(() => get().course);
+  },
+
+  generateArtifact: async (kind) => {
+    const course = get().course;
+    if (!course) return;
+
+    // Optimistic: mark as generating
+    get().applyArtifact({ [kind]: { status: 'generating' } });
+
+    const endpointMap = {
+      flashcards: '/api/generate/course-flashcards',
+      studyGuide: '/api/generate/course-study-guide',
+      finalExam: '/api/generate/course-final-exam',
+    };
+
+    try {
+      const res = await fetch(endpointMap[kind], {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ courseId: course.id }),
+      });
+
+      if (!res.ok) {
+        const err = await res.text();
+        get().applyArtifact({ [kind]: { status: 'error', error: err || 'Generation failed' } });
+        return;
+      }
+
+      const data = (await res.json()) as Record<string, unknown>;
+      if (kind === 'flashcards') {
+        get().applyArtifact({ flashcards: { status: 'ready', cards: data.cards as CourseArtifacts['flashcards'] extends {cards?: infer C} ? C : never } });
+      } else if (kind === 'studyGuide') {
+        get().applyArtifact({ studyGuide: { status: 'ready', content: data.content as string } });
+      } else if (kind === 'finalExam') {
+        get().applyArtifact({ finalExam: { status: 'ready', questions: data.questions as CourseArtifacts['finalExam'] extends {questions?: infer Q} ? Q : never } });
+      }
+    } catch (error) {
+      get().applyArtifact({ [kind]: { status: 'error', error: error instanceof Error ? error.message : String(error) } });
     }
   },
 }));

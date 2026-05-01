@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { nanoid } from 'nanoid';
 import { apiError, API_ERROR_CODES } from '@/lib/server/api-response';
-import { listCourses, writeCourse, readCourse } from '@/lib/server/course-storage';
-import type { Course, CourseSection, Language } from '@/lib/types/course';
+import { listCourses, writeCourse, readCourse, type CourseSummary } from '@/lib/server/course-storage';
+import type { Course, CoursePersonalization, CourseSection, Language } from '@/lib/types/course';
 
 export async function GET() {
   const summaries = await listCourses();
-  // Newest first
-  summaries.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  summaries.sort((a: CourseSummary, b: CourseSummary) => b.createdAt.localeCompare(a.createdAt));
   return NextResponse.json(summaries);
 }
 
@@ -18,6 +17,7 @@ export async function POST(req: NextRequest) {
     topic?: string;
     language?: Language;
     knowledgeBase?: string;
+    personalization?: CoursePersonalization;
     sections?: CourseSection[];
   };
   try {
@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
     language: body.language || 'en-US',
     createdAt: new Date().toISOString(),
     knowledgeBase: body.knowledgeBase,
+    personalization: body.personalization,
     sections: body.sections || [],
     citations: {},
     progress: { sections: {} },

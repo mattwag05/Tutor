@@ -19,7 +19,10 @@ export type PromptId =
   | 'course-outline'
   | 'course-section'
   | 'course-follow-up'
-  | 'course-explain';
+  | 'course-explain'
+  | 'course-flashcards'
+  | 'course-study-guide'
+  | 'course-final-exam';
 
 /**
  * Snippet identifier

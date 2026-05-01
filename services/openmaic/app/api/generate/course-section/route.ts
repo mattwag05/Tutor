@@ -10,6 +10,7 @@ import { createLogger } from '@/lib/logger';
 import type {
   CourseBlock,
   CourseCitation,
+  CoursePersonalization,
   CourseSection,
   Language,
 } from '@/lib/types/course';
@@ -40,6 +41,7 @@ export async function POST(req: NextRequest) {
       courseOutline?: OutlineSummary[];
       section?: { id: string; order: number; title: string; description?: string };
       knowledgeBase?: string;
+      personalization?: CoursePersonalization;
     };
 
     if (!body.topic || !body.section?.title) {
@@ -71,6 +73,10 @@ export async function POST(req: NextRequest) {
       .map((s) => `${s.order}. ${s.title}${s.description ? ` — ${s.description}` : ''}`)
       .join('\n');
 
+    const personalization = body.personalization
+      ? `Target reader depth: ${body.personalization.depth}\nAudience: ${body.personalization.audience}\nProse style: ${body.personalization.style}`
+      : 'Not specified — use intermediate depth, general audience, narrative style.';
+
     const prompts = buildPrompt(PROMPT_IDS.COURSE_SECTION, {
       courseTitle: body.courseTitle || body.topic,
       topic: body.topic,
@@ -81,6 +87,7 @@ export async function POST(req: NextRequest) {
       sectionTitle: body.section.title,
       sectionDescription: body.section.description || '',
       researchContext,
+      personalization,
     });
 
     if (!prompts) {
