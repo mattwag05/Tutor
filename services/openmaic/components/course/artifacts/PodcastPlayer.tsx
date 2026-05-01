@@ -1,10 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useCourseStore } from '@/lib/course/store';
 import type { CourseArtifacts, PodcastModeArtifact } from '@/lib/types/course';
-
-type Mode = 'solo' | 'conversational';
+import type { PodcastMode } from '@/lib/server/course-storage';
 
 interface Props {
   podcast: NonNullable<CourseArtifacts['podcast']> | undefined;
@@ -12,12 +11,11 @@ interface Props {
 
 export function PodcastPlayer({ podcast }: Props) {
   const generateArtifact = useCourseStore.use.generateArtifact();
-  const initialMode: Mode = useMemo(() => {
+  const [mode, setMode] = useState<PodcastMode>(() => {
     if (podcast?.solo?.status === 'ready') return 'solo';
     if (podcast?.conversational?.status === 'ready') return 'conversational';
     return 'solo';
-  }, [podcast]);
-  const [mode, setMode] = useState<Mode>(initialMode);
+  });
   const [showTranscript, setShowTranscript] = useState(false);
 
   const current: PodcastModeArtifact | undefined = podcast?.[mode];
@@ -41,7 +39,13 @@ export function PodcastPlayer({ podcast }: Props) {
   );
 }
 
-function ModeTabs({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => void }) {
+function ModeTabs({
+  mode,
+  onChange,
+}: {
+  mode: PodcastMode;
+  onChange: (m: PodcastMode) => void;
+}) {
   return (
     <div className="flex justify-center">
       <div className="inline-flex rounded-full border border-neutral-300 bg-white p-1 text-sm dark:border-neutral-700 dark:bg-neutral-900">
@@ -88,7 +92,7 @@ function ModeBody({
   onToggleTranscript,
   onGenerate,
 }: {
-  mode: Mode;
+  mode: PodcastMode;
   artifact: PodcastModeArtifact | undefined;
   showTranscript: boolean;
   onToggleTranscript: () => void;
@@ -113,45 +117,45 @@ function ModeBody({
     );
   }
 
-  if (artifact.status === 'ready' && artifact.audioUrl) {
-    return (
-      <div className="flex flex-col gap-4">
-        <audio
-          controls
-          preload="metadata"
-          src={artifact.audioUrl}
-          className="w-full"
-          aria-label={`Podcast audio (${mode})`}
-        />
-        <div className="flex items-center justify-between text-sm">
-          <button
-            type="button"
-            onClick={onToggleTranscript}
-            className="text-neutral-700 underline-offset-4 hover:underline dark:text-neutral-300"
-          >
-            {showTranscript ? 'Hide transcript' : 'Show transcript'}
-          </button>
-          <button
-            type="button"
-            onClick={onGenerate}
-            className="text-neutral-500 underline-offset-4 hover:underline hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200"
-          >
-            Regenerate
-          </button>
-        </div>
-        {showTranscript && artifact.transcript ? (
-          <div className="max-h-[50vh] overflow-y-auto whitespace-pre-wrap rounded-md border border-neutral-200 bg-neutral-50 p-4 text-sm leading-relaxed text-neutral-800 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200">
-            {artifact.transcript}
-          </div>
-        ) : null}
-      </div>
-    );
+  if (!artifact.audioUrl) {
+    return <GeneratePrompt mode={mode} onGenerate={onGenerate} />;
   }
 
-  return <GeneratePrompt mode={mode} onGenerate={onGenerate} />;
+  return (
+    <div className="flex flex-col gap-4">
+      <audio
+        controls
+        preload="metadata"
+        src={artifact.audioUrl}
+        className="w-full"
+        aria-label={`Podcast audio (${mode})`}
+      />
+      <div className="flex items-center justify-between text-sm">
+        <button
+          type="button"
+          onClick={onToggleTranscript}
+          className="text-neutral-700 underline-offset-4 hover:underline dark:text-neutral-300"
+        >
+          {showTranscript ? 'Hide transcript' : 'Show transcript'}
+        </button>
+        <button
+          type="button"
+          onClick={onGenerate}
+          className="text-neutral-500 underline-offset-4 hover:underline hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200"
+        >
+          Regenerate
+        </button>
+      </div>
+      {showTranscript && artifact.transcript ? (
+        <div className="max-h-[50vh] overflow-y-auto whitespace-pre-wrap rounded-md border border-neutral-200 bg-neutral-50 p-4 text-sm leading-relaxed text-neutral-800 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200">
+          {artifact.transcript}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
-function GeneratePrompt({ mode, onGenerate }: { mode: Mode; onGenerate: () => void }) {
+function GeneratePrompt({ mode, onGenerate }: { mode: PodcastMode; onGenerate: () => void }) {
   return (
     <div className="flex flex-col items-center gap-3 py-6 text-center">
       <p className="text-sm text-neutral-600 dark:text-neutral-400">

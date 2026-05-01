@@ -1,9 +1,9 @@
 import { promises as fs } from 'fs';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { callLLM } from '@/lib/ai/llm';
 import { buildPrompt, PROMPT_IDS } from '@/lib/generation/prompts';
 import { parseJsonResponse } from '@/lib/generation/json-repair';
-import { apiError, API_ERROR_CODES } from '@/lib/server/api-response';
+import { apiError, apiSuccess, API_ERROR_CODES } from '@/lib/server/api-response';
 import { resolveModelFromHeaders } from '@/lib/server/resolve-model';
 import {
   coursePodcastPath,
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
       try {
         const stat = await fs.stat(coursePodcastPath(course.id, 'conversational'));
         if (stat.isFile() && stat.size > 0) {
-          return NextResponse.json({
+          return apiSuccess({
             audioUrl: cached.audioUrl,
             transcript: cached.transcript,
             bytes: stat.size,
@@ -106,10 +106,8 @@ export async function POST(req: NextRequest) {
     }
 
     const turns = parsed.turns
-      .map((t) => ({
-        speaker: t.speaker === 'B' ? ('B' as const) : ('A' as const),
-        text: typeof t.text === 'string' ? t.text.trim() : '',
-      }))
+      .filter((t) => (t.speaker === 'A' || t.speaker === 'B') && typeof t.text === 'string')
+      .map((t) => ({ speaker: t.speaker as 'A' | 'B', text: t.text.trim() }))
       .filter((t) => t.text.length > 0);
 
     if (turns.length === 0) {
@@ -117,12 +115,11 @@ export async function POST(req: NextRequest) {
     }
 
     log.info(`Synthesizing conversational podcast TTS [turns=${turns.length}]`);
-    const buffers: Buffer[] = [];
-    for (const turn of turns) {
-      const voice = turn.speaker === 'A' ? VOICE_A : VOICE_B;
-      const buf = await synthesizeLong(turn.text, { voice });
-      buffers.push(buf);
-    }
+    const buffers = await Promise.all(
+      turns.map((t) =>
+        synthesizeLong(t.text, { voice: t.speaker === 'A' ? VOICE_A : VOICE_B }),
+      ),
+    );
     const audio = Buffer.concat(buffers);
     await writePodcastAudio(course.id, 'conversational', audio);
 
@@ -140,7 +137,7 @@ export async function POST(req: NextRequest) {
     };
     await writeCourse(course);
 
-    return NextResponse.json({
+    return apiSuccess({
       audioUrl,
       transcript,
       bytes: audio.byteLength,

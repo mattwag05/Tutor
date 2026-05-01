@@ -3,42 +3,9 @@ import {
   type OpenAITTSVoice,
   type OpenAITTSModel,
 } from './openai-tts';
+import { splitLongSpeechText } from '@/lib/audio/tts-utils';
 
-const MAX_CHUNK_CHARS = 3800; // leave headroom under the 4096 SDK cap
-
-/** Split text into TTS-sized chunks at paragraph then sentence boundaries. */
-export function chunkForTTS(text: string, maxChars = MAX_CHUNK_CHARS): string[] {
-  const trimmed = text.trim();
-  if (trimmed.length <= maxChars) return [trimmed];
-
-  const out: string[] = [];
-  let buf = '';
-  const flush = () => {
-    if (buf.trim()) out.push(buf.trim());
-    buf = '';
-  };
-
-  // Paragraphs first.
-  for (const para of trimmed.split(/\n{2,}/)) {
-    const p = para.trim();
-    if (!p) continue;
-    if (p.length > maxChars) {
-      flush();
-      // Sentence-level split for long paragraphs.
-      const sentences = p.split(/(?<=[.!?])\s+/);
-      for (const s of sentences) {
-        if ((buf + ' ' + s).trim().length > maxChars) flush();
-        buf += (buf ? ' ' : '') + s;
-      }
-      flush();
-      continue;
-    }
-    if ((buf + '\n\n' + p).length > maxChars) flush();
-    buf += (buf ? '\n\n' : '') + p;
-  }
-  flush();
-  return out;
-}
+const MAX_CHUNK_CHARS = 3800; // headroom under the 4096 SDK cap
 
 interface SynthesizeLongOptions {
   voice?: OpenAITTSVoice;
@@ -55,13 +22,10 @@ export async function synthesizeLong(
   text: string,
   opts: SynthesizeLongOptions = {},
 ): Promise<Buffer> {
-  const chunks = chunkForTTS(text);
+  const chunks = splitLongSpeechText(text, MAX_CHUNK_CHARS);
   if (chunks.length === 1) {
     return synthesizeSpeech(chunks[0], opts);
   }
-  const bufs: Buffer[] = [];
-  for (const chunk of chunks) {
-    bufs.push(await synthesizeSpeech(chunk, opts));
-  }
+  const bufs = await Promise.all(chunks.map((c) => synthesizeSpeech(c, opts)));
   return Buffer.concat(bufs);
 }

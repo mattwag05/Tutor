@@ -1,8 +1,8 @@
 import { promises as fs } from 'fs';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { callLLM } from '@/lib/ai/llm';
 import { buildPrompt, PROMPT_IDS } from '@/lib/generation/prompts';
-import { apiError, API_ERROR_CODES } from '@/lib/server/api-response';
+import { apiError, apiSuccess, API_ERROR_CODES } from '@/lib/server/api-response';
 import { resolveModelFromHeaders } from '@/lib/server/resolve-model';
 import {
   coursePodcastPath,
@@ -38,12 +38,11 @@ export async function POST(req: NextRequest) {
     const audioUrl = `/api/course/${course.id}/podcast/solo`;
     const cached = course.artifacts?.podcast?.solo;
 
-    // Cache hit: ready artifact + file actually on disk.
     if (!body.force && cached?.status === 'ready' && cached.audioUrl) {
       try {
         const stat = await fs.stat(coursePodcastPath(course.id, 'solo'));
         if (stat.isFile() && stat.size > 0) {
-          return NextResponse.json({
+          return apiSuccess({
             audioUrl: cached.audioUrl,
             transcript: cached.transcript,
             bytes: stat.size,
@@ -110,7 +109,7 @@ export async function POST(req: NextRequest) {
     };
     await writeCourse(course);
 
-    return NextResponse.json({
+    return apiSuccess({
       audioUrl,
       transcript: script,
       bytes: audio.byteLength,
