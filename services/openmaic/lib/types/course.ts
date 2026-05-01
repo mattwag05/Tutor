@@ -126,12 +126,22 @@ export interface CourseCitation {
   metadata?: Record<string, unknown>;
 }
 
+export interface PodcastModeArtifact {
+  status: 'pending' | 'generating' | 'ready' | 'error';
+  /** Path served by /api/course/[id]/podcast/[mode]. */
+  audioUrl?: string;
+  durationSec?: number;
+  /** Solo: narrator script. Conversational: flat "Host A: …\n\nHost B: …" transcript. */
+  transcript?: string;
+  /** ISO8601 timestamp of last successful synthesis. */
+  generatedAt?: string;
+  error?: string;
+}
+
 export interface CourseArtifacts {
   podcast?: {
-    status: 'pending' | 'generating' | 'ready' | 'error';
-    audioUrl?: string;
-    durationSec?: number;
-    error?: string;
+    solo?: PodcastModeArtifact;
+    conversational?: PodcastModeArtifact;
   };
   flashcards?: {
     status: 'pending' | 'generating' | 'ready' | 'error';

@@ -38,4 +38,6 @@ export const PROMPT_IDS = {
   COURSE_FLASHCARDS: 'course-flashcards',
   COURSE_STUDY_GUIDE: 'course-study-guide',
   COURSE_FINAL_EXAM: 'course-final-exam',
+  PODCAST_SOLO: 'podcast-solo',
+  PODCAST_CONVERSATIONAL: 'podcast-conversational',
 } as const;

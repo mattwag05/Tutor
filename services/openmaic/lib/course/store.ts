@@ -32,7 +32,10 @@ interface CourseStoreState {
 
   loadCourse: (id: string) => Promise<void>;
   generateSection: (sectionId: string) => Promise<void>;
-  generateArtifact: (kind: 'flashcards' | 'studyGuide' | 'finalExam') => Promise<void>;
+  generateArtifact: (
+    kind: 'flashcards' | 'studyGuide' | 'finalExam' | 'podcast',
+    mode?: 'solo' | 'conversational',
+  ) => Promise<void>;
   applyArtifact: (patch: Partial<CourseArtifacts>) => void;
 }
 
@@ -211,9 +214,72 @@ const useCourseStoreBase = create<CourseStoreState>((set, get) => ({
     schedulePersist(() => get().course);
   },
 
-  generateArtifact: async (kind) => {
+  generateArtifact: async (kind, mode) => {
     const course = get().course;
     if (!course) return;
+
+    type FlashcardItem = NonNullable<NonNullable<CourseArtifacts['flashcards']>['cards']>[number];
+    type ExamQuestion = NonNullable<NonNullable<CourseArtifacts['finalExam']>['questions']>[number];
+
+    if (kind === 'podcast') {
+      const podcastMode = mode ?? 'solo';
+      const endpoint =
+        podcastMode === 'conversational'
+          ? '/api/generate/course-podcast-conversational'
+          : '/api/generate/course-podcast-solo';
+
+      const existingPodcast = course.artifacts?.podcast || {};
+      get().applyArtifact({
+        podcast: { ...existingPodcast, [podcastMode]: { status: 'generating' } },
+      });
+
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ courseId: course.id }),
+        });
+        if (!res.ok) {
+          const err = await res.text();
+          const cur = get().course?.artifacts?.podcast || {};
+          get().applyArtifact({
+            podcast: {
+              ...cur,
+              [podcastMode]: { status: 'error', error: err || 'Generation failed' },
+            },
+          });
+          return;
+        }
+        const data = (await res.json()) as {
+          audioUrl?: string;
+          transcript?: string;
+        };
+        const cur = get().course?.artifacts?.podcast || {};
+        get().applyArtifact({
+          podcast: {
+            ...cur,
+            [podcastMode]: {
+              status: 'ready',
+              audioUrl: data.audioUrl,
+              transcript: data.transcript,
+              generatedAt: new Date().toISOString(),
+            },
+          },
+        });
+      } catch (error) {
+        const cur = get().course?.artifacts?.podcast || {};
+        get().applyArtifact({
+          podcast: {
+            ...cur,
+            [podcastMode]: {
+              status: 'error',
+              error: error instanceof Error ? error.message : String(error),
+            },
+          },
+        });
+      }
+      return;
+    }
 
     // Optimistic status update — no persist, artifact data not yet available
     set({
@@ -228,9 +294,6 @@ const useCourseStoreBase = create<CourseStoreState>((set, get) => ({
       studyGuide: '/api/generate/course-study-guide',
       finalExam: '/api/generate/course-final-exam',
     };
-
-    type FlashcardItem = NonNullable<NonNullable<CourseArtifacts['flashcards']>['cards']>[number];
-    type ExamQuestion = NonNullable<NonNullable<CourseArtifacts['finalExam']>['questions']>[number];
 
     try {
       const res = await fetch(endpointMap[kind], {

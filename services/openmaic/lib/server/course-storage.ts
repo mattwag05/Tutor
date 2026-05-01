@@ -35,6 +35,30 @@ export async function writeSectionAudio(
   return filePath;
 }
 
+export type PodcastMode = 'solo' | 'conversational';
+
+export function isValidPodcastMode(mode: string): mode is PodcastMode {
+  return mode === 'solo' || mode === 'conversational';
+}
+
+export function coursePodcastPath(courseId: string, mode: PodcastMode): string {
+  return path.join(COURSES_DIR, courseId, 'podcast', `${mode}.mp3`);
+}
+
+export async function writePodcastAudio(
+  courseId: string,
+  mode: PodcastMode,
+  data: Buffer,
+): Promise<string> {
+  if (!isValidCourseId(courseId) || !isValidPodcastMode(mode)) {
+    throw new Error('Invalid course id or podcast mode');
+  }
+  const filePath = coursePodcastPath(courseId, mode);
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  await fs.writeFile(filePath, data);
+  return filePath;
+}
+
 export async function readCourse(id: string): Promise<Course | null> {
   const filePath = path.join(COURSES_DIR, `${id}.json`);
   try {

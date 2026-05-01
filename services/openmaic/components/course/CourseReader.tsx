@@ -18,6 +18,7 @@ import { ArtifactModal, ArtifactGenerating, ArtifactError } from './artifacts/Ar
 import { FlashcardDeck } from './artifacts/FlashcardDeck';
 import { StudyGuideView } from './artifacts/StudyGuideView';
 import { FinalExamView } from './artifacts/FinalExamView';
+import { PodcastPlayer } from './artifacts/PodcastPlayer';
 
 interface Props {
   courseId: string;
@@ -32,7 +33,9 @@ export function CourseReader({ courseId }: Props) {
 
   const [tocOpen, setTocOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [activeArtifact, setActiveArtifact] = useState<'flashcards' | 'studyGuide' | 'finalExam' | null>(null);
+  const [activeArtifact, setActiveArtifact] = useState<
+    'podcast' | 'flashcards' | 'studyGuide' | 'finalExam' | null
+  >(null);
   const sectionRefs = useRef<Array<HTMLElement | null>>([]);
 
   useEffect(() => {
@@ -98,11 +101,10 @@ export function CourseReader({ courseId }: Props) {
   const courseArtifacts = course?.artifacts;
   const onOpenArtifact = useCallback(
     (kind: 'podcast' | 'flashcards' | 'studyGuide' | 'finalExam') => {
-      if (kind === 'podcast') {
-        toast('Podcast coming soon');
-        return;
-      }
       setActiveArtifact(kind);
+      // Podcast modal shows mode tabs and lets the user trigger generation
+      // explicitly per mode — don't auto-generate on open.
+      if (kind === 'podcast') return;
       const existing = courseArtifacts?.[kind];
       if (!existing || existing.status === 'error') {
         void generateArtifact(kind);
@@ -160,9 +162,10 @@ export function CourseReader({ courseId }: Props) {
   );
 }
 
-type ArtifactKind = 'flashcards' | 'studyGuide' | 'finalExam';
+type ArtifactKind = 'podcast' | 'flashcards' | 'studyGuide' | 'finalExam';
 
 const ARTIFACT_LABELS: Record<ArtifactKind, string> = {
+  podcast: 'Podcast',
   flashcards: 'Flash Cards',
   studyGuide: 'Study Guide',
   finalExam: 'Final Exam',
@@ -180,6 +183,15 @@ function ArtifactOverlay({
   onRetry: () => void;
 }) {
   const label = ARTIFACT_LABELS[kind];
+
+  if (kind === 'podcast') {
+    return (
+      <ArtifactModal title={label} onClose={onClose}>
+        <PodcastPlayer podcast={artifacts?.podcast} />
+      </ArtifactModal>
+    );
+  }
+
   const a = artifacts?.[kind];
 
   return (

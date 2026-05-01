@@ -22,7 +22,9 @@ export type PromptId =
   | 'course-explain'
   | 'course-flashcards'
   | 'course-study-guide'
-  | 'course-final-exam';
+  | 'course-final-exam'
+  | 'podcast-solo'
+  | 'podcast-conversational';
 
 /**
  * Snippet identifier
