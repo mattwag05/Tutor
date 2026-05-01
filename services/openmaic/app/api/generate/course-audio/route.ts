@@ -81,8 +81,8 @@ export async function POST(req: NextRequest) {
       if (stat.isFile() && stat.size > 0) {
         return apiSuccess({ audioUrl, bytes: stat.size, cached: true });
       }
-    } catch {
-      // File does not exist — fall through to synthesis.
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
     }
 
     const audio = await synthesizeSpeech(text, { voice, model });
