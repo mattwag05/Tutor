@@ -139,7 +139,7 @@ npx tsc --noEmit  # TypeScript type check (run from web/ dir)
 
 11. **Tailscale sidecar** — `docker-compose.yml` includes `tailscale-deeptutor` sidecar (ScaleTail/coder pattern). `deeptutor` uses `network_mode: service:tailscale-deeptutor` — remove `ports:` and `networks:` directives as they conflict. Auth key in Vaultwarden: `get-secret "Tailscale Auth Key"`. Serve config: `tailscale/ts-serve.json`.
 
-12. **Tailscale sidecar port collision (READ BEFORE RE-AUTHING TAILSCALE)** — `tailscale/ts-serve.json` proxies external `8001 → internal 8002` and `3100 → internal 3101`, so deeptutor (uvicorn) and openmaic (Next.js) MUST listen on those internal ports — otherwise tailscale's external bind collides with the local listener in the shared network namespace. **As of 2026-05-04 the Pironman deploy has drifted**: `~/homelab/deeptutor/.env` has `BACKEND_PORT=8001` (uvicorn binds 8001) and `docker-compose.pironman.yml` hardcodes `PORT=3000` for openmaic (Next.js binds 3000). This works ONLY while tailscale-deeptutor is unauthenticated/degraded and not actually binding 8001/3100. Before re-authing tailscale, either: (a) update `.env` to `BACKEND_PORT=8002` and `docker-compose.pironman.yml` to `PORT=3101`, then `docker compose up -d`; or (b) update `tailscale/ts-serve.json` to forward `8001 → 8001` (won't work — collision) and `3100 → 3000`, then restart tailscale-deeptutor. Option (a) is correct.
+12. **Pironman never adopted the tailscale sidecar pattern** (verified 2026-05-04 during A.2) — base `docker-compose.yml` defines a `tailscale-deeptutor` sidecar with `network_mode: service:tailscale-deeptutor` and `tailscale/ts-serve.json` forwarding external `8001 → internal 8002` / `3100 → internal 3101`. **The deployed Pironman compose (`docker-compose.pironman.yml`) ignores all of that** — it puts `deeptutor` and `openmaic` on a regular `deeptutor-network` bridge with `127.0.0.1:*:*` host loopback bindings, and the production reverse proxy is the homelab-wide `caddy-tailscale` (network_mode: host, embedded tsnet) at `~/homelab/caddy/pironman/`, which registers `bind tailscale/{deeptutor, deeptutor-api, openmaic, tutor, ...}` against host loopback ports `3782 / 8001 / 3101`. The `tailscale-deeptutor` container is an orphan from a prior `docker-compose.yml` invocation; auth state on it doesn't affect production. **For new tailnet hostnames, edit `~/homelab/caddy/pironman/Caddyfile` and `docker compose restart caddy` — no port reconcile or sidecar re-auth needed.** ts-serve.json is M5-dev-clone reference only.
 
 13. **OpenMAIC TTS needs a direct OpenAI key, not OpenRouter** — Course Builder's `/api/generate/course-audio` calls OpenAI's `/v1/audio/speech` endpoint directly. Set `TTS_OPENAI_API_KEY=sk-proj-...` in `.env.openmaic` (separate from `OPENAI_API_KEY` which is the OpenRouter LLM key). Without it the route returns a clear "TTS_OPENAI_API_KEY is not set" error.
 
@@ -264,10 +264,11 @@ The full stack runs on the Pironman (100.126.176.86) via Docker Compose, fronted
 **Active compose:** `docker-compose.pironman.yml` (untracked, local-only override of `docker-compose.yml`)
 **Access:** `ssh pironman` (key auth as `matthewwagner`)
 
-**Live URLs (when tailscale-deeptutor is authed):**
-- Frontend: https://deeptutor.tail6e035b.ts.net (→ 127.0.0.1:3782)
-- API: https://deeptutor.tail6e035b.ts.net:8001 (→ 127.0.0.1:8002 per ts-serve.json — but see gotcha #12, current Pironman .env has uvicorn on 8001)
-- OpenMAIC: https://deeptutor.tail6e035b.ts.net:3100 (→ 127.0.0.1:3101 per ts-serve.json — but see gotcha #12, current compose hardcodes Next.js on 3000)
+**Live URLs** (served by `caddy-tailscale` against host loopback — see gotcha #12):
+- Unified: https://tutor.tail6e035b.ts.net (path-routed: `/` → 3782, `/api/v1/*` → 8001, `/classroom*` + `/course*` → 3101) — Phase A.2, 2026-05-04
+- Frontend (legacy): https://deeptutor.tail6e035b.ts.net (→ 127.0.0.1:3782)
+- API (legacy): https://deeptutor-api.tail6e035b.ts.net (→ 127.0.0.1:8001)
+- OpenMAIC (legacy): https://openmaic.tail6e035b.ts.net (→ 127.0.0.1:3101)
 
 **Containers:** `deeptutor`, `openmaic` (caddy-tailscale runs separately under `~/homelab/caddy/pironman/`)
 
@@ -291,17 +292,17 @@ docker run --rm -v $(pwd):/app -w /app node:22-alpine \
 
 ## OpenMAIC Integration (services/openmaic/)
 
-OpenMAIC is a Next.js classroom/presentation layer that runs as a Docker service alongside DeepTutor, sharing the Tailscale network namespace.
+OpenMAIC is a Next.js classroom/presentation layer that runs as a Docker service alongside DeepTutor on a shared `deeptutor-network` bridge.
 
-### Port Mapping (critical)
+### Port Mapping (Pironman, as actually deployed 2026-05-04)
 
-| Service | Internal Port (intended) | Internal Port (actual on Pironman 2026-05-04) | External (TS Serve) |
-|---------|------|--------|-----|
-| DeepTutor Backend (uvicorn) | 8002 | **8001** ⚠️ | 8001 |
-| DeepTutor Frontend (Next.js) | 3782 | 3782 | 443 |
-| OpenMAIC (Next.js) | 3101 | **3000** ⚠️ | 3100 |
+| Service | Container port | Host loopback | Caddy reverse_proxy |
+|---------|----------------|---------------|---------------------|
+| DeepTutor Backend (uvicorn) | 8001 | 127.0.0.1:8001 | `tailscale/deeptutor-api`, `tailscale/tutor /api/v1/*` |
+| DeepTutor Frontend (Next.js) | 3782 | 127.0.0.1:3782 | `tailscale/deeptutor`, `tailscale/tutor` (catch-all) |
+| OpenMAIC (Next.js) | 3000 | 127.0.0.1:3101 | `tailscale/openmaic`, `tailscale/tutor /classroom*` + `/course*` |
 
-> **Port collision gotcha:** All three services share the tailscale-deeptutor network namespace via `network_mode: service:tailscale-deeptutor`. Tailscale Serve binds the *external* ports (443, 3100, 8001) in this namespace, so internal services MUST use different ports. The intended layout (per `tailscale/ts-serve.json`) is OpenMAIC on 3101, DeepTutor backend on 8002. The current actual values drifted (see gotcha #12) and only work because tailscale-deeptutor is currently unauthenticated/not binding. **Reconcile before re-authing tailscale.**
+The base `docker-compose.yml`'s sidecar pattern (`network_mode: service:tailscale-deeptutor` + ts-serve.json) is dev-clone reference only — Pironman's `.pironman.yml` overlay drops it. See gotcha #12.
 
 ### Integration Client
 
