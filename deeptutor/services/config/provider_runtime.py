@@ -33,6 +33,7 @@ SUPPORTED_SEARCH_PROVIDERS = {
     "brave",
     "tavily",
     "jina",
+    "ollama",
     "searxng",
     "duckduckgo",
     "perplexity",
@@ -45,6 +46,7 @@ SEARCH_ENV_FALLBACK = {
     "brave": ("BRAVE_API_KEY",),
     "tavily": ("TAVILY_API_KEY",),
     "jina": ("JINA_API_KEY",),
+    "ollama": ("OLLAMA_API_KEY",),
     "perplexity": ("PERPLEXITY_API_KEY",),
     "serper": ("SERPER_API_KEY",),
 }

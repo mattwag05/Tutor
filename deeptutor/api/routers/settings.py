@@ -184,11 +184,12 @@ def _provider_choices() -> dict[str, list[dict[str, str]]]:
     search = [
         {"value": "bocha", "label": "Bocha", "base_url": ""},
         {"value": "brave", "label": "Brave", "base_url": ""},
-        {"value": "tavily", "label": "Tavily", "base_url": ""},
-        {"value": "jina", "label": "Jina", "base_url": ""},
-        {"value": "searxng", "label": "SearXNG", "base_url": ""},
         {"value": "duckduckgo", "label": "DuckDuckGo", "base_url": ""},
+        {"value": "jina", "label": "Jina", "base_url": ""},
+        {"value": "ollama", "label": "Ollama", "base_url": ""},
         {"value": "perplexity", "label": "Perplexity", "base_url": ""},
+        {"value": "searxng", "label": "SearXNG", "base_url": ""},
+        {"value": "tavily", "label": "Tavily", "base_url": ""},
     ]
     return {"llm": llm, "embedding": embedding, "search": search}
 
