@@ -137,11 +137,13 @@ npx tsc --noEmit  # TypeScript type check (run from web/ dir)
 
 11. **Tailscale sidecar** — `docker-compose.yml` includes `tailscale-deeptutor` sidecar (ScaleTail/coder pattern). `deeptutor` uses `network_mode: service:tailscale-deeptutor` — remove `ports:` and `networks:` directives as they conflict. Auth key in Vaultwarden: `get-secret "Tailscale Auth Key"`. Serve config: `tailscale/ts-serve.json`.
 
-12. **Tailscale sidecar port collision** — `BACKEND_PORT` must NOT be `8001`. Tailscale Serve binds `[tailscale-ip]:8001` in the shared network namespace, so uvicorn's `0.0.0.0:8001` collides and the backend fails to start. Current config: `BACKEND_PORT=8002` (internal); `tailscale/ts-serve.json` proxies `{HOST}:8001 → localhost:8002`; `NEXT_PUBLIC_API_BASE_EXTERNAL=https://deeptutor.tail6e035b.ts.net:8001` unchanged.
+12. **Tailscale sidecar port collision (READ BEFORE RE-AUTHING TAILSCALE)** — `tailscale/ts-serve.json` proxies external `8001 → internal 8002` and `3100 → internal 3101`, so deeptutor (uvicorn) and openmaic (Next.js) MUST listen on those internal ports — otherwise tailscale's external bind collides with the local listener in the shared network namespace. **As of 2026-05-04 the Pironman deploy has drifted**: `~/homelab/deeptutor/.env` has `BACKEND_PORT=8001` (uvicorn binds 8001) and `docker-compose.pironman.yml` hardcodes `PORT=3000` for openmaic (Next.js binds 3000). This works ONLY while tailscale-deeptutor is unauthenticated/degraded and not actually binding 8001/3100. Before re-authing tailscale, either: (a) update `.env` to `BACKEND_PORT=8002` and `docker-compose.pironman.yml` to `PORT=3101`, then `docker compose up -d`; or (b) update `tailscale/ts-serve.json` to forward `8001 → 8001` (won't work — collision) and `3100 → 3000`, then restart tailscale-deeptutor. Option (a) is correct.
 
 13. **OpenMAIC TTS needs a direct OpenAI key, not OpenRouter** — Course Builder's `/api/generate/course-audio` calls OpenAI's `/v1/audio/speech` endpoint directly. Set `TTS_OPENAI_API_KEY=sk-proj-...` in `.env.openmaic` (separate from `OPENAI_API_KEY` which is the OpenRouter LLM key). Without it the route returns a clear "TTS_OPENAI_API_KEY is not set" error.
 
 14. **Artifact endpoints need long curl timeouts** — `/api/generate/course-{flashcards,study-guide,final-exam}` make non-streaming LLM calls that take 60–180s. When testing via curl, use `--max-time 180` minimum or you'll get an empty body and a misleading "JSON parse" error.
+
+15. **`gh` OAuth token lacks `workflow` scope** (verified 2026-05-04) — `git push origin main` fails with `! [remote rejected] main -> main (refusing to allow an OAuth App to create or update workflow .github/workflows/tests.yml without 'workflow' scope)` whenever the push range touches a `.github/workflows/*.yml` file (e.g. after an upstream HKUDS sync that picks up CI changes). Two workarounds: (a) push once via SSH URL: `git push git@github.com:mattwag05/DeepTutor.git main` — the SSH key is already on the GitHub account and bypasses the OAuth scope check; (b) refresh the token: `gh auth refresh -h github.com -s workflow` (interactive device flow). Don't permanently switch the remote to SSH unless you also want to use SSH for fetch — option (a) is the targeted fix.
 
 ---
 
@@ -254,10 +256,10 @@ The full stack runs on the Pironman (100.126.176.86) via Docker Compose, fronted
 **Active compose:** `docker-compose.pironman.yml` (untracked, local-only override of `docker-compose.yml`)
 **Access:** `ssh pironman` (key auth as `matthewwagner`)
 
-**Live URLs:**
+**Live URLs (when tailscale-deeptutor is authed):**
 - Frontend: https://deeptutor.tail6e035b.ts.net (→ 127.0.0.1:3782)
-- API: https://deeptutor.tail6e035b.ts.net:8001 (→ 127.0.0.1:8001)
-- OpenMAIC: https://deeptutor.tail6e035b.ts.net:3100 (→ 127.0.0.1:3101)
+- API: https://deeptutor.tail6e035b.ts.net:8001 (→ 127.0.0.1:8002 per ts-serve.json — but see gotcha #12, current Pironman .env has uvicorn on 8001)
+- OpenMAIC: https://deeptutor.tail6e035b.ts.net:3100 (→ 127.0.0.1:3101 per ts-serve.json — but see gotcha #12, current compose hardcodes Next.js on 3000)
 
 **Containers:** `deeptutor`, `openmaic` (caddy-tailscale runs separately under `~/homelab/caddy/pironman/`)
 
@@ -285,13 +287,13 @@ OpenMAIC is a Next.js classroom/presentation layer that runs as a Docker service
 
 ### Port Mapping (critical)
 
-| Service | Internal Port | External (TS Serve) Port |
-|---------|--------------|-------------------------|
-| DeepTutor Backend (uvicorn) | 8002 | 8001 |
-| DeepTutor Frontend (Next.js) | 3782 | 443 |
-| OpenMAIC (Next.js) | 3101 | 3100 |
+| Service | Internal Port (intended) | Internal Port (actual on Pironman 2026-05-04) | External (TS Serve) |
+|---------|------|--------|-----|
+| DeepTutor Backend (uvicorn) | 8002 | **8001** ⚠️ | 8001 |
+| DeepTutor Frontend (Next.js) | 3782 | 3782 | 443 |
+| OpenMAIC (Next.js) | 3101 | **3000** ⚠️ | 3100 |
 
-> **Port collision gotcha:** All three services share the tailscale-deeptutor network namespace via `network_mode: service:tailscale-deeptutor`. Tailscale Serve binds the *external* ports (443, 3100, 8001) in this namespace, so internal services MUST use different ports. OpenMAIC listens on 3101, NOT 3100. DeepTutor backend listens on 8002, NOT 8001.
+> **Port collision gotcha:** All three services share the tailscale-deeptutor network namespace via `network_mode: service:tailscale-deeptutor`. Tailscale Serve binds the *external* ports (443, 3100, 8001) in this namespace, so internal services MUST use different ports. The intended layout (per `tailscale/ts-serve.json`) is OpenMAIC on 3101, DeepTutor backend on 8002. The current actual values drifted (see gotcha #12) and only work because tailscale-deeptutor is currently unauthenticated/not binding. **Reconcile before re-authing tailscale.**
 
 ### Integration Client
 

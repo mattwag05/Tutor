@@ -2,9 +2,9 @@
 
 AI-directed classroom/presentation layer — Next.js full-stack app with scene/outline generation, roundtable discussions, quiz grading, PBL, and PPTX export.
 
-**Status:** Integrated with DeepTutor (RAG-enhanced outlines)
+**Status:** Integrated with DeepTutor (RAG-enhanced outlines via REST `/query`)
 **Runtime:** Next.js 16, pnpm, Docker (multi-stage build)
-**Internal Port:** 3101 (external via Tailscale Serve: 3100)
+**Internal Port:** 3000 (per `docker-compose.pironman.yml`'s hardcoded `PORT=3000`); ts-serve.json forwards external 3100 → 3101 — the two have drifted (see DeepTutor CLAUDE.md gotcha #12).
 
 ---
 
@@ -52,15 +52,15 @@ All integration functions return empty/null when DeepTutor is unavailable. OpenM
 
 ## Known Gotchas
 
-1. **Port 3101, not 3100** — Tailscale Serve binds 3100 externally. OpenMAIC listens on 3101 internally. Changing this back to 3100 will cause EADDRINUSE.
+1. **PORT drift (3000 vs 3101)** — `docker-compose.pironman.yml` hardcodes `PORT=3000` but `tailscale/ts-serve.json` forwards external 3100 → internal **3101**. While tailscale-deeptutor is unauthenticated this works (no tsnet listener on 3100); after re-auth, the proxy targets 3101 and finds nothing. Reconcile by changing `PORT=3000` → `PORT=3101` in compose (or updating ts-serve.json to forward 3100 → 3000). See DeepTutor CLAUDE.md gotcha #12.
 
-2. **DEEPTUTOR_API_URL is port 8002** — DeepTutor backend listens on 8002 internally. Port 8001 is the external TS Serve port. Using 8001 here will fail with connection refused.
+2. **DEEPTUTOR_API_URL drift (8001 vs 8002)** — Same shape as #1 for the backend. The DeepTutor `.env` on Pironman has `BACKEND_PORT=8001` (uvicorn binds 8001) but ts-serve.json proxies external 8001 → internal 8002. `DEEPTUTOR_API_URL` in `.env.openmaic` should match whatever uvicorn actually binds — currently `http://127.0.0.1:8001`. After tailscale re-auth + reverting BACKEND_PORT to 8002, this also reverts to 8002.
 
 3. **docker compose up -d, not restart** — `restart` does not re-read compose file changes. Always use `up -d` to pick up env/config changes.
 
 4. **WebSocket client uses `any` type** — The `ws` package in `deeptutor-client.ts` is typed as `any` with eslint-disable to avoid Next.js build type conflicts. Use `ws.on('event', ...)` pattern (Node EventEmitter), not `ws.onmessage =`.
 
-5. **PORT override in docker-compose.yml** — The compose file sets `PORT=3101` in `environment:`, which takes precedence over `.env.openmaic`. Both must agree.
+5. **PORT override in docker-compose.yml** — The compose file sets `PORT` in `environment:` which takes precedence over `.env.openmaic`. Both must agree (and both must match what ts-serve.json forwards to — see #1).
 
 6. **pnpm lockfile** — After adding deps to package.json, run `pnpm install --no-frozen-lockfile` locally or in a temp container to regenerate the lockfile before building the Docker image.
 
