@@ -31,7 +31,6 @@ interface NavEntry {
   href: string;
   label: string;
   icon: LucideIcon;
-  external?: string; // If set, navigates to this external URL instead of href
 }
 
 const PRIMARY_NAV: NavEntry[] = [
@@ -137,32 +136,20 @@ export function SidebarShell({
             const active = pathname.startsWith(item.href);
             return (
               <div key={item.href} className="flex flex-col items-center">
-                {item.external ? (
-                  <a
-                    href={item.external}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title={t(item.label) as string}
-                    className="flex h-9 w-9 items-center justify-center rounded-xl text-[var(--muted-foreground)] transition-all duration-150 hover:bg-[var(--background)]/50 hover:text-[var(--foreground)]"
-                  >
-                    <item.icon size={18} strokeWidth={1.6} />
-                  </a>
-                ) : (
-                  <Link
-                    href={item.href}
-                    title={t(item.label) as string}
-                    className={`relative flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-150 ${
-                      active
-                        ? "bg-[var(--background)]/80 text-[var(--foreground)] shadow-sm"
-                        : "text-[var(--muted-foreground)] hover:bg-[var(--background)]/50 hover:text-[var(--foreground)]"
-                    }`}
-                  >
-                    {active && (
-                      <span className="absolute -left-1.5 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-[var(--foreground)]/80" />
-                    )}
-                    <item.icon size={18} strokeWidth={active ? 2 : 1.6} />
-                  </Link>
-                )}
+                <Link
+                  href={item.href}
+                  title={t(item.label) as string}
+                  className={`relative flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-150 ${
+                    active
+                      ? "bg-[var(--background)]/80 text-[var(--foreground)] shadow-sm"
+                      : "text-[var(--muted-foreground)] hover:bg-[var(--background)]/50 hover:text-[var(--foreground)]"
+                  }`}
+                >
+                  {active && (
+                    <span className="absolute -left-1.5 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-[var(--foreground)]/80" />
+                  )}
+                  <item.icon size={18} strokeWidth={active ? 2 : 1.6} />
+                </Link>
                 {item.href === "/agents" && <TutorBotRecent collapsed />}
               </div>
             );
@@ -260,29 +247,17 @@ export function SidebarShell({
             const hasBots = item.href === "/agents";
             return (
               <div key={item.href}>
-                {item.external ? (
-                  <a
-                    href={item.external}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] transition-colors text-[var(--muted-foreground)] hover:bg-[var(--background)]/50 hover:text-[var(--foreground)]"
-                  >
-                    <item.icon size={16} strokeWidth={1.5} />
-                    <span>{t(item.label)}</span>
-                  </a>
-                ) : (
-                  <Link
-                    href={item.href}
-                    className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] transition-colors ${
-                      active
-                        ? "bg-[var(--background)]/70 font-medium text-[var(--foreground)]"
-                        : "text-[var(--muted-foreground)] hover:bg-[var(--background)]/50 hover:text-[var(--foreground)]"
-                    }`}
-                  >
-                    <item.icon size={16} strokeWidth={active ? 1.9 : 1.5} />
-                    <span>{t(item.label)}</span>
-                  </Link>
-                )}
+                <Link
+                  href={item.href}
+                  className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] transition-colors ${
+                    active
+                      ? "bg-[var(--background)]/70 font-medium text-[var(--foreground)]"
+                      : "text-[var(--muted-foreground)] hover:bg-[var(--background)]/50 hover:text-[var(--foreground)]"
+                  }`}
+                >
+                  <item.icon size={16} strokeWidth={active ? 1.9 : 1.5} />
+                  <span>{t(item.label)}</span>
+                </Link>
                 {hasSessionsBelow && (
                   <div
                     className={`${sessionViewportClassName} overflow-y-auto`}
