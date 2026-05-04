@@ -61,6 +61,8 @@ from .models import (
     QuizAttempt,
     Spine,
 )
+from deeptutor.services.quiz import QuizAttemptCreate, get_quiz_store
+
 from .storage import BookStorage, get_book_storage
 from .streaming import (
     STAGE_COMPILATION,
@@ -1163,15 +1165,14 @@ class BookEngine:
         is_correct: bool,
     ) -> Progress:
         progress = self.load_progress(book_id)
-        progress.quiz_attempts.append(
-            QuizAttempt(
-                block_id=block_id,
-                page_id=page_id,
-                question_id=question_id,
-                user_answer=user_answer,
-                is_correct=is_correct,
-            )
+        attempt = QuizAttempt(
+            block_id=block_id,
+            page_id=page_id,
+            question_id=question_id,
+            user_answer=user_answer,
+            is_correct=is_correct,
         )
+        progress.quiz_attempts.append(attempt)
         if not is_correct:
             page = self.storage.load_page(book_id, page_id)
             if page and page.chapter_id and page.chapter_id not in progress.weak_chapters:
@@ -1179,6 +1180,26 @@ class BookEngine:
         else:
             progress.score += 1
         self.storage.save_progress(progress)
+
+        # Dual-write to the unified store so the future spaced-review picker
+        # (PRD §6.5) sees book + classroom + course attempts uniformly.
+        # Broad except: the legacy Progress write already succeeded; never
+        # break that path on a unified-store failure.
+        try:
+            await get_quiz_store().record_attempt(
+                QuizAttemptCreate(
+                    source="book",
+                    source_id=f"{book_id}::{page_id}::{block_id}",
+                    question_id=question_id or block_id,
+                    user_answer=user_answer,
+                    is_correct=is_correct,
+                    earned=1.0 if is_correct else 0.0,
+                    ts_ms=int(attempt.timestamp * 1000),
+                )
+            )
+        except Exception:
+            logger.exception("unified quiz store dual-write failed for %s", book_id)
+
         return progress
 
     async def supplement_for_weakness(
