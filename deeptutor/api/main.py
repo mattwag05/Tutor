@@ -210,6 +210,7 @@ from deeptutor.api.routers import (
     plugins_api,
     question,
     question_notebook,
+    quiz,
     sessions,
     settings,
     skills,
@@ -229,6 +230,7 @@ app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["dashboar
 app.include_router(co_writer.router, prefix="/api/v1/co_writer", tags=["co_writer"])
 app.include_router(notebook.router, prefix="/api/v1/notebook", tags=["notebook"])
 app.include_router(book.router, prefix="/api/v1/book", tags=["book"])
+app.include_router(quiz.router, prefix="/api/v1/quiz", tags=["quiz"])
 app.include_router(memory.router, prefix="/api/v1/memory", tags=["memory"])
 app.include_router(sessions.router, prefix="/api/v1/sessions", tags=["sessions"])
 app.include_router(

@@ -108,6 +108,9 @@ class PathService:
     def get_chat_history_db(self) -> Path:
         return self._user_data_dir / "chat_history.db"
 
+    def get_quiz_db(self) -> Path:
+        return self._user_data_dir / "quiz" / "attempts.db"
+
     def get_public_outputs_root(self) -> Path:
         return self._user_data_dir
 
