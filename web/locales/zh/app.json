@@ -1600,5 +1600,12 @@
   "Please use the attached file(s) and this chapter as context.": "请结合附件文件和本章节上下文回答。",
   "Context": "上下文",
   "Ask a question about this page. The current chapter content is sent to the assistant automatically.": "可以询问本页内容。当前章节内容会自动发送给助手。",
-  "Ask about this page...": "询问本页内容…"
+  "Ask about this page...": "询问本页内容…",
+  "Access": "访问",
+  "ACCESS_CODE": "ACCESS_CODE",
+  "Hide": "隐藏",
+  "Show": "显示",
+  "Single shared secret that gates the classroom and course routes when set. Leave blank to disable.": "用于保护教室和课程路由的共享密钥。留空则不启用。",
+  "Access code saved. Restart OpenMAIC to apply.": "访问码已保存。重启 OpenMAIC 后生效。",
+  "Saved on the server and synced to OpenMAIC's environment. Restart OpenMAIC for changes to apply.": "已保存到服务器并同步到 OpenMAIC 环境。重启 OpenMAIC 后生效。"
 }

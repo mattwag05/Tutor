@@ -1600,5 +1600,12 @@
   "Please use the attached file(s) and this chapter as context.": "Please use the attached file(s) and this chapter as context.",
   "Context": "Context",
   "Ask a question about this page. The current chapter content is sent to the assistant automatically.": "Ask a question about this page. The current chapter content is sent to the assistant automatically.",
-  "Ask about this page...": "Ask about this page..."
+  "Ask about this page...": "Ask about this page...",
+  "Access": "Access",
+  "ACCESS_CODE": "ACCESS_CODE",
+  "Hide": "Hide",
+  "Show": "Show",
+  "Single shared secret that gates the classroom and course routes when set. Leave blank to disable.": "Single shared secret that gates the classroom and course routes when set. Leave blank to disable.",
+  "Access code saved. Restart OpenMAIC to apply.": "Access code saved. Restart OpenMAIC to apply.",
+  "Saved on the server and synced to OpenMAIC's environment. Restart OpenMAIC for changes to apply.": "Saved on the server and synced to OpenMAIC's environment. Restart OpenMAIC for changes to apply."
 }

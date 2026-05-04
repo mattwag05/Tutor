@@ -165,10 +165,13 @@ export function Header({ currentSceneTitle }: HeaderProps) {
 
           <div className="w-[1px] h-4 bg-gray-200 dark:bg-gray-700" />
 
-          {/* Settings Button */}
+          {/* Cross-app navigation: /settings is served by the DeepTutor
+              frontend, so use a full page load (router.push would 404 here). */}
           <div className="relative">
             <button
-              onClick={() => setSettingsOpen(true)}
+              onClick={() => {
+                window.location.href = '/settings';
+              }}
               className="p-2 rounded-full text-gray-400 dark:text-gray-500 hover:bg-white dark:hover:bg-gray-700 hover:text-gray-800 dark:hover:text-gray-200 hover:shadow-sm transition-all group"
             >
               <Settings className="w-4 h-4 group-hover:rotate-90 transition-transform duration-500" />

@@ -12,6 +12,7 @@ import json
 import time
 from typing import Any, List, Literal, Optional
 
+from dotenv import set_key, unset_key
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -27,6 +28,16 @@ router = APIRouter()
 
 _path_service = get_path_service()
 SETTINGS_FILE = _path_service.get_settings_file("interface")
+AUTH_FILE = _path_service.get_settings_file("auth")
+
+# OpenMAIC reads `process.env.ACCESS_CODE` at request time. We keep both
+# write targets in sync so docker-compose runs (project-root `.env.openmaic`)
+# and local `pnpm dev` runs (`services/openmaic/.env.local`) both pick up
+# changes after their respective Next.js process restarts.
+_OPENMAIC_ENV_PATHS = (
+    _path_service.project_root / ".env.openmaic",
+    _path_service.project_root / "services" / "openmaic" / ".env.local",
+)
 
 DEFAULT_SIDEBAR_NAV_ORDER = {
     "start": ["/", "/history", "/knowledge", "/notebook"],
@@ -73,6 +84,10 @@ class CatalogPayload(BaseModel):
     catalog: dict[str, Any]
 
 
+class AuthSettings(BaseModel):
+    access_code: str = ""
+
+
 def _invalidate_runtime_caches() -> None:
     """Force runtime clients/config to pick up the latest saved catalog."""
     clear_llm_config_cache()
@@ -95,6 +110,40 @@ def save_ui_settings(settings: dict[str, Any]) -> None:
     SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
     with open(SETTINGS_FILE, "w", encoding="utf-8") as handle:
         json.dump(settings, handle, ensure_ascii=False, indent=2)
+
+
+def load_auth_settings() -> dict[str, Any]:
+    if AUTH_FILE.exists():
+        try:
+            with open(AUTH_FILE, encoding="utf-8") as handle:
+                payload = json.load(handle)
+                if isinstance(payload, dict):
+                    return {"access_code": str(payload.get("access_code", ""))}
+        except Exception:
+            pass
+    return {"access_code": ""}
+
+
+def save_auth_settings(settings: dict[str, Any]) -> None:
+    AUTH_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(AUTH_FILE, "w", encoding="utf-8") as handle:
+        json.dump(settings, handle, ensure_ascii=False, indent=2)
+
+
+def _write_access_code_to_openmaic_env(access_code: str) -> list[str]:
+    """Sync ACCESS_CODE to OpenMAIC's env-file targets. Empty value removes
+    the line so OpenMAIC's ``if (!accessCode)`` check disables the gate.
+    """
+    written: list[str] = []
+    for path in _OPENMAIC_ENV_PATHS:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.touch(exist_ok=True)
+        if access_code:
+            set_key(str(path), "ACCESS_CODE", access_code, quote_mode="never")
+        else:
+            unset_key(str(path), "ACCESS_CODE")
+        written.append(str(path))
+    return written
 
 
 def _provider_choices() -> dict[str, list[dict[str, str]]]:
@@ -178,6 +227,32 @@ async def apply_catalog(payload: CatalogPayload | None = None):
         "message": "Catalog applied to the active .env configuration.",
         "catalog": get_model_catalog_service().load(),
         "env": rendered,
+    }
+
+
+@router.get("/auth")
+async def get_auth():
+    """Return the unified ACCESS_CODE used to gate OpenMAIC routes.
+
+    PRD §11.8 (single-secret auth, recommended). Stored in
+    ``data/user/settings/auth.json`` and synced to OpenMAIC's env files on
+    write so the Next.js middleware reads it from ``process.env``.
+    """
+    return load_auth_settings()
+
+
+@router.put("/auth")
+async def update_auth(update: AuthSettings):
+    settings = update.model_dump()
+    save_auth_settings(settings)
+    written = _write_access_code_to_openmaic_env(settings["access_code"])
+    return {
+        "access_code": settings["access_code"],
+        "env_files_written": written,
+        "message": (
+            "ACCESS_CODE saved. Restart the OpenMAIC container "
+            "(or `pnpm dev` server) to pick up the new value."
+        ),
     }
 
 

@@ -12,6 +12,7 @@ import {
   EyeOff,
   Info,
   Loader2,
+  Lock,
   Plus,
   Rocket,
   Save,
@@ -596,6 +597,11 @@ function SettingsPageContent() {
   const [showApiKey, setShowApiKey] = useState(false);
   const [toast, setToast] = useState<string>("");
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
+  // Single-secret ACCESS_CODE — synced to OpenMAIC env files by PUT /api/v1/settings/auth.
+  const [accessCode, setAccessCode] = useState<string>("");
+  const [accessCodeDraft, setAccessCodeDraft] = useState<string>("");
+  const [accessCodeRevealed, setAccessCodeRevealed] = useState(false);
+  const [savingAccessCode, setSavingAccessCode] = useState(false);
   const [providers, setProviders] = useState<
     Record<ServiceName, ProviderOption[]>
   >({ llm: [], embedding: [], search: [] });
@@ -614,7 +620,12 @@ function SettingsPageContent() {
 
   useEffect(() => {
     const load = async () => {
-      const settingsResponse = await fetch(apiUrl("/api/v1/settings"));
+      const [settingsResponse, statusResponse, authResponse] =
+        await Promise.all([
+          fetch(apiUrl("/api/v1/settings")),
+          fetch(apiUrl("/api/v1/system/status")),
+          fetch(apiUrl("/api/v1/settings/auth")),
+        ]);
       const settingsPayload =
         (await settingsResponse.json()) as SettingsPayload;
       setCatalog(settingsPayload.catalog);
@@ -623,9 +634,15 @@ function SettingsPageContent() {
       setLanguage(settingsPayload.ui.language);
       if (settingsPayload.providers) setProviders(settingsPayload.providers);
 
-      const statusResponse = await fetch(apiUrl("/api/v1/system/status"));
       const statusPayload = (await statusResponse.json()) as SystemStatus;
       setStatus(statusPayload);
+
+      const authPayload = (await authResponse.json()) as {
+        access_code?: string;
+      };
+      const code = authPayload.access_code ?? "";
+      setAccessCode(code);
+      setAccessCodeDraft(code);
     };
     load();
     return () => {
@@ -909,6 +926,31 @@ function SettingsPageContent() {
       setStatus((await statusResponse.json()) as SystemStatus);
     } finally {
       setApplying(false);
+    }
+  };
+
+  // -- Access (single-secret ACCESS_CODE for OpenMAIC) --------------------
+
+  const saveAccessCode = async () => {
+    setSavingAccessCode(true);
+    try {
+      const response = await fetch(apiUrl("/api/v1/settings/auth"), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ access_code: accessCodeDraft }),
+      });
+      const payload = (await response.json()) as {
+        access_code: string;
+        message?: string;
+      };
+      setAccessCode(payload.access_code);
+      setAccessCodeDraft(payload.access_code);
+      setToast(
+        payload.message ??
+          t("Access code saved. Restart OpenMAIC to apply."),
+      );
+    } finally {
+      setSavingAccessCode(false);
     }
   };
 
@@ -1819,6 +1861,70 @@ function SettingsPageContent() {
               </pre>
             </div>
           )}
+        </div>
+
+        {/* ── Access (single-secret ACCESS_CODE for OpenMAIC) ── */}
+        <div className="mb-6 rounded-xl border border-[var(--border)]">
+          <div className="flex items-center gap-2 px-5 py-3.5">
+            <Lock className="h-3.5 w-3.5 text-[var(--muted-foreground)]" />
+            <span className="text-[13px] font-medium text-[var(--foreground)]">
+              {t("Access")}
+            </span>
+          </div>
+          <div className="border-t border-[var(--border)] px-5 py-4">
+            <p className="mb-3 text-[12px] leading-relaxed text-[var(--muted-foreground)]">
+              {t(
+                "Single shared secret that gates the classroom and course routes when set. Leave blank to disable.",
+              )}
+            </p>
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <input
+                  type={accessCodeRevealed ? "text" : "password"}
+                  value={accessCodeDraft}
+                  onChange={(e) => setAccessCodeDraft(e.target.value)}
+                  placeholder={t("ACCESS_CODE")}
+                  className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 pr-9 font-mono text-[13px] text-[var(--foreground)] outline-none focus:border-[var(--foreground)]/40"
+                  autoComplete="new-password"
+                  spellCheck={false}
+                />
+                <button
+                  type="button"
+                  onClick={() => setAccessCodeRevealed((v) => !v)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)]"
+                  aria-label={
+                    accessCodeRevealed ? t("Hide") : t("Show")
+                  }
+                >
+                  {accessCodeRevealed ? (
+                    <EyeOff className="h-3.5 w-3.5" />
+                  ) : (
+                    <Eye className="h-3.5 w-3.5" />
+                  )}
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={saveAccessCode}
+                disabled={
+                  savingAccessCode || accessCodeDraft === accessCode
+                }
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)]/50 px-3 py-1.5 text-[12px] font-medium text-[var(--muted-foreground)] transition-colors hover:border-[var(--border)] hover:text-[var(--foreground)] disabled:opacity-40"
+              >
+                {savingAccessCode ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Save className="h-3 w-3" />
+                )}
+                {t("Save")}
+              </button>
+            </div>
+            <p className="mt-2 text-[11px] leading-relaxed text-[var(--muted-foreground)]/60">
+              {t(
+                "Saved on the server and synced to OpenMAIC's environment. Restart OpenMAIC for changes to apply.",
+              )}
+            </p>
+          </div>
         </div>
 
         {/* ── Footer note ── */}
