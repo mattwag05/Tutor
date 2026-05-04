@@ -78,6 +78,36 @@ async function apiGet<T>(path: string, timeout?: number): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+async function apiPost<T>(
+  path: string,
+  body: unknown,
+  timeout?: number,
+): Promise<{ status: number; body: T }> {
+  const url = `${config.baseUrl}${path}`;
+  const response = await fetchWithTimeout(
+    url,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body ?? {}),
+    },
+    timeout,
+  );
+
+  if (response.status === 204) {
+    return { status: 204, body: undefined as unknown as T };
+  }
+
+  const data = (await response.json()) as T;
+  if (!response.ok) {
+    throw new DeepTutorAPIError(
+      `DeepTutor API error: ${response.status} ${response.statusText}`,
+      response.status,
+    );
+  }
+  return { status: response.status, body: data };
+}
+
 // ==================== Health Check ====================
 
 export async function checkHealth(): Promise<boolean> {
@@ -134,79 +164,91 @@ export async function listRAGProviders(): Promise<string[]> {
   }
 }
 
-// ==================== RAG Query (metadata-only adaptation) ====================
+// ==================== RAG Query ====================
+
+interface KnowledgeQueryPassage {
+  text: string;
+  score: number;
+  source: string;
+  page?: string | null;
+  title?: string | null;
+  chunk_id?: string | null;
+}
+
+interface KnowledgeQueryResponse {
+  query: string;
+  kb_name: string;
+  provider: string;
+  results: KnowledgeQueryPassage[];
+  warning?: string | null;
+  needs_reindex?: boolean;
+}
 
 /**
- * Query a knowledge base for relevant context.
+ * Query a knowledge base for relevant passages via real retrieval.
  *
- * **Adaptation note (v1):** DeepTutor's HTTP API does not expose a per-KB
- * retrieval endpoint (`/api/v1/knowledge/{kb}/query` does not exist — the
- * only true-retrieval interface is the `/api/v1/ws` unified chat socket,
- * which is not a good fit for a single-shot generation-time query).
+ * Calls the synchronous REST endpoint `POST /api/v1/knowledge/{kb}/query`
+ * (added in Phase A.1 of the unified-tutor merge) and returns ranked
+ * passages plus a synthesized `answer` field built from concatenated top-K
+ * passage text. Suitable for single-shot generation-time grounding.
  *
- * As a pragmatic P0 adaptation we fall back to KB *metadata* (name,
- * description, document/image counts, status, recency) fetched from the
- * existing `GET /api/v1/knowledge/{kb}` endpoint. This is "weak RAG" — it
- * lets the outline generator orient around the KB contents, but does not
- * inject retrieved passages. When a real query endpoint lands on DeepTutor
- * we can swap this body out without touching callers.
- *
- * Returns synthesized `answer` (human-readable KB summary) and a single
- * metadata "source" entry describing the KB.
+ * Falls back to an empty result on `DeepTutorUnavailableError` /
+ * `needs_reindex` so callers never see a hard failure — `getRAGContextForGeneration`
+ * detects empty results and skips the injection block.
  */
 export async function queryKnowledgeBase(
   kbName: string,
   query: string,
-  options?: { timeout?: number },
+  options?: { timeout?: number; topK?: number },
 ): Promise<{ answer: string; sources: RAGQueryResult[] }> {
-  void query; // retained for future retrieval endpoint
-  void options;
-
   if (!config.enabled) {
     throw new DeepTutorUnavailableError('DeepTutor integration is disabled');
   }
 
-  const details = await getKnowledgeBase(kbName);
-  if (!details) {
+  if (!query || !query.trim()) {
     return { answer: '', sources: [] };
   }
 
-  // The shape returned by GET /api/v1/knowledge/{kb} is not strictly typed
-  // upstream; dig defensively.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const raw = details as any;
-  const meta = raw.metadata ?? {};
-  const stats = raw.statistics ?? {};
-  const description: string | undefined = meta.description;
-  const rawDocs = typeof stats.raw_documents === 'number' ? stats.raw_documents : undefined;
-  const images = typeof stats.images === 'number' ? stats.images : undefined;
-  const contentLists =
-    typeof stats.content_lists === 'number' ? stats.content_lists : undefined;
-  const status: string | undefined = raw.status;
-  const lastUpdated: string | undefined = meta.last_updated;
-
-  const summaryLines: string[] = [`Knowledge base "${kbName}"`];
-  if (description && description !== `Knowledge base: ${kbName}`) {
-    summaryLines.push(description);
+  const topK = options?.topK ?? 8;
+  let payload: KnowledgeQueryResponse;
+  try {
+    const { body } = await apiPost<KnowledgeQueryResponse>(
+      `/api/v1/knowledge/${encodeURIComponent(kbName)}/query`,
+      { query, top_k: topK },
+      options?.timeout,
+    );
+    payload = body;
+  } catch (error) {
+    if (error instanceof DeepTutorAPIError && error.status === 409) {
+      log.warn(`KB "${kbName}" needs reindex — returning empty RAG result`);
+      return { answer: '', sources: [] };
+    }
+    throw error;
   }
-  const counts: string[] = [];
-  if (rawDocs !== undefined) counts.push(`${rawDocs} document${rawDocs === 1 ? '' : 's'}`);
-  if (images !== undefined && images > 0)
-    counts.push(`${images} image${images === 1 ? '' : 's'}`);
-  if (contentLists !== undefined && contentLists > 0)
-    counts.push(`${contentLists} processed content list${contentLists === 1 ? '' : 's'}`);
-  if (counts.length > 0) summaryLines.push(`Contains ${counts.join(', ')}.`);
-  if (status) summaryLines.push(`Indexing status: ${status}.`);
-  if (lastUpdated) summaryLines.push(`Last updated: ${lastUpdated}.`);
 
-  const answer = summaryLines.join(' ');
-  const sources: RAGQueryResult[] = [
-    {
-      content: answer,
-      source: kbName,
-      metadata: { kind: 'kb-metadata', raw_documents: rawDocs, images, status },
+  if (payload.warning) {
+    log.warn(`RAG warning for KB "${kbName}": ${payload.warning}`);
+  }
+
+  const passages = payload.results ?? [];
+  if (passages.length === 0) {
+    return { answer: '', sources: [] };
+  }
+
+  // Synthesize an `answer` by concatenating passage text. Downstream
+  // (`getRAGContextForGeneration`) caps the total at MAX_RAG_CONTEXT_CHARS.
+  const answer = passages.map((p) => p.text).join('\n\n');
+  const sources: RAGQueryResult[] = passages.map((p) => ({
+    content: p.text,
+    score: p.score,
+    source: p.source,
+    metadata: {
+      kind: 'kb-passage',
+      page: p.page ?? null,
+      title: p.title ?? null,
+      chunk_id: p.chunk_id ?? null,
     },
-  ];
+  }));
 
   return { answer, sources };
 }
@@ -294,21 +336,26 @@ export async function getRAGContextForGeneration(
 
     const parts: string[] = [];
 
-    if (answer) {
-      parts.push(`## Knowledge Base Summary\n${answer}`);
-    }
-
     if (sources.length > 0) {
-      parts.push('## Source References');
+      parts.push('## Retrieved Passages');
       sources.forEach((source, i) => {
-        const label = source.source ? ` (from: ${source.source})` : '';
-        parts.push(`### Reference ${i + 1}${label}\n${source.content}`);
+        const meta = (source.metadata ?? {}) as Record<string, unknown>;
+        const page = meta.page;
+        const labelBits: string[] = [];
+        if (source.source) labelBits.push(String(source.source));
+        if (page !== undefined && page !== null && page !== '') {
+          labelBits.push(`page ${String(page)}`);
+        }
+        const scoreLabel =
+          typeof source.score === 'number' ? ` · score ${source.score.toFixed(3)}` : '';
+        const label = labelBits.length > 0 ? ` (${labelBits.join(', ')}${scoreLabel})` : scoreLabel;
+        parts.push(`### Passage ${i + 1}${label}\n${source.content}`);
       });
+    } else if (answer) {
+      // Defensive: pre-rewrite call-sites might still produce a synthesized answer
+      // without per-source rows. Treat as a single passage block.
+      parts.push(`## Retrieved Passages\n${answer}`);
     }
-
-    parts.push(
-      '_Note: DeepTutor does not yet expose a per-KB retrieval endpoint; the above is KB-level metadata. Lean on it for topical grounding rather than citations._',
-    );
 
     let result = parts.join('\n\n');
     if (result.length > MAX_RAG_CONTEXT_CHARS) {

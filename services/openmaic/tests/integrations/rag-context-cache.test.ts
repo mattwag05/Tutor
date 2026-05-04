@@ -26,6 +26,29 @@ describe('ragContextCacheKey', () => {
   });
 });
 
+function mockQueryResponse(
+  passages: Array<{ text: string; source?: string; page?: string | null; score?: number }> = [
+    { text: 'A retrieved passage.', source: '/data/test.pdf', page: '3', score: 0.91 },
+  ],
+) {
+  return new Response(
+    JSON.stringify({
+      query: 'topic',
+      kb_name: 'test-kb',
+      provider: 'llamaindex',
+      results: passages.map((p) => ({
+        text: p.text,
+        score: p.score ?? 0.85,
+        source: p.source ?? '/data/test.pdf',
+        page: p.page ?? null,
+        title: null,
+        chunk_id: null,
+      })),
+    }),
+    { status: 200, headers: { 'content-type': 'application/json' } },
+  );
+}
+
 describe('getRAGContextForGeneration cache', () => {
   beforeEach(() => {
     clearRagContextCache();
@@ -33,18 +56,7 @@ describe('getRAGContextForGeneration cache', () => {
   });
 
   it('skips the network on a second call within TTL', async () => {
-    // We mock fetch by replacing globalThis.fetch. The first call should hit
-    // the network; the second call to the same key should not.
-    const fetchSpy = vi.fn(async () => {
-      return new Response(
-        JSON.stringify({
-          metadata: { description: 'A test KB' },
-          statistics: { raw_documents: 3 },
-          status: 'ready',
-        }),
-        { status: 200, headers: { 'content-type': 'application/json' } },
-      );
-    });
+    const fetchSpy = vi.fn(async () => mockQueryResponse());
     const originalFetch = globalThis.fetch;
     globalThis.fetch = fetchSpy as unknown as typeof globalThis.fetch;
 
@@ -58,6 +70,9 @@ describe('getRAGContextForGeneration cache', () => {
       expect(a).toBe(b);
       expect(a).toBeTruthy();
       expect(fetchSpy).toHaveBeenCalledTimes(1);
+      // Sanity: the rendered context now reflects retrieved passages, not metadata.
+      expect(a).toContain('Retrieved Passages');
+      expect(a).toContain('A retrieved passage.');
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -65,16 +80,7 @@ describe('getRAGContextForGeneration cache', () => {
 
   it('expires entries after TTL elapses', async () => {
     vi.useFakeTimers();
-    const fetchSpy = vi.fn(async () => {
-      return new Response(
-        JSON.stringify({
-          metadata: { description: 'A test KB' },
-          statistics: { raw_documents: 3 },
-          status: 'ready',
-        }),
-        { status: 200, headers: { 'content-type': 'application/json' } },
-      );
-    });
+    const fetchSpy = vi.fn(async () => mockQueryResponse());
     const originalFetch = globalThis.fetch;
     globalThis.fetch = fetchSpy as unknown as typeof globalThis.fetch;
 
@@ -90,6 +96,80 @@ describe('getRAGContextForGeneration cache', () => {
     } finally {
       globalThis.fetch = originalFetch;
       vi.useRealTimers();
+    }
+  });
+});
+
+describe('queryKnowledgeBase (real RAG)', () => {
+  beforeEach(() => {
+    clearRagContextCache();
+  });
+
+  it('hits POST /api/v1/knowledge/{kb}/query with query and top_k', async () => {
+    const fetchSpy = vi.fn(async () => mockQueryResponse());
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = fetchSpy as unknown as typeof globalThis.fetch;
+
+    try {
+      const { queryKnowledgeBase } = await import('@/lib/integrations/deeptutor-client');
+      const { answer, sources } = await queryKnowledgeBase('abfm', 'diabetic retinopathy', {
+        topK: 4,
+      });
+
+      expect(answer).toContain('A retrieved passage.');
+      expect(sources).toHaveLength(1);
+      expect(sources[0].content).toBe('A retrieved passage.');
+      expect(sources[0].source).toBe('/data/test.pdf');
+
+      // First call to a fresh query — fetch was used.
+      expect(fetchSpy).toHaveBeenCalled();
+      const firstCall = fetchSpy.mock.calls[0] as unknown as [string, RequestInit];
+      const [calledUrl, calledOpts] = firstCall;
+      expect(calledUrl).toContain('/api/v1/knowledge/abfm/query');
+      expect(calledOpts.method).toBe('POST');
+      expect(JSON.parse(calledOpts.body as string)).toEqual({
+        query: 'diabetic retinopathy',
+        top_k: 4,
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('returns empty result on 409 needs_reindex', async () => {
+    const fetchSpy = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            detail: { error_type: 'needs_reindex', message: 'reindex me', kb_name: 'abfm' },
+          }),
+          { status: 409, headers: { 'content-type': 'application/json' } },
+        ),
+    );
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = fetchSpy as unknown as typeof globalThis.fetch;
+
+    try {
+      const { queryKnowledgeBase } = await import('@/lib/integrations/deeptutor-client');
+      const result = await queryKnowledgeBase('abfm', 'q');
+      expect(result).toEqual({ answer: '', sources: [] });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('returns empty result for empty query without hitting the network', async () => {
+    const fetchSpy = vi.fn(async () => mockQueryResponse());
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = fetchSpy as unknown as typeof globalThis.fetch;
+
+    try {
+      const { queryKnowledgeBase } = await import('@/lib/integrations/deeptutor-client');
+      const result = await queryKnowledgeBase('abfm', '   ');
+      expect(result).toEqual({ answer: '', sources: [] });
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      globalThis.fetch = originalFetch;
     }
   });
 });
