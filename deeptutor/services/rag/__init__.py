@@ -7,12 +7,10 @@ from .factory import (
     normalize_provider_name,
 )
 from .file_routing import DocumentType, FileClassification, FileTypeRouter
-from .retriever_service import Passage, RAGRetrieverService, RetrievalResult
-from .service import RAGService
+from .service import Passage, RAGService, RetrievalResult
 
 __all__ = [
     "RAGService",
-    "RAGRetrieverService",
     "Passage",
     "RetrievalResult",
     "FileTypeRouter",

@@ -119,16 +119,14 @@ class LlamaIndexPipeline:
         finally:
             set_progress_callback(None)
 
-    async def search(
+    async def _retrieve_nodes(
         self,
-        query: str,
         kb_name: str,
-        **kwargs,
-    ) -> Dict[str, Any]:
-        kwargs.pop("mode", None)
+        query: str,
+        top_k: int,
+    ) -> tuple[list[Any] | None, str]:
+        """Return ``(nodes, warning)``. ``nodes is None`` signals missing index."""
         self._configure_settings()
-        self.logger.info(f"Searching KB '{kb_name}' with query: {query[:50]}...")
-
         kb_dir = Path(self.kb_base_dir) / kb_name
         signature = self._current_signature()
         storage_dir = resolve_storage_dir_for_read(kb_dir, signature)
@@ -138,6 +136,40 @@ class LlamaIndexPipeline:
                 f"No matching index found for KB '{kb_name}' at signature "
                 f"{signature.hash() if signature else 'n/a'}"
             )
+            return None, ""
+
+        warning = self._embedding_mismatch_warning(kb_name)
+
+        loop = asyncio.get_event_loop()
+        nodes = await loop.run_in_executor(
+            None,
+            lambda: storage.retrieve_nodes(storage_dir, query, top_k=top_k),
+        )
+        return nodes, warning
+
+    async def search(
+        self,
+        query: str,
+        kb_name: str,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        kwargs.pop("mode", None)
+        self.logger.info(f"Searching KB '{kb_name}' with query: {query[:50]}...")
+        top_k = kwargs.get("top_k", 5)
+
+        try:
+            nodes, warning = await self._retrieve_nodes(kb_name, query, top_k)
+        except Exception as exc:
+            result = search_error_result(query, exc)
+            if result.get("error_type"):
+                log_message = result.get("log_message") or str(exc)
+                self.logger.warning(f"Search failed ({result['error_type']}): {log_message}")
+            else:
+                self.logger.error(f"Search failed: {exc}")
+                self.logger.error(traceback.format_exc())
+            return result
+
+        if nodes is None:
             return {
                 "query": query,
                 "answer": (
@@ -150,30 +182,10 @@ class LlamaIndexPipeline:
                 "needs_reindex": True,
             }
 
-        embedding_mismatch_warning = self._embedding_mismatch_warning(kb_name)
-
-        try:
-            loop = asyncio.get_event_loop()
-            top_k = kwargs.get("top_k", 5)
-            nodes = await loop.run_in_executor(
-                None,
-                lambda: storage.retrieve_nodes(storage_dir, query, top_k=top_k),
-            )
-
-            result = self._nodes_to_result(query, nodes)
-            if embedding_mismatch_warning:
-                result["warning"] = embedding_mismatch_warning
-            return result
-
-        except Exception as exc:
-            result = search_error_result(query, exc)
-            if result.get("error_type"):
-                log_message = result.get("log_message") or str(exc)
-                self.logger.warning(f"Search failed ({result['error_type']}): {log_message}")
-            else:
-                self.logger.error(f"Search failed: {exc}")
-                self.logger.error(traceback.format_exc())
-            return result
+        result = self._nodes_to_result(query, nodes)
+        if warning:
+            result["warning"] = warning
+        return result
 
     def _embedding_mismatch_warning(self, kb_name: str) -> str:
         try:
@@ -233,63 +245,10 @@ class LlamaIndexPipeline:
         Distinct from :meth:`search`, which concatenates and truncates passage
         text for in-context LLM grounding.
         """
-
-        self._configure_settings()
         self.logger.info(f"Retrieving passages from KB '{kb_name}' for query: {query[:50]}...")
 
-        kb_dir = Path(self.kb_base_dir) / kb_name
-        signature = self._current_signature()
-        storage_dir = resolve_storage_dir_for_read(kb_dir, signature)
-
-        if storage_dir is None or not (storage_dir / "docstore.json").exists():
-            self.logger.warning(
-                f"No matching index found for KB '{kb_name}' at signature "
-                f"{signature.hash() if signature else 'n/a'}"
-            )
-            return {
-                "query": query,
-                "passages": [],
-                "provider": "llamaindex",
-                "needs_reindex": True,
-            }
-
-        warning = self._embedding_mismatch_warning(kb_name)
-
         try:
-            loop = asyncio.get_event_loop()
-            nodes = await loop.run_in_executor(
-                None,
-                lambda: storage.retrieve_nodes(storage_dir, query, top_k=top_k),
-            )
-
-            passages: list[dict[str, Any]] = []
-            for i, node in enumerate(nodes):
-                meta = node.node.metadata or {}
-                page_value = meta.get("page_label", meta.get("page", ""))
-                passages.append(
-                    {
-                        "text": node.node.text,
-                        "score": float(node.score) if node.score is not None else 0.0,
-                        "source": (
-                            meta.get("file_path") or meta.get("file_name") or ""
-                        ),
-                        "page": str(page_value) if page_value not in (None, "") else None,
-                        "title": meta.get(
-                            "file_name", meta.get("title", f"Document {i + 1}")
-                        ),
-                        "chunk_id": node.node.node_id or str(i),
-                    }
-                )
-
-            result: Dict[str, Any] = {
-                "query": query,
-                "passages": passages,
-                "provider": "llamaindex",
-            }
-            if warning:
-                result["warning"] = warning
-            return result
-
+            nodes, warning = await self._retrieve_nodes(kb_name, query, top_k)
         except Exception as exc:
             error = search_error_result(query, exc)
             error["passages"] = []
@@ -304,6 +263,38 @@ class LlamaIndexPipeline:
                 self.logger.error(f"Retrieval failed: {exc}")
                 self.logger.error(traceback.format_exc())
             return error
+
+        if nodes is None:
+            return {
+                "query": query,
+                "passages": [],
+                "provider": "llamaindex",
+                "needs_reindex": True,
+            }
+
+        passages: list[dict[str, Any]] = []
+        for i, node in enumerate(nodes):
+            meta = node.node.metadata or {}
+            page_value = meta.get("page_label", meta.get("page", ""))
+            passages.append(
+                {
+                    "text": node.node.text,
+                    "score": float(node.score) if node.score is not None else 0.0,
+                    "source": (meta.get("file_path") or meta.get("file_name") or ""),
+                    "page": str(page_value) if page_value not in (None, "") else None,
+                    "title": meta.get("file_name", meta.get("title", f"Document {i + 1}")),
+                    "chunk_id": node.node.node_id or str(i),
+                }
+            )
+
+        result: Dict[str, Any] = {
+            "query": query,
+            "passages": passages,
+            "provider": "llamaindex",
+        }
+        if warning:
+            result["warning"] = warning
+        return result
 
     async def add_documents(self, kb_name: str, file_paths: List[str], **kwargs) -> bool:
         progress_callback = kwargs.get("progress_callback")
