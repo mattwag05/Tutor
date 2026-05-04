@@ -1,10 +1,7 @@
-"""Synchronous retrieval façade over the LlamaIndex pipeline.
+"""Synchronous retrieval façade returning untruncated passages.
 
-Phase A.1 of the unified-tutor merge: exposes raw passage retrieval as a
-plain async call that callers (the new REST endpoint, the WebSocket turn
-runtime, ad-hoc scripts) can share. ``RAGService.search`` remains for
-LLM-summary use; this façade returns full passages without the answer-text
-concatenation that ``search`` performs.
+Distinct from ``RAGService.search``, which concatenates passage text into a
+single ``answer`` string for in-context LLM grounding.
 """
 
 from __future__ import annotations

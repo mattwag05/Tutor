@@ -791,9 +791,7 @@ async def query_knowledge_base(
     """Synchronous top-K retrieval for a knowledge base.
 
     Body: ``{query, top_k=8, provider?}``. Returns ranked passages with full
-    text, score, source, and page (when available). Counterpart to the
-    WebSocket chat path used by the agent runtime — both share the same
-    underlying retriever service.
+    text, score, source, and page (when available).
     """
 
     if not request.query or not request.query.strip():

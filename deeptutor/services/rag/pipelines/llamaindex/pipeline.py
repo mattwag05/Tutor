@@ -230,11 +230,8 @@ class LlamaIndexPipeline:
     ) -> Dict[str, Any]:
         """Return raw, untruncated passages for ``query`` against ``kb_name``.
 
-        Distinct from :meth:`search`: that one concatenates passage text into
-        ``answer`` and truncates each per-source preview to 200 chars (built
-        for in-context LLM grounding). This method preserves full passage text
-        and is the data path used by the synchronous REST retrieval endpoint
-        and any caller that wants the underlying chunks rather than a summary.
+        Distinct from :meth:`search`, which concatenates and truncates passage
+        text for in-context LLM grounding.
         """
 
         self._configure_settings()

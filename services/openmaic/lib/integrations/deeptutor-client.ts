@@ -187,14 +187,10 @@ interface KnowledgeQueryResponse {
 /**
  * Query a knowledge base for relevant passages via real retrieval.
  *
- * Calls the synchronous REST endpoint `POST /api/v1/knowledge/{kb}/query`
- * (added in Phase A.1 of the unified-tutor merge) and returns ranked
- * passages plus a synthesized `answer` field built from concatenated top-K
- * passage text. Suitable for single-shot generation-time grounding.
- *
- * Falls back to an empty result on `DeepTutorUnavailableError` /
- * `needs_reindex` so callers never see a hard failure — `getRAGContextForGeneration`
- * detects empty results and skips the injection block.
+ * Calls `POST /api/v1/knowledge/{kb}/query` and returns ranked passages plus
+ * a synthesized `answer` built from concatenated top-K text. Returns an empty
+ * result on `DeepTutorUnavailableError` or `needs_reindex` (HTTP 409) so
+ * callers never see a hard failure.
  */
 export async function queryKnowledgeBase(
   kbName: string,
@@ -352,8 +348,6 @@ export async function getRAGContextForGeneration(
         parts.push(`### Passage ${i + 1}${label}\n${source.content}`);
       });
     } else if (answer) {
-      // Defensive: pre-rewrite call-sites might still produce a synthesized answer
-      // without per-source rows. Treat as a single passage block.
       parts.push(`## Retrieved Passages\n${answer}`);
     }
 

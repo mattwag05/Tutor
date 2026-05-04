@@ -34,12 +34,9 @@ interface NavEntry {
   external?: string; // If set, navigates to this external URL instead of href
 }
 
-// Per PRD §5.1, the unified Tutor app drops Co-Writer (demoted to a chat tool)
-// and Book (Book Engine cut, block types fold into Course). Knowledge is
-// re-labeled as "Library". Classroom and Course (renamed Read) remain
-// cross-mounted at OpenMAIC under the `tutor.tail6e035b.ts.net` Caddy route
-// (Phase A.2); until that lands they continue to render as external links so
-// production-pre-cutover sessions don't 404.
+// Read and Classroom render as external OpenMAIC links until the unified
+// Caddy route serves both internally — at which point the `external` field on
+// those NavEntry rows can be dropped.
 const OPENMAIC_URL =
   process.env.NEXT_PUBLIC_OPENMAIC_URL || "https://openmaic.tail6e035b.ts.net";
 
