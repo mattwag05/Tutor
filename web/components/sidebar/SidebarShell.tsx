@@ -9,14 +9,13 @@ import {
   BookOpen,
   Bot,
   Brain,
-  GraduationCap,
   Github,
   LayoutGrid,
   Library,
   MessageSquare,
+  Notebook as NotebookIcon,
   PanelLeftClose,
   PanelLeftOpen,
-  PenLine,
   Presentation,
   Plus,
   Settings,
@@ -35,22 +34,32 @@ interface NavEntry {
   external?: string; // If set, navigates to this external URL instead of href
 }
 
+// Per PRD §5.1, the unified Tutor app drops Co-Writer (demoted to a chat tool)
+// and Book (Book Engine cut, block types fold into Course). Knowledge is
+// re-labeled as "Library". Classroom and Course (renamed Read) remain
+// cross-mounted at OpenMAIC under the `tutor.tail6e035b.ts.net` Caddy route
+// (Phase A.2); until that lands they continue to render as external links so
+// production-pre-cutover sessions don't 404.
 const OPENMAIC_URL =
   process.env.NEXT_PUBLIC_OPENMAIC_URL || "https://openmaic.tail6e035b.ts.net";
 
 const PRIMARY_NAV: NavEntry[] = [
   { href: "/chat", label: "Chat", icon: MessageSquare },
   { href: "/agents", label: "TutorBot", icon: Bot },
-  { href: "/co-writer", label: "Co-Writer", icon: PenLine },
-  { href: "/book", label: "Book", icon: Library },
-  { href: "/knowledge", label: "Knowledge", icon: BookOpen },
+  { href: "/knowledge", label: "Library", icon: Library },
+  { href: "/read", label: "Read", icon: BookOpen, external: `${OPENMAIC_URL}/course` },
+  {
+    href: "/classroom",
+    label: "Classroom",
+    icon: Presentation,
+    external: OPENMAIC_URL,
+  },
   { href: "/memory", label: "Memory", icon: Brain },
   { href: "/space", label: "Space", icon: LayoutGrid },
-  { href: "/classroom", label: "Classroom", icon: Presentation, external: OPENMAIC_URL },
-  { href: "/course", label: "Course", icon: GraduationCap, external: `${OPENMAIC_URL}/course` },
 ];
 
 const SECONDARY_NAV: NavEntry[] = [
+  { href: "/notebook", label: "Notebook", icon: NotebookIcon },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 const DEFAULT_SESSION_VIEWPORT_CLASS_NAME = "max-h-[112px]";
