@@ -16,11 +16,15 @@ class _Signature:
         return self._hash
 
 
-def _patch_active_embedding(monkeypatch: pytest.MonkeyPatch, sig_hash: str = "active-signature") -> None:
+def _patch_active_embedding(
+    monkeypatch: pytest.MonkeyPatch, sig_hash: str = "active-signature"
+) -> None:
     from deeptutor.knowledge import manager as manager_module
     from deeptutor.services.rag import embedding_signature
 
-    monkeypatch.setattr(manager_module, "_get_embedding_fingerprint", lambda: ("embed-active", 4096))
+    monkeypatch.setattr(
+        manager_module, "_get_embedding_fingerprint", lambda: ("embed-active", 4096)
+    )
     monkeypatch.setattr(
         embedding_signature,
         "signature_from_embedding_config",
@@ -85,3 +89,43 @@ def test_ready_version_without_active_signature_marks_reindex(
     assert entry["needs_reindex"] is True
     assert entry["embedding_mismatch"] is True
 
+
+def test_ready_status_records_last_indexed_only_when_index_changes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _patch_active_embedding(monkeypatch)
+    manager = KnowledgeBaseManager(base_dir=str(tmp_path))
+
+    manager.update_kb_status(
+        name="kb",
+        status="ready",
+        progress={
+            "stage": "completed",
+            "timestamp": "2026-05-04T10:00:00",
+            "indexed_count": 2,
+            "index_changed": True,
+            "index_action": "upload",
+        },
+    )
+
+    entry = KnowledgeBaseManager(base_dir=str(tmp_path)).config["knowledge_bases"]["kb"]
+    assert entry["last_indexed_at"] == "2026-05-04T10:00:00"
+    assert entry["last_indexed_count"] == 2
+    assert entry["last_indexed_action"] == "upload"
+
+    manager.update_kb_status(
+        name="kb",
+        status="ready",
+        progress={
+            "stage": "completed",
+            "timestamp": "2026-05-04T11:00:00",
+            "indexed_count": 0,
+            "index_changed": False,
+            "index_action": "upload",
+        },
+    )
+
+    info = KnowledgeBaseManager(base_dir=str(tmp_path)).get_info("kb")
+    assert info["metadata"]["last_indexed_at"] == "2026-05-04T10:00:00"
+    assert info["metadata"]["last_indexed_count"] == 2

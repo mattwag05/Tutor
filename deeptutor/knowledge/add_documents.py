@@ -8,6 +8,7 @@ import asyncio
 from datetime import datetime
 import hashlib
 import json
+import logging
 import os
 from pathlib import Path
 import shutil
@@ -15,13 +16,12 @@ from typing import List, Optional
 
 from dotenv import load_dotenv
 
-from deeptutor.logging import get_logger
 from deeptutor.services.rag.factory import DEFAULT_PROVIDER
 from deeptutor.services.rag.file_routing import FileTypeRouter
 from deeptutor.services.rag.index_versioning import list_kb_versions
 from deeptutor.services.rag.service import RAGService
 
-logger = get_logger("KnowledgeInit")
+logger = logging.getLogger(__name__)
 
 DEFAULT_BASE_DIR = "./data/knowledge_bases"
 
@@ -193,7 +193,12 @@ class DocumentAdder:
 
         metadata["rag_provider"] = DEFAULT_PROVIDER
         metadata["needs_reindex"] = False
-        metadata["last_updated"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        metadata["last_updated"] = timestamp
+        if added_count > 0:
+            metadata["last_indexed_at"] = timestamp
+            metadata["last_indexed_count"] = added_count
+            metadata["last_indexed_action"] = "upload"
 
         history = metadata.get("update_history", [])
         history.append(
@@ -278,6 +283,9 @@ async def add_documents(
                 "file_name": "",
                 "error": None,
                 "timestamp": datetime.now().isoformat(),
+                "indexed_count": len(processed),
+                "index_changed": len(processed) > 0,
+                "index_action": "upload",
             },
         )
         return len(processed)

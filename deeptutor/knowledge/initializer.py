@@ -7,6 +7,7 @@ import argparse
 import asyncio
 from datetime import datetime
 import json
+import logging
 import os
 from pathlib import Path
 import shutil
@@ -14,12 +15,11 @@ from typing import Optional
 
 from deeptutor.knowledge.naming import validate_knowledge_base_name
 from deeptutor.knowledge.progress_tracker import ProgressStage, ProgressTracker
-from deeptutor.logging import get_logger
 from deeptutor.services.rag.factory import DEFAULT_PROVIDER
 from deeptutor.services.rag.file_routing import FileTypeRouter
 from deeptutor.services.rag.service import RAGService
 
-logger = get_logger("KnowledgeInit")
+logger = logging.getLogger(__name__)
 
 
 class KnowledgeBaseInitializer:
@@ -43,9 +43,7 @@ class KnowledgeBaseInitializer:
 
         self.api_key = api_key
         self.base_url = base_url
-        self.progress_tracker = progress_tracker or ProgressTracker(
-            self.kb_name, self.base_dir
-        )
+        self.progress_tracker = progress_tracker or ProgressTracker(self.kb_name, self.base_dir)
         self.rag_provider = DEFAULT_PROVIDER
 
     def _register_to_config(self) -> None:
@@ -88,7 +86,11 @@ class KnowledgeBaseInitializer:
                 metadata = {}
 
         metadata["rag_provider"] = DEFAULT_PROVIDER
-        metadata["last_updated"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        metadata["last_updated"] = timestamp
+        metadata["last_indexed_at"] = timestamp
+        metadata["last_indexed_count"] = len(FileTypeRouter.collect_supported_files(self.raw_dir))
+        metadata["last_indexed_action"] = "create"
 
         with open(metadata_file, "w", encoding="utf-8") as f:
             json.dump(metadata, f, indent=2, ensure_ascii=False)
@@ -263,7 +265,7 @@ async def initialize_knowledge_base(
     )
     try:
         initializer.create_directory_structure()
-        initializer.copy_documents(source_files)
+        copied_files = initializer.copy_documents(source_files)
         await initializer.process_documents()
         if not skip_extract:
             initializer.extract_numbered_items()
@@ -279,6 +281,9 @@ async def initialize_knowledge_base(
                 "file_name": "",
                 "error": None,
                 "timestamp": datetime.now().isoformat(),
+                "indexed_count": len(copied_files),
+                "index_changed": True,
+                "index_action": "create",
             },
         )
         return True
@@ -320,9 +325,7 @@ async def main() -> None:
     if args.docs_dir:
         docs_dir = Path(args.docs_dir)
         if docs_dir.exists() and docs_dir.is_dir():
-            doc_files.extend(
-                str(f) for f in FileTypeRouter.collect_supported_files(docs_dir)
-            )
+            doc_files.extend(str(f) for f in FileTypeRouter.collect_supported_files(docs_dir))
 
     initializer = KnowledgeBaseInitializer(
         kb_name=args.name,
