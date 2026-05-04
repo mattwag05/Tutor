@@ -28,7 +28,7 @@ def _build_template(candidate: ReviewCandidate) -> QuestionTemplate:
         difficulty=candidate.original_difficulty,
         source="spaced-review",
         reference_question=candidate.original_question,
-        reference_answer=candidate.original_correct_answer or None,
+        reference_answer=candidate.original_correct_answer or None,  # coerce "" → None so Generator treats it as absent
         metadata={
             "variant_of": candidate.question_id,
             "user_prior_answer": candidate.last_user_answer,

@@ -32,34 +32,23 @@ def _today_utc() -> str:
 
 async def _generate_and_cache(date: str) -> None:
     store = get_cache_store()
+    generated_ms = int(time.time() * 1000)
+
+    async def _finalize(status: str, items: list) -> None:
+        await store.upsert(date=date, status=status, items=items, generated_ms=generated_ms)
+
     try:
         candidates = await pick_review_set()
         if not candidates:
-            await store.upsert(
-                date=date,
-                status="empty",
-                items=[],
-                generated_ms=int(time.time() * 1000),
-            )
+            await _finalize("empty", [])
             return
         variants = await generate_variants(candidates)
-        status = "ready" if variants else "empty"
-        await store.upsert(
-            date=date,
-            status=status,
-            items=variants,
-            generated_ms=int(time.time() * 1000),
-        )
+        await _finalize("ready" if variants else "empty", variants)
     except Exception as exc:
         logger.exception("spaced-review generation failed: %s", exc)
         # Mark empty so the next request retries by claiming again only
         # on a later UTC date. Recovery on demand is acceptable for v1.
-        await store.upsert(
-            date=date,
-            status="empty",
-            items=[],
-            generated_ms=int(time.time() * 1000),
-        )
+        await _finalize("empty", [])
 
 
 @router.get("/today", response_model=SpacedReviewResponse)

@@ -48,10 +48,9 @@ export default function TodaysReviewPanel() {
   const [collapsed, setCollapsed] = useState(false);
   const [attempts, setAttempts] = useState<Record<string, AttemptState>>({});
 
-  // Fetch + poll while status is "generating".
   useEffect(() => {
     let cancelled = false;
-    let attempts = 0;
+    let pollCount = 0;
     let timer: ReturnType<typeof setTimeout> | null = null;
 
     const tick = async () => {
@@ -59,8 +58,8 @@ export default function TodaysReviewPanel() {
         const next = await getTodaysReview();
         if (cancelled) return;
         setResponse(next);
-        if (next.status === "generating" && attempts < POLL_MAX_ATTEMPTS) {
-          attempts += 1;
+        if (next.status === "generating" && pollCount < POLL_MAX_ATTEMPTS) {
+          pollCount += 1;
           timer = setTimeout(() => void tick(), POLL_MS);
         } else {
           setLoading(false);
@@ -77,7 +76,6 @@ export default function TodaysReviewPanel() {
     };
   }, []);
 
-  // Restore collapsed state per-day.
   useEffect(() => {
     if (!response?.date) return;
     try {
@@ -139,9 +137,8 @@ export default function TodaysReviewPanel() {
     [attempts],
   );
 
-  const items = useMemo(() => response?.items ?? [], [response?.items]);
+  const items = useMemo(() => response?.items ?? [], [response]);
 
-  // Hide entirely when there's nothing to review and we're done loading.
   if (!loading && (!response || response.status === "empty")) {
     return null;
   }

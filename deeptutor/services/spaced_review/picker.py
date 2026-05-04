@@ -91,8 +91,9 @@ async def pick_review_set(
     scored.sort(key=lambda pair: pair[0], reverse=True)
 
     engine = get_book_engine()
+    page_cache: dict[tuple[str, str], object] = {}
     candidates: list[ReviewCandidate] = []
-    for _score_value, attempt in scored:
+    for _, attempt in scored:
         if len(candidates) >= limit:
             break
         parsed = _parse_source_id(attempt.source_id)
@@ -100,7 +101,10 @@ async def pick_review_set(
             logger.debug("skip malformed source_id %s", attempt.source_id)
             continue
         book_id, page_id, block_id = parsed
-        page = engine.load_page(book_id, page_id)
+        cache_key = (book_id, page_id)
+        if cache_key not in page_cache:
+            page_cache[cache_key] = engine.load_page(book_id, page_id)
+        page = page_cache[cache_key]
         if page is None:
             continue
         block = page.block_by_id(block_id)
