@@ -164,6 +164,73 @@ export async function listRAGProviders(): Promise<string[]> {
   }
 }
 
+// ==================== Quiz Attempts ====================
+
+export type QuizSource = 'book' | 'classroom' | 'course';
+
+export interface QuizAttemptPayload {
+  source: QuizSource;
+  source_id: string;
+  question_id: string;
+  user_answer?: string;
+  is_correct?: boolean | null;
+  earned?: number;
+  ai_comment?: string;
+  ts_ms: number;
+  user_id?: string | null;
+}
+
+export interface QuizAttemptRecord extends QuizAttemptPayload {
+  id: string;
+}
+
+export async function recordQuizAttempt(
+  payload: QuizAttemptPayload,
+): Promise<QuizAttemptRecord | null> {
+  if (!config.enabled) return null;
+  try {
+    const { body } = await apiPost<QuizAttemptRecord>('/api/v1/quiz/attempts', payload);
+    return body;
+  } catch (error) {
+    if (error instanceof DeepTutorUnavailableError) {
+      log.warn(`Skipping quiz-attempt write — DeepTutor unavailable: ${error.message}`);
+      return null;
+    }
+    throw error;
+  }
+}
+
+export interface QuizAttemptFilter {
+  source?: QuizSource;
+  source_id?: string;
+  is_correct?: boolean;
+  older_than_ms?: number;
+  newer_than_ms?: number;
+  limit?: number;
+}
+
+export async function listQuizAttempts(
+  filter: QuizAttemptFilter = {},
+): Promise<QuizAttemptRecord[]> {
+  if (!config.enabled) return [];
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filter)) {
+    if (value === undefined || value === null) continue;
+    params.set(key, String(value));
+  }
+  const qs = params.toString();
+  const path = qs ? `/api/v1/quiz/attempts?${qs}` : '/api/v1/quiz/attempts';
+  try {
+    return await apiGet<QuizAttemptRecord[]>(path);
+  } catch (error) {
+    if (error instanceof DeepTutorUnavailableError) {
+      log.warn(`Skipping quiz-attempt list — DeepTutor unavailable: ${error.message}`);
+      return [];
+    }
+    throw error;
+  }
+}
+
 // ==================== RAG Query ====================
 
 interface KnowledgeQueryPassage {

@@ -31,7 +31,7 @@ export type SubmittedState =
   | { kind: 'answering'; answers: QuizAnswers }
   | null;
 
-function safeGet(key: string): string | null {
+export function safeGet(key: string): string | null {
   if (typeof window === 'undefined') return null;
   try {
     return localStorage.getItem(key);
@@ -40,7 +40,7 @@ function safeGet(key: string): string | null {
   }
 }
 
-function safeSet(key: string, value: string): void {
+export function safeSet(key: string, value: string): void {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(key, value);
@@ -49,7 +49,7 @@ function safeSet(key: string, value: string): void {
   }
 }
 
-function safeRemove(key: string): void {
+export function safeRemove(key: string): void {
   if (typeof window === 'undefined') return;
   try {
     localStorage.removeItem(key);
@@ -123,4 +123,35 @@ export function clearAllForScene(sceneId: string): void {
   safeRemove(DRAFT_KEY_PREFIX + sceneId);
   safeRemove(ANSWERS_KEY_PREFIX + sceneId);
   safeRemove(RESULTS_KEY_PREFIX + sceneId);
+}
+
+export interface PersistedSceneResults {
+  sceneId: string;
+  results: QuestionResult[];
+}
+
+/**
+ * Walk localStorage for every scene that has submitted quiz results.
+ * Used by the one-shot migration to enumerate everything ready to upload
+ * to the unified SQLite store; readers/writers above are unaffected.
+ */
+export function enumerateResultsKeys(): PersistedSceneResults[] {
+  if (typeof window === 'undefined') return [];
+  const out: PersistedSceneResults[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key || !key.startsWith(RESULTS_KEY_PREFIX)) continue;
+    const sceneId = key.slice(RESULTS_KEY_PREFIX.length);
+    const raw = safeGet(key);
+    if (!raw) continue;
+    try {
+      const results = JSON.parse(raw) as QuestionResult[];
+      if (Array.isArray(results) && results.length > 0) {
+        out.push({ sceneId, results });
+      }
+    } catch {
+      /* skip malformed entries */
+    }
+  }
+  return out;
 }

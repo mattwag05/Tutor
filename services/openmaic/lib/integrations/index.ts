@@ -7,6 +7,15 @@ export {
   listRAGProviders,
   queryKnowledgeBase,
   getRAGContextForGeneration,
+  recordQuizAttempt,
+  listQuizAttempts,
+} from './deeptutor-client';
+
+export type {
+  QuizSource,
+  QuizAttemptPayload,
+  QuizAttemptRecord,
+  QuizAttemptFilter,
 } from './deeptutor-client';
 
 export type {

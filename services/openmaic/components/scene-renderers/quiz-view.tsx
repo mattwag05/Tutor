@@ -31,6 +31,7 @@ import {
   writeSubmittedResults,
   type SubmittedState,
 } from '@/lib/quiz/persistence';
+import { recordSceneResults } from '@/lib/quiz/api-client';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -748,6 +749,23 @@ export function QuizView({ questions, sceneId }: QuizViewProps) {
       setResults(ordered);
       setPhase('reviewing');
       writeSubmittedResults(sceneId, ordered);
+
+      // Fire-and-forget dual-write to DeepTutor's unified quiz store so
+      // the future spaced-review picker (PRD §6.5) sees these attempts.
+      // Retries (Retry button → re-grade → resubmit) write a fresh row
+      // with a new ts_ms; rows are uuid-keyed so duplication is by
+      // design. QuizView is classroom-only today — see api-client.ts if
+      // course pages ever mount it.
+      void recordSceneResults({
+        sceneId,
+        results: ordered.map((r) => ({
+          questionId: r.questionId,
+          correct: r.correct,
+          earned: r.earned,
+          aiComment: r.aiComment,
+          userAnswer: answers[r.questionId],
+        })),
+      });
     })();
 
     return () => {
