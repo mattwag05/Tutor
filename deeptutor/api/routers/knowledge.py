@@ -39,6 +39,7 @@ from deeptutor.knowledge.progress_tracker import ProgressStage, ProgressTracker
 from deeptutor.services.config import PROJECT_ROOT, load_config_with_main
 from deeptutor.services.rag.factory import DEFAULT_PROVIDER
 from deeptutor.services.rag.file_routing import FileTypeRouter
+from deeptutor.services.rag.retriever_service import RAGRetrieverService
 from deeptutor.utils.document_validator import DocumentValidator
 from deeptutor.utils.error_utils import format_exception_message
 
@@ -69,6 +70,7 @@ DEFAULT_KB_ALIASES = {"", "default", "current", "selected", "默认", "默认知
 
 # Lazy initialization
 kb_manager = None
+_rag_retriever_service: RAGRetrieverService | None = None
 
 
 def get_kb_manager():
@@ -77,6 +79,14 @@ def get_kb_manager():
     if kb_manager is None:
         kb_manager = KnowledgeBaseManager(base_dir=str(_kb_base_dir))
     return kb_manager
+
+
+def get_rag_retriever_service() -> RAGRetrieverService:
+    """Get the (cached) RAGRetrieverService instance."""
+    global _rag_retriever_service
+    if _rag_retriever_service is None:
+        _rag_retriever_service = RAGRetrieverService(kb_base_dir=str(_kb_base_dir))
+    return _rag_retriever_service
 
 
 class KnowledgeBaseInfo(BaseModel):
@@ -111,6 +121,32 @@ class SupportedFileTypesInfo(BaseModel):
     accept: str
     max_file_size_bytes: int
     max_pdf_size_bytes: int
+
+
+class KnowledgeQueryRequest(BaseModel):
+    """Body for ``POST /api/v1/knowledge/{kb}/query``."""
+
+    query: str
+    top_k: int = 8
+    provider: str | None = None
+
+
+class KnowledgeQueryPassage(BaseModel):
+    text: str
+    score: float
+    source: str
+    page: str | None = None
+    title: str | None = None
+    chunk_id: str | None = None
+
+
+class KnowledgeQueryResponse(BaseModel):
+    query: str
+    kb_name: str
+    provider: str
+    results: list[KnowledgeQueryPassage]
+    warning: str | None = None
+    needs_reindex: bool = False
 
 
 def _build_unique_task_id(task_type: str, task_key_prefix: str) -> str:
@@ -746,6 +782,76 @@ async def get_knowledge_base_details(kb_name: str):
         raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_name}' not found")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{kb_name}/query", response_model=KnowledgeQueryResponse)
+async def query_knowledge_base(
+    kb_name: str, request: KnowledgeQueryRequest
+) -> KnowledgeQueryResponse:
+    """Synchronous top-K retrieval for a knowledge base.
+
+    Body: ``{query, top_k=8, provider?}``. Returns ranked passages with full
+    text, score, source, and page (when available). Counterpart to the
+    WebSocket chat path used by the agent runtime — both share the same
+    underlying retriever service.
+    """
+
+    if not request.query or not request.query.strip():
+        raise HTTPException(status_code=400, detail="query must not be empty")
+    if request.top_k <= 0:
+        raise HTTPException(status_code=400, detail="top_k must be a positive integer")
+
+    manager = get_kb_manager()
+    resolved_name = _resolve_registered_kb_name(manager, kb_name)
+
+    service = get_rag_retriever_service()
+    try:
+        result = await service.retrieve(
+            query=request.query,
+            kb_name=resolved_name,
+            top_k=request.top_k,
+            provider=request.provider,
+        )
+    except Exception as exc:
+        logger.exception(f"Retrieval failed for KB '{resolved_name}': {exc}")
+        raise HTTPException(status_code=500, detail=format_exception_message(exc))
+
+    if result.error_type == "empty_query":
+        raise HTTPException(status_code=400, detail=result.error or "query must not be empty")
+    if result.error_type == "invalid_top_k":
+        raise HTTPException(
+            status_code=400, detail=result.error or "top_k must be a positive integer"
+        )
+    if result.needs_reindex:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error_type": "needs_reindex",
+                "message": (
+                    "Knowledge base has no index for the active embedding model. "
+                    "Re-index it before querying."
+                ),
+                "kb_name": resolved_name,
+            },
+        )
+    if result.error:
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "error_type": result.error_type or "retrieval_failed",
+                "message": result.error,
+                "kb_name": resolved_name,
+            },
+        )
+
+    return KnowledgeQueryResponse(
+        query=result.query,
+        kb_name=resolved_name,
+        provider=result.provider,
+        results=[KnowledgeQueryPassage(**p.as_dict()) for p in result.passages],
+        warning=result.warning,
+        needs_reindex=result.needs_reindex,
+    )
 
 
 def _resolve_kb_raw_dir(kb_name: str) -> Path:

@@ -221,6 +221,93 @@ class LlamaIndexPipeline:
             "provider": "llamaindex",
         }
 
+    async def retrieve_passages(
+        self,
+        query: str,
+        kb_name: str,
+        *,
+        top_k: int = 8,
+    ) -> Dict[str, Any]:
+        """Return raw, untruncated passages for ``query`` against ``kb_name``.
+
+        Distinct from :meth:`search`: that one concatenates passage text into
+        ``answer`` and truncates each per-source preview to 200 chars (built
+        for in-context LLM grounding). This method preserves full passage text
+        and is the data path used by the synchronous REST retrieval endpoint
+        and any caller that wants the underlying chunks rather than a summary.
+        """
+
+        self._configure_settings()
+        self.logger.info(f"Retrieving passages from KB '{kb_name}' for query: {query[:50]}...")
+
+        kb_dir = Path(self.kb_base_dir) / kb_name
+        signature = self._current_signature()
+        storage_dir = resolve_storage_dir_for_read(kb_dir, signature)
+
+        if storage_dir is None or not (storage_dir / "docstore.json").exists():
+            self.logger.warning(
+                f"No matching index found for KB '{kb_name}' at signature "
+                f"{signature.hash() if signature else 'n/a'}"
+            )
+            return {
+                "query": query,
+                "passages": [],
+                "provider": "llamaindex",
+                "needs_reindex": True,
+            }
+
+        warning = self._embedding_mismatch_warning(kb_name)
+
+        try:
+            loop = asyncio.get_event_loop()
+            nodes = await loop.run_in_executor(
+                None,
+                lambda: storage.retrieve_nodes(storage_dir, query, top_k=top_k),
+            )
+
+            passages: list[dict[str, Any]] = []
+            for i, node in enumerate(nodes):
+                meta = node.node.metadata or {}
+                page_value = meta.get("page_label", meta.get("page", ""))
+                passages.append(
+                    {
+                        "text": node.node.text,
+                        "score": float(node.score) if node.score is not None else 0.0,
+                        "source": (
+                            meta.get("file_path") or meta.get("file_name") or ""
+                        ),
+                        "page": str(page_value) if page_value not in (None, "") else None,
+                        "title": meta.get(
+                            "file_name", meta.get("title", f"Document {i + 1}")
+                        ),
+                        "chunk_id": node.node.node_id or str(i),
+                    }
+                )
+
+            result: Dict[str, Any] = {
+                "query": query,
+                "passages": passages,
+                "provider": "llamaindex",
+            }
+            if warning:
+                result["warning"] = warning
+            return result
+
+        except Exception as exc:
+            error = search_error_result(query, exc)
+            error["passages"] = []
+            error.pop("answer", None)
+            error.pop("content", None)
+            if error.get("error_type"):
+                self.logger.warning(
+                    f"Retrieval failed ({error['error_type']}): "
+                    f"{error.get('log_message') or str(exc)}"
+                )
+            else:
+                self.logger.error(f"Retrieval failed: {exc}")
+                self.logger.error(traceback.format_exc())
+            return error
+
     async def add_documents(self, kb_name: str, file_paths: List[str], **kwargs) -> bool:
         progress_callback = kwargs.get("progress_callback")
         self._configure_settings()

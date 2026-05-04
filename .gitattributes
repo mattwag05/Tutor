@@ -16,3 +16,8 @@ docker-compose.*.yml text eol=lf
 *.toml text eol=lf
 *.cfg text eol=lf
 *.ini text eol=lf
+
+# Fork-only docs that upstream periodically deletes — never let an upstream
+# merge resolve these by removing them. (Per PRD Phase A risk callout.)
+CLAUDE.md merge=ours
+AGENTS.md merge=ours
