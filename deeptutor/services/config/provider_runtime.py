@@ -29,6 +29,7 @@ from .loader import load_config_with_main
 from .model_catalog import ModelCatalogService, get_model_catalog_service
 
 SUPPORTED_SEARCH_PROVIDERS = {
+    "bocha",
     "brave",
     "tavily",
     "jina",
@@ -40,6 +41,7 @@ SUPPORTED_SEARCH_PROVIDERS = {
 DEPRECATED_SEARCH_PROVIDERS = {"exa", "baidu", "openrouter"}
 
 SEARCH_ENV_FALLBACK = {
+    "bocha": ("BOCHA_API_KEY",),
     "brave": ("BRAVE_API_KEY",),
     "tavily": ("TAVILY_API_KEY",),
     "jina": ("JINA_API_KEY",),

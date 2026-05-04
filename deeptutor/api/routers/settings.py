@@ -182,6 +182,7 @@ def _provider_choices() -> dict[str, list[dict[str, str]]]:
         key=lambda p: p["label"].lower(),
     )
     search = [
+        {"value": "bocha", "label": "Bocha", "base_url": ""},
         {"value": "brave", "label": "Brave", "base_url": ""},
         {"value": "tavily", "label": "Tavily", "base_url": ""},
         {"value": "jina", "label": "Jina", "base_url": ""},
