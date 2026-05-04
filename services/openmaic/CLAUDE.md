@@ -8,6 +8,14 @@ AI-directed classroom/presentation layer — Next.js full-stack app with scene/o
 
 ---
 
+## Phase A/B status (unified-tutor merger, 2026-05-04)
+
+- **Phase A.5 landed (DeepTutor-616):** the settings button in `components/header.tsx` now redirects to `/settings` on the DeepTutor frontend (full page load via `window.location.href`). The `<SettingsDialog>` component is left in place but unreachable from the header trigger — Phase B.4 retires `services/openmaic/` as a deployable.
+- **Phase A.6 landed:** DeepTutor's sidebar no longer links externally to OpenMAIC; classroom + course are mounted under the unified `tutor.tail6e035b.ts.net` Caddy origin (parent CLAUDE.md gotcha #12).
+- **Phase B.6 landed:** quiz attempts dual-write through DeepTutor's unified SQLite store via `/api/quiz/attempts` proxy + one-shot localStorage migration runner mounted in root layout (see `lib/quiz/migration.ts`).
+
+---
+
 ## Quick Start
 
 ```bash
@@ -52,11 +60,9 @@ All integration functions return empty/null when DeepTutor is unavailable. OpenM
 
 ## Known Gotchas
 
-1. **PORT drift (3000 vs 3101)** — `docker-compose.pironman.yml` hardcodes `PORT=3000` but `tailscale/ts-serve.json` forwards external 3100 → internal **3101**. While tailscale-deeptutor is unauthenticated this works (no tsnet listener on 3100); after re-auth, the proxy targets 3101 and finds nothing. Reconcile by changing `PORT=3000` → `PORT=3101` in compose (or updating ts-serve.json to forward 3100 → 3000). See DeepTutor CLAUDE.md gotcha #12.
+1. **PORT drift (3000 vs 3101) — DEV-CLONE ONLY.** Parent CLAUDE.md gotcha #12 (verified 2026-05-04) confirms Pironman never adopted the tailscale sidecar pattern. The drift between `docker-compose.yml`'s `PORT=3000` and `tailscale/ts-serve.json`'s 3100→3101 forward only matters if you stand up the sidecar locally. Production binds OpenMAIC on `127.0.0.1:3101` (per `docker-compose.pironman.yml`) and Caddy proxies via `bind tailscale/openmaic` and `bind tailscale/tutor /classroom* /course*`.
 
-2. **DEEPTUTOR_API_URL drift (8001 vs 8002)** — Same shape as #1 for the backend. The DeepTutor `.env` on Pironman has `BACKEND_PORT=8001` (uvicorn binds 8001) but ts-serve.json proxies external 8001 → internal 8002. `DEEPTUTOR_API_URL` in `.env.openmaic` should match whatever uvicorn actually binds — currently `http://127.0.0.1:8001`. After tailscale re-auth + reverting BACKEND_PORT to 8002, this also reverts to 8002.
-
-   **Same drift exists locally.** `services/openmaic/.env.local` has `DEEPTUTOR_API_URL=http://127.0.0.1:8002`, but DeepTutor's Quick Start boots uvicorn on `8001`. For an integrated local run, either start uvicorn with `--port 8002` or edit `.env.local`. Without the match, the Next.js proxy returns `503 DeepTutor unavailable` on every quiz POST / KB list / RAG query.
+2. **DEEPTUTOR_API_URL must match where uvicorn actually binds.** Pironman's uvicorn binds `127.0.0.1:8001` (per `BACKEND_PORT=8001` and the Caddy `tailscale/deeptutor-api` route). `DEEPTUTOR_API_URL` in `.env.openmaic` and `services/openmaic/.env.local` should point at that. **Stale `8002` references** (still present in some local `.env.local` clones) are leftovers from the legacy sidecar's `8001 → 8002` forward — see parent gotcha #12 for why that pattern was abandoned. If the Next.js proxy returns `503 DeepTutor unavailable` on every quiz POST / KB list / RAG query, `DEEPTUTOR_API_URL` is the first place to look.
 
 3. **docker compose up -d, not restart** — `restart` does not re-read compose file changes. Always use `up -d` to pick up env/config changes.
 

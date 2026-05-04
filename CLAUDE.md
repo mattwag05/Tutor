@@ -2,7 +2,7 @@
 
 AI tutoring platform — multi-agent RAG architecture, Python/FastAPI backend, Next.js frontend.
 
-**Status:** 🔨 In Development (synced from upstream 2026-04-10)
+**Status:** 🔨 In Development (synced from upstream 2026-04-30 → v1.3.7)
 **Repo:** https://github.com/mattwag05/DeepTutor.git
 **Upstream:** https://github.com/HKUDS/DeepTutor (main at 445e762)
 **OpenMAIC Upstream:** https://github.com/THU-MAIC/OpenMAIC
@@ -56,7 +56,7 @@ Python package root is `deeptutor/` (not `src/`). Repo also has top-level `servi
 ```
 deeptutor/
 ├── __main__.py              # FastAPI app entry point
-├── agents/                  # Multi-agent system (chat, solve, research, guide, question, ideagen, co_writer)
+├── agents/                  # Multi-agent system (chat, math_animator, notebook, question, research, solve, vision_solver, visualize)
 ├── api/                     # FastAPI routers + main.py wiring
 ├── app/
 ├── capabilities/
