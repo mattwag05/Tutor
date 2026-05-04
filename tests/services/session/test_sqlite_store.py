@@ -51,6 +51,18 @@ def test_sqlite_store_migrates_legacy_chat_history_db(tmp_path: Path) -> None:
         service._user_data_dir = original_user_dir
 
 
+def test_sqlite_store_initialize_enables_wal_and_foreign_keys(tmp_path: Path) -> None:
+    store = SQLiteSessionStore(db_path=tmp_path / "session.db")
+
+    with sqlite3.connect(store.db_path) as conn:
+        journal_mode = conn.execute("PRAGMA journal_mode").fetchone()[0]
+    assert journal_mode.lower() == "wal"
+
+    with store._connect() as conn:
+        fk = conn.execute("PRAGMA foreign_keys").fetchone()[0]
+    assert fk == 1
+
+
 @pytest.fixture
 def store(tmp_path: Path) -> SQLiteSessionStore:
     return SQLiteSessionStore(db_path=tmp_path / "test.db")

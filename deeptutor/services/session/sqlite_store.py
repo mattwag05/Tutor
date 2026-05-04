@@ -82,6 +82,7 @@ class SQLiteSessionStore:
 
     def _initialize(self) -> None:
         with sqlite3.connect(self.db_path) as conn:
+            conn.execute("PRAGMA journal_mode=WAL")
             conn.execute("PRAGMA foreign_keys = ON")
             conn.executescript(
                 """
