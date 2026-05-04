@@ -56,6 +56,8 @@ All integration functions return empty/null when DeepTutor is unavailable. OpenM
 
 2. **DEEPTUTOR_API_URL drift (8001 vs 8002)** — Same shape as #1 for the backend. The DeepTutor `.env` on Pironman has `BACKEND_PORT=8001` (uvicorn binds 8001) but ts-serve.json proxies external 8001 → internal 8002. `DEEPTUTOR_API_URL` in `.env.openmaic` should match whatever uvicorn actually binds — currently `http://127.0.0.1:8001`. After tailscale re-auth + reverting BACKEND_PORT to 8002, this also reverts to 8002.
 
+   **Same drift exists locally.** `services/openmaic/.env.local` has `DEEPTUTOR_API_URL=http://127.0.0.1:8002`, but DeepTutor's Quick Start boots uvicorn on `8001`. For an integrated local run, either start uvicorn with `--port 8002` or edit `.env.local`. Without the match, the Next.js proxy returns `503 DeepTutor unavailable` on every quiz POST / KB list / RAG query.
+
 3. **docker compose up -d, not restart** — `restart` does not re-read compose file changes. Always use `up -d` to pick up env/config changes.
 
 4. **WebSocket client uses `any` type** — The `ws` package in `deeptutor-client.ts` is typed as `any` with eslint-disable to avoid Next.js build type conflicts. Use `ws.on('event', ...)` pattern (Node EventEmitter), not `ws.onmessage =`.
@@ -63,6 +65,10 @@ All integration functions return empty/null when DeepTutor is unavailable. OpenM
 5. **PORT override in docker-compose.yml** — The compose file sets `PORT` in `environment:` which takes precedence over `.env.openmaic`. Both must agree (and both must match what ts-serve.json forwards to — see #1).
 
 6. **pnpm lockfile** — After adding deps to package.json, run `pnpm install --no-frozen-lockfile` locally or in a temp container to regenerate the lockfile before building the Docker image.
+
+7. **Quiz state lives in localStorage, NOT IndexedDB.** Three keys per scene (`quizDraft:`, `quizAnswers:`, `quizResults:` — see `lib/quiz/persistence.ts`). The Dexie IndexedDB DB (MAIC-Database, v10) covers course content / sessions / media, never quiz attempts. PRD §7 calls these "IndexedDB" but the code disagrees.
+
+8. **`pnpm dev` zombies block ports across sessions.** If `preview_start` shows no logs after ~15s, check `ps aux | grep "next dev\|pnpm.*dev"` — stale processes from prior sessions (sometimes days old) hold the port plus child postcss/turbopack processes. `kill <pids>` then restart. The preview tooling can't recover from this on its own.
 
 ---
 

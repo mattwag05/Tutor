@@ -20,7 +20,7 @@ source .venv/bin/activate
 .venv/bin/python scripts/start_web.py
 
 # Or run separately:
-.venv/bin/python -m uvicorn src.main:app --reload --port 8001   # backend
+.venv/bin/python -m uvicorn deeptutor.api.main:app --reload --port 8001   # backend
 cd web && npm run dev                                            # frontend
 ```
 
@@ -101,6 +101,8 @@ source .venv/bin/activate
 
 **Runtime:** Python 3.11 (pinned via `.venv`)
 
+> **`.venv` ships only the lightest deps.** `json_repair`, `loguru`, `uvicorn`, `fastapi`, `ruff`, `mypy` are NOT installed by default — install on first need (`pip install <name>`) or run `pip install -e ".[server]"` for the full server extras. Tests under `tests/book/` and `tests/services/llm/` will collection-error until `json_repair` + `loguru` are present.
+
 ### Frontend
 
 ```bash
@@ -157,6 +159,12 @@ The Course Builder feature lives **entirely in `services/openmaic/`** (Oboe.com-
 - `services/openmaic/lib/course/store.ts` — zustand client store
 
 Parallel to the slide-based classroom (NOT a replacement).
+
+---
+
+## Quiz Attempts (Phase B.6, 2026-05-04)
+
+Unified store at `deeptutor/services/quiz/sqlite_store.py` (DB: `data/user/quiz/attempts.db`, WAL). Generic write/read at `POST /api/v1/quiz/attempts` + `GET /api/v1/quiz/attempts?source=&is_correct=&older_than_ms=&limit=` (powers future spaced-review picker, PRD §6.5). `BookEngine.record_quiz_attempt` dual-writes through this store; OpenMAIC posts via the `/api/quiz/attempts` Next.js proxy. Source tags: `book` | `classroom` | `course`. The book route's full path is `/api/v1/book/books/quiz-attempt` (router prefix `/api/v1/book` + handler path `/books/quiz-attempt` — doubled by design, not a typo).
 
 ---
 
