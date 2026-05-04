@@ -256,7 +256,7 @@ Five places must be updated to wire in a new module (e.g. `mymodule`):
 2. **`config/agents.yaml`** — Add `mymodule:` section with `temperature` and `max_tokens`; section key MUST match `module_name` exactly or params silently default
 3. **`deeptutor/api/routers/mymodule.py`** — Create router; inject LLM config via `get_llm_config()`
 4. **`deeptutor/api/main.py`** — Add import + `app.include_router(mymodule.router, prefix="/api/v1/mymodule", tags=["mymodule"])`
-5. **Frontend nav** — Add entry to `ALL_NAV_ITEMS` in `web/components/Sidebar.tsx` (import icon) AND add path to `DEFAULT_NAV_ORDER.learnResearch` in `web/context/GlobalContext.tsx`. Existing users' saved nav orders auto-merge new defaults on page load.
+5. **Frontend nav** — Add entry to `PRIMARY_NAV` (workspace) or `SECONDARY_NAV` (utility) in `web/components/sidebar/SidebarShell.tsx`. Shape: `{ href: "/mymodule", label: "MyModule", icon: <LucideIcon> }` — import the icon at the top. The old `ALL_NAV_ITEMS` / `DEFAULT_NAV_ORDER` indirection in `web/context/GlobalContext.tsx` was removed during the sidebar refactor (gotcha #6).
 
 **Verify wiring:** `source .venv/bin/activate && python -c "from deeptutor.api.routers import mymodule; print('OK')"`
 
