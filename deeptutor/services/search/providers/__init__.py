@@ -147,9 +147,9 @@ def get_default_provider(**kwargs) -> BaseSearchProvider:
 
 def _register_builtin_providers() -> None:
     # Import for side effects (register_provider decorators).
-    from . import brave, duckduckgo, jina, perplexity, searxng, serper, tavily
+    from . import bocha, brave, duckduckgo, jina, ollama, perplexity, searxng, serper, tavily
 
-    _ = (brave, duckduckgo, jina, perplexity, searxng, serper, tavily)
+    _ = (bocha, brave, duckduckgo, jina, ollama, perplexity, searxng, serper, tavily)
 
 
 _register_builtin_providers()
