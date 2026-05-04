@@ -34,23 +34,12 @@ interface NavEntry {
   external?: string; // If set, navigates to this external URL instead of href
 }
 
-// Read and Classroom render as external OpenMAIC links until the unified
-// Caddy route serves both internally — at which point the `external` field on
-// those NavEntry rows can be dropped.
-const OPENMAIC_URL =
-  process.env.NEXT_PUBLIC_OPENMAIC_URL || "https://openmaic.tail6e035b.ts.net";
-
 const PRIMARY_NAV: NavEntry[] = [
   { href: "/chat", label: "Chat", icon: MessageSquare },
   { href: "/agents", label: "TutorBot", icon: Bot },
   { href: "/knowledge", label: "Library", icon: Library },
-  { href: "/read", label: "Read", icon: BookOpen, external: `${OPENMAIC_URL}/course` },
-  {
-    href: "/classroom",
-    label: "Classroom",
-    icon: Presentation,
-    external: OPENMAIC_URL,
-  },
+  { href: "/read", label: "Read", icon: BookOpen },
+  { href: "/classroom", label: "Classroom", icon: Presentation },
   { href: "/memory", label: "Memory", icon: Brain },
   { href: "/space", label: "Space", icon: LayoutGrid },
 ];
