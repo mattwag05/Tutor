@@ -39,7 +39,7 @@ from deeptutor.knowledge.progress_tracker import ProgressStage, ProgressTracker
 from deeptutor.services.config import PROJECT_ROOT, load_config_with_main
 from deeptutor.services.rag.factory import DEFAULT_PROVIDER
 from deeptutor.services.rag.file_routing import FileTypeRouter
-from deeptutor.services.rag.retriever_service import RAGRetrieverService
+from deeptutor.services.rag.service import RAGService
 from deeptutor.utils.document_validator import DocumentValidator
 from deeptutor.utils.error_utils import format_exception_message
 
@@ -70,7 +70,7 @@ DEFAULT_KB_ALIASES = {"", "default", "current", "selected", "默认", "默认知
 
 # Lazy initialization
 kb_manager = None
-_rag_retriever_service: RAGRetrieverService | None = None
+_rag_service: RAGService | None = None
 
 
 def get_kb_manager():
@@ -81,12 +81,12 @@ def get_kb_manager():
     return kb_manager
 
 
-def get_rag_retriever_service() -> RAGRetrieverService:
-    """Get the (cached) RAGRetrieverService instance."""
-    global _rag_retriever_service
-    if _rag_retriever_service is None:
-        _rag_retriever_service = RAGRetrieverService(kb_base_dir=str(_kb_base_dir))
-    return _rag_retriever_service
+def get_rag_service() -> RAGService:
+    """Get the (cached) RAGService instance."""
+    global _rag_service
+    if _rag_service is None:
+        _rag_service = RAGService(kb_base_dir=str(_kb_base_dir))
+    return _rag_service
 
 
 class KnowledgeBaseInfo(BaseModel):
@@ -802,7 +802,7 @@ async def query_knowledge_base(
     manager = get_kb_manager()
     resolved_name = _resolve_registered_kb_name(manager, kb_name)
 
-    service = get_rag_retriever_service()
+    service = get_rag_service()
     try:
         result = await service.retrieve(
             query=request.query,
@@ -846,7 +846,17 @@ async def query_knowledge_base(
         query=result.query,
         kb_name=resolved_name,
         provider=result.provider,
-        results=[KnowledgeQueryPassage(**p.as_dict()) for p in result.passages],
+        results=[
+            KnowledgeQueryPassage(
+                text=p.text,
+                score=p.score,
+                source=p.source,
+                page=p.page,
+                title=p.title,
+                chunk_id=p.chunk_id,
+            )
+            for p in result.passages
+        ],
         warning=result.warning,
         needs_reindex=result.needs_reindex,
     )

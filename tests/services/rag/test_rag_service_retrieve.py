@@ -1,14 +1,10 @@
-"""Unit tests for the RAGRetrieverService façade (Phase A.1)."""
+"""Unit tests for ``RAGService.retrieve`` (consolidated from RAGRetrieverService)."""
 
 from __future__ import annotations
 
 import pytest
 
-from deeptutor.services.rag.retriever_service import (
-    Passage,
-    RAGRetrieverService,
-    RetrievalResult,
-)
+from deeptutor.services.rag import Passage, RAGService, RetrievalResult
 
 
 class _FakePipeline:
@@ -30,8 +26,8 @@ class _FakePipeline:
         return self.payload
 
 
-def _build_service(pipeline: _FakePipeline) -> RAGRetrieverService:
-    service = RAGRetrieverService(kb_base_dir="/tmp/_test_unused")
+def _build_service(pipeline: _FakePipeline) -> RAGService:
+    service = RAGService(kb_base_dir="/tmp/_test_unused")
     service._pipeline = pipeline  # bypass factory cache
     return service
 
@@ -64,9 +60,7 @@ async def test_retrieve_returns_normalized_passages() -> None:
     )
 
     service = _build_service(pipeline)
-    result = await service.retrieve(
-        query="diabetes treatment", kb_name="abfm-boards", top_k=5
-    )
+    result = await service.retrieve(query="diabetes treatment", kb_name="abfm-boards", top_k=5)
 
     assert isinstance(result, RetrievalResult)
     assert result.kb_name == "abfm-boards"
@@ -80,9 +74,7 @@ async def test_retrieve_returns_normalized_passages() -> None:
     assert result.passages[0].source == "/data/nejm-paper.pdf"
     assert result.passages[0].page == "12"
     assert result.passages[1].page is None
-    assert pipeline.calls == [
-        {"query": "diabetes treatment", "kb_name": "abfm-boards", "top_k": 5}
-    ]
+    assert pipeline.calls == [{"query": "diabetes treatment", "kb_name": "abfm-boards", "top_k": 5}]
 
 
 @pytest.mark.asyncio

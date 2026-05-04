@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 import logging
 import os
 from pathlib import Path
@@ -13,6 +14,49 @@ from .factory import DEFAULT_PROVIDER, get_pipeline, list_pipelines
 DEFAULT_KB_BASE_DIR = str(
     Path(__file__).resolve().parent.parent.parent.parent / "data" / "knowledge_bases"
 )
+
+
+@dataclass
+class Passage:
+    text: str
+    score: float
+    source: str
+    page: Optional[str] = None
+    title: Optional[str] = None
+    chunk_id: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Passage":
+        return cls(
+            text=str(data.get("text") or ""),
+            score=float(data.get("score") or 0.0),
+            source=str(data.get("source") or ""),
+            page=data.get("page"),
+            title=data.get("title"),
+            chunk_id=data.get("chunk_id"),
+        )
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "text": self.text,
+            "score": self.score,
+            "source": self.source,
+            "page": self.page,
+            "title": self.title,
+            "chunk_id": self.chunk_id,
+        }
+
+
+@dataclass
+class RetrievalResult:
+    query: str
+    kb_name: str
+    provider: str
+    passages: list[Passage] = field(default_factory=list)
+    warning: Optional[str] = None
+    error: Optional[str] = None
+    error_type: Optional[str] = None
+    needs_reindex: bool = False
 
 
 class RAGService:
@@ -110,6 +154,62 @@ class RAGService:
             )
 
             return result
+
+    async def retrieve(
+        self,
+        query: str,
+        kb_name: str,
+        *,
+        top_k: int = 8,
+        provider: Optional[str] = None,
+    ) -> RetrievalResult:
+        """Retrieve top-K passages for ``query`` from ``kb_name``.
+
+        Distinct from :meth:`search`, which concatenates passages into a single
+        ``answer`` string for in-context LLM grounding. This returns structured
+        passages for REST consumers.
+
+        ``provider`` is accepted for forward compatibility; only the
+        LlamaIndex pipeline ships today.
+        """
+        normalized_query = (query or "").strip()
+        if not normalized_query:
+            return RetrievalResult(
+                query=query or "",
+                kb_name=kb_name,
+                provider=DEFAULT_PROVIDER,
+                error="query must not be empty",
+                error_type="empty_query",
+            )
+
+        if top_k <= 0:
+            return RetrievalResult(
+                query=normalized_query,
+                kb_name=kb_name,
+                provider=DEFAULT_PROVIDER,
+                error="top_k must be a positive integer",
+                error_type="invalid_top_k",
+            )
+
+        if provider and provider != DEFAULT_PROVIDER:
+            self.logger.info(
+                f"Provider override '{provider}' ignored — only '{DEFAULT_PROVIDER}' is supported."
+            )
+
+        pipeline = self._get_pipeline()
+        raw = await pipeline.retrieve_passages(query=normalized_query, kb_name=kb_name, top_k=top_k)
+
+        passages = [Passage.from_dict(p) for p in raw.get("passages") or []]
+        return RetrievalResult(
+            query=normalized_query,
+            kb_name=kb_name,
+            provider=raw.get("provider") or DEFAULT_PROVIDER,
+            passages=passages,
+            warning=raw.get("warning"),
+            error=raw.get("error"),
+            error_type=raw.get("error_type"),
+            needs_reindex=bool(raw.get("needs_reindex")),
+        )
 
     async def _emit_tool_event(
         self,

@@ -21,11 +21,7 @@ pytestmark = pytest.mark.skipif(
 if FastAPI is not None and TestClient is not None:
     knowledge_router_module = importlib.import_module("deeptutor.api.routers.knowledge")
     router = knowledge_router_module.router
-    from deeptutor.services.rag.retriever_service import (
-        Passage,
-        RAGRetrieverService,
-        RetrievalResult,
-    )
+    from deeptutor.services.rag import Passage, RetrievalResult
 else:  # pragma: no cover
     knowledge_router_module = None
     router = None
@@ -56,7 +52,7 @@ class _FakeKBManager:
 
 
 class _FakeRetrieverService:
-    """Stand-in for RAGRetrieverService that returns a scripted result."""
+    """Stand-in for RAGService that returns a scripted ``RetrievalResult``."""
 
     def __init__(self, result: RetrievalResult | None = None, raise_exc: Exception | None = None):
         self._result = result
@@ -73,16 +69,12 @@ class _FakeRetrieverService:
             raise self._raise
         if self._result is not None:
             return self._result
-        return RetrievalResult(
-            query=query, kb_name=kb_name, provider="llamaindex", passages=[]
-        )
+        return RetrievalResult(query=query, kb_name=kb_name, provider="llamaindex", passages=[])
 
 
 def _patch_router(monkeypatch, *, manager: _FakeKBManager, service: _FakeRetrieverService) -> None:
     monkeypatch.setattr(knowledge_router_module, "get_kb_manager", lambda: manager)
-    monkeypatch.setattr(
-        knowledge_router_module, "get_rag_retriever_service", lambda: service
-    )
+    monkeypatch.setattr(knowledge_router_module, "get_rag_service", lambda: service)
 
 
 def test_query_returns_passages(monkeypatch, tmp_path: Path) -> None:
@@ -161,9 +153,7 @@ def test_query_rejects_empty_string(monkeypatch, tmp_path: Path) -> None:
     _patch_router(monkeypatch, manager=manager, service=service)
 
     with TestClient(_build_app()) as client:
-        response = client.post(
-            "/api/v1/knowledge/abfm-boards/query", json={"query": "   "}
-        )
+        response = client.post("/api/v1/knowledge/abfm-boards/query", json={"query": "   "})
 
     assert response.status_code == 400
     assert "empty" in response.json()["detail"].lower()
@@ -190,9 +180,7 @@ def test_query_unknown_kb_returns_404(monkeypatch, tmp_path: Path) -> None:
     _patch_router(monkeypatch, manager=manager, service=service)
 
     with TestClient(_build_app()) as client:
-        response = client.post(
-            "/api/v1/knowledge/missing-kb/query", json={"query": "hello"}
-        )
+        response = client.post("/api/v1/knowledge/missing-kb/query", json={"query": "hello"})
 
     assert response.status_code == 404
     assert service.calls == []
@@ -204,9 +192,7 @@ def test_query_default_alias_resolves_to_default_kb(monkeypatch, tmp_path: Path)
     _patch_router(monkeypatch, manager=manager, service=service)
 
     with TestClient(_build_app()) as client:
-        response = client.post(
-            "/api/v1/knowledge/default/query", json={"query": "hello"}
-        )
+        response = client.post("/api/v1/knowledge/default/query", json={"query": "hello"})
 
     assert response.status_code == 200
     assert service.calls[0]["kb_name"] == "my-default-kb"
@@ -225,9 +211,7 @@ def test_query_returns_409_when_index_needs_rebuild(monkeypatch, tmp_path: Path)
     _patch_router(monkeypatch, manager=manager, service=service)
 
     with TestClient(_build_app()) as client:
-        response = client.post(
-            "/api/v1/knowledge/abfm-boards/query", json={"query": "q"}
-        )
+        response = client.post("/api/v1/knowledge/abfm-boards/query", json={"query": "q"})
 
     assert response.status_code == 409
     detail = response.json()["detail"]
@@ -249,9 +233,7 @@ def test_query_returns_502_on_pipeline_error_payload(monkeypatch, tmp_path: Path
     _patch_router(monkeypatch, manager=manager, service=service)
 
     with TestClient(_build_app()) as client:
-        response = client.post(
-            "/api/v1/knowledge/abfm-boards/query", json={"query": "q"}
-        )
+        response = client.post("/api/v1/knowledge/abfm-boards/query", json={"query": "q"})
 
     assert response.status_code == 502
     detail = response.json()["detail"]
@@ -264,9 +246,7 @@ def test_query_returns_500_on_unexpected_exception(monkeypatch, tmp_path: Path) 
     _patch_router(monkeypatch, manager=manager, service=service)
 
     with TestClient(_build_app()) as client:
-        response = client.post(
-            "/api/v1/knowledge/abfm-boards/query", json={"query": "q"}
-        )
+        response = client.post("/api/v1/knowledge/abfm-boards/query", json={"query": "q"})
 
     assert response.status_code == 500
 
