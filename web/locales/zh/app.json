@@ -1,6 +1,11 @@
 {
   "language.english": "English",
   "language.chinese": "中文",
+  "Today's Review": "今日复习",
+  "Generating today's review…": "正在生成今日复习…",
+  "Generated from your past mistakes": "根据你过去的错题生成",
+  "Submit answer": "提交答案",
+  "Type your answer…": "输入你的答案…",
   "Start": "开始",
   "Learn": "学习",
   "Research": "研究",

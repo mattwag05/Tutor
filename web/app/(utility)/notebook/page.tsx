@@ -30,6 +30,7 @@ import {
   type NotebookCategory,
   type NotebookEntry,
 } from "@/lib/notebook-api";
+import TodaysReviewPanel from "@/components/notebook/TodaysReviewPanel";
 
 const MarkdownRenderer = dynamic(
   () => import("@/components/common/MarkdownRenderer"),
@@ -204,6 +205,8 @@ export default function NotebookPage() {
             </p>
           </div>
         </div>
+
+        <TodaysReviewPanel />
 
         <div
           className={`mb-4 overflow-hidden rounded-xl border transition-colors ${showCategoryManager ? "border-[var(--border)] bg-[var(--card)]" : "border-[var(--border)]/50 bg-transparent"}`}
