@@ -4,7 +4,7 @@ import { callLLM } from '@/lib/ai/llm';
 import { buildPrompt, PROMPT_IDS } from '@/lib/generation/prompts';
 import { parseJsonResponse } from '@/lib/generation/json-repair';
 import { apiError, apiSuccess, API_ERROR_CODES } from '@/lib/server/api-response';
-import { resolveModelFromHeaders } from '@/lib/server/resolve-model';
+import { resolveModelFromProfile } from '@/lib/server/resolve-profile';
 import {
   coursePodcastPath,
   isValidCourseId,
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { model: languageModel, modelInfo, modelString } = await resolveModelFromHeaders(req);
+    const { model: languageModel, modelInfo, modelString } = await resolveModelFromProfile('tutor-balanced');
 
     const prompts = buildPrompt(PROMPT_IDS.PODCAST_CONVERSATIONAL, {
       courseTitle: course.title,

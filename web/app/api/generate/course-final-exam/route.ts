@@ -3,7 +3,7 @@ import { callLLM } from '@/lib/ai/llm';
 import { buildPrompt, PROMPT_IDS } from '@/lib/generation/prompts';
 import { parseJsonResponse } from '@/lib/generation/json-repair';
 import { apiError, API_ERROR_CODES } from '@/lib/server/api-response';
-import { resolveModelFromHeaders } from '@/lib/server/resolve-model';
+import { resolveModelFromProfile } from '@/lib/server/resolve-profile';
 import { isValidCourseId, readCourse, writeCourse } from '@/lib/server/course-storage';
 import { createLogger } from '@/lib/logger';
 import { sectionsToText } from '@/lib/course/sections-to-text';
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ questions: course.artifacts.finalExam.questions });
     }
 
-    const { model: languageModel, modelInfo, modelString } = await resolveModelFromHeaders(req);
+    const { model: languageModel, modelInfo, modelString } = await resolveModelFromProfile('tutor-premium');
 
     const sections = sectionsToText(course.sections, { quizStyle: 'bracket-existing' });
     if (!sections) {

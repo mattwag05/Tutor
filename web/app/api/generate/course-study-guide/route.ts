@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { callLLM } from '@/lib/ai/llm';
 import { buildPrompt, PROMPT_IDS } from '@/lib/generation/prompts';
 import { apiError, API_ERROR_CODES } from '@/lib/server/api-response';
-import { resolveModelFromHeaders } from '@/lib/server/resolve-model';
+import { resolveModelFromProfile } from '@/lib/server/resolve-profile';
 import { isValidCourseId, readCourse, writeCourse } from '@/lib/server/course-storage';
 import { createLogger } from '@/lib/logger';
 import { sectionsToText } from '@/lib/course/sections-to-text';
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ content: course.artifacts.studyGuide.content });
     }
 
-    const { model: languageModel, modelInfo, modelString } = await resolveModelFromHeaders(req);
+    const { model: languageModel, modelInfo, modelString } = await resolveModelFromProfile('tutor-balanced');
 
     const sections = sectionsToText(course.sections, { quizStyle: 'label' });
     if (!sections) {

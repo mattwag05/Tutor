@@ -11,7 +11,7 @@ import { nanoid } from 'nanoid';
 import { streamLLM } from '@/lib/ai/llm';
 import { buildPrompt, PROMPT_IDS } from '@/lib/generation/prompts';
 import { apiError, API_ERROR_CODES } from '@/lib/server/api-response';
-import { resolveModelFromHeaders } from '@/lib/server/resolve-model';
+import { resolveModelFromProfile } from '@/lib/server/resolve-profile';
 import { getRAGContextForGeneration, isDeepTutorEnabled } from '@/lib/integrations';
 import { createLogger } from '@/lib/logger';
 import { SSE_HEARTBEAT_INTERVAL_MS, MAX_STREAM_RETRIES } from '@/lib/constants/generation';
@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
       return apiError(API_ERROR_CODES.MISSING_REQUIRED_FIELD, 400, 'topic is required');
     }
 
-    const { model: languageModel, modelInfo, modelString } = await resolveModelFromHeaders(req);
+    const { model: languageModel, modelInfo, modelString } = await resolveModelFromProfile('tutor-premium');
     const language: Language = body.language || 'en-US';
     const topic = body.topic.trim();
 
