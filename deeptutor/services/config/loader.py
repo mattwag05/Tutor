@@ -254,6 +254,7 @@ def get_agent_params(module_name: str) -> dict:
     return {
         "temperature": module_config.get("temperature", defaults["temperature"]),
         "max_tokens": module_config.get("max_tokens", defaults["max_tokens"]),
+        "profile": module_config.get("profile", "tutor-balanced"),
     }
 
 

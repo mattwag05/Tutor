@@ -28,7 +28,38 @@ import { writeStoredLanguage } from "@/context/app-shell-storage";
 import { apiUrl } from "@/lib/api";
 import { setTheme as applyThemePreference } from "@/lib/theme";
 
-type ServiceName = "llm" | "embedding" | "search";
+// "manifest" is the Manifest-tier LLM surface; "llm" catalog still exists in
+// the backend but is no longer surfaced as a first-class tab (C.2).
+type ServiceName = "manifest" | "embedding" | "search";
+
+type ManifestTier = "tutor-cheap" | "tutor-balanced" | "tutor-premium";
+
+type ManifestProfileEntry = {
+  model: string;
+  binding?: string;
+  apiKey?: string;
+  baseUrl?: string;
+  description?: string;
+};
+
+type ManifestProfiles = Partial<Record<ManifestTier, ManifestProfileEntry>>;
+
+// Canonical agent key → human label
+const AGENT_LABELS: Record<string, string> = {
+  chat: "Chat",
+  solve: "Solve",
+  research: "Research",
+  question: "Question",
+  co_writer: "Co-writer",
+  notebook: "Notebook",
+  math_animator: "Math Animator",
+  vision_solver: "Vision Solver",
+  visualize: "Visualize",
+  brainstorm: "Brainstorm",
+  personalization: "Personalization",
+};
+
+type AgentTiers = Record<string, ManifestTier>;
 
 type CatalogModel = {
   id: string;
@@ -98,7 +129,7 @@ type SystemStatus = {
   search: { status: string; provider?: string; error?: string };
 };
 
-const SERVICES = ["llm", "embedding", "search"] as const;
+const SERVICES = ["manifest", "embedding", "search"] as const;
 
 // ---------------------------------------------------------------------------
 
@@ -106,9 +137,11 @@ function cloneCatalog(catalog: Catalog): Catalog {
   return JSON.parse(JSON.stringify(catalog)) as Catalog;
 }
 
+type CatalogServiceName = "embedding" | "search";
+
 function getActiveProfile(
   catalog: Catalog,
-  serviceName: ServiceName,
+  serviceName: CatalogServiceName,
 ): CatalogProfile | null {
   const service = catalog.services[serviceName];
   return (
@@ -122,7 +155,7 @@ function getActiveProfile(
 
 function getActiveModel(
   catalog: Catalog,
-  serviceName: ServiceName,
+  serviceName: CatalogServiceName,
 ): CatalogModel | null {
   if (serviceName === "search") return null;
   const service = catalog.services[serviceName];
@@ -136,7 +169,7 @@ function getActiveModel(
 }
 
 function serviceIcon(service: ServiceName) {
-  if (service === "llm") return <Brain className="h-3.5 w-3.5" />;
+  if (service === "manifest") return <Brain className="h-3.5 w-3.5" />;
   if (service === "embedding") return <Database className="h-3.5 w-3.5" />;
   return <Search className="h-3.5 w-3.5" />;
 }
@@ -145,7 +178,7 @@ function serviceLabel(
   service: ServiceName,
   t: (key: string) => string,
 ): string {
-  if (service === "llm") return t("LLM");
+  if (service === "manifest") return t("LLM");
   if (service === "embedding") return t("Embedding");
   return t("Search");
 }
@@ -175,9 +208,11 @@ function servicePendingApply(
   draft: Catalog,
   service: ServiceName,
 ): boolean {
+  if (service === "manifest") return false; // manifest has its own dirty tracking
+  const svc = service as "embedding" | "search";
   return (
-    JSON.stringify(catalog.services[service]) !==
-    JSON.stringify(draft.services[service])
+    JSON.stringify(catalog.services[svc]) !==
+    JSON.stringify(draft.services[svc])
   );
 }
 
@@ -253,7 +288,7 @@ function formatContextWindowUpdatedAt(
 const TOUR_GUIDE_STEPS = [
   {
     target: "tour-llm",
-    service: "llm" as const,
+    service: "manifest" as const,
     titleKey: "settingsTour.llm.title",
     descKey: "settingsTour.llm.desc",
   },
@@ -589,7 +624,7 @@ function SettingsPageContent() {
   const [language, setLanguage] = useState<"en" | "zh">("en");
   const [catalog, setCatalog] = useState<Catalog>(defaultCatalog());
   const [draft, setDraft] = useState<Catalog>(defaultCatalog());
-  const [activeService, setActiveService] = useState<ServiceName>("llm");
+  const [activeService, setActiveService] = useState<ServiceName>("manifest");
   const [logs, setLogs] = useState<string>("Waiting for test run...");
   const [testRunning, setTestRunning] = useState<ServiceName | null>(null);
   const [saving, setSaving] = useState(false);
@@ -603,8 +638,8 @@ function SettingsPageContent() {
   const [accessCodeRevealed, setAccessCodeRevealed] = useState(false);
   const [savingAccessCode, setSavingAccessCode] = useState(false);
   const [providers, setProviders] = useState<
-    Record<ServiceName, ProviderOption[]>
-  >({ llm: [], embedding: [], search: [] });
+    Record<string, ProviderOption[]>
+  >({ manifest: [], embedding: [], search: [] });
   // Most-recent capabilities snapshot from the embedding test run. Cleared
   // when the user kicks off another run, populated when the backend emits
   // the `capabilities` SSE event. Drives the source badge + "Detected: Xd"
@@ -616,15 +651,36 @@ function SettingsPageContent() {
   // Tour-specific state
   const [tourGuideStep, setTourGuideStep] = useState(-1);
 
+  // Manifest profiles + agent tier state (C.2)
+  const MANIFEST_DEFAULTS: Record<ManifestTier, ManifestProfileEntry> = {
+    "tutor-cheap": { model: "anthropic/claude-haiku-4-5-20251001", description: "Fast — intent, grading, summarization" },
+    "tutor-balanced": { model: "anthropic/claude-sonnet-4", description: "General — chat, bodies, slide text" },
+    "tutor-premium": { model: "anthropic/claude-sonnet-4-5-20251001", description: "Capable — quiz, outline, director" },
+  };
+  const [manifestProfiles, setManifestProfiles] = useState<Record<ManifestTier, ManifestProfileEntry>>(
+    MANIFEST_DEFAULTS,
+  );
+  const [manifestDraft, setManifestDraft] = useState<Record<ManifestTier, ManifestProfileEntry>>(
+    MANIFEST_DEFAULTS,
+  );
+  const [agentTiers, setAgentTiers] = useState<AgentTiers>({});
+  const [agentTiersDraft, setAgentTiersDraft] = useState<AgentTiers>({});
+  const [savingManifest, setSavingManifest] = useState(false);
+  const manifestDirty =
+    JSON.stringify(manifestProfiles) !== JSON.stringify(manifestDraft) ||
+    JSON.stringify(agentTiers) !== JSON.stringify(agentTiersDraft);
+
   // -- Data loading -------------------------------------------------------
 
   useEffect(() => {
     const load = async () => {
-      const [settingsResponse, statusResponse, authResponse] =
+      const [settingsResponse, statusResponse, authResponse, manifestResponse, agentResponse] =
         await Promise.all([
           fetch(apiUrl("/api/v1/settings")),
           fetch(apiUrl("/api/v1/system/status")),
           fetch(apiUrl("/api/v1/settings/auth")),
+          fetch("/api/settings/manifest").catch(() => null),
+          fetch("/api/settings/agent-profiles").catch(() => null),
         ]);
       const settingsPayload =
         (await settingsResponse.json()) as SettingsPayload;
@@ -643,6 +699,21 @@ function SettingsPageContent() {
       const code = authPayload.access_code ?? "";
       setAccessCode(code);
       setAccessCodeDraft(code);
+
+      if (manifestResponse?.ok) {
+        const mp = (await manifestResponse.json()) as { profiles: Record<ManifestTier, ManifestProfileEntry> };
+        if (mp?.profiles) {
+          setManifestProfiles(mp.profiles);
+          setManifestDraft(JSON.parse(JSON.stringify(mp.profiles)) as Record<ManifestTier, ManifestProfileEntry>);
+        }
+      }
+      if (agentResponse?.ok) {
+        const ap = (await agentResponse.json()) as { agents: AgentTiers };
+        if (ap?.agents) {
+          setAgentTiers(ap.agents);
+          setAgentTiersDraft(JSON.parse(JSON.stringify(ap.agents)) as AgentTiers);
+        }
+      }
     };
     load();
     return () => {
@@ -677,8 +748,8 @@ function SettingsPageContent() {
 
   // -- Derived ------------------------------------------------------------
 
-  const activeProfile = getActiveProfile(draft, activeService);
-  const activeModel = getActiveModel(draft, activeService);
+  const activeProfile = activeService === "manifest" ? null : getActiveProfile(draft, activeService as "embedding" | "search");
+  const activeModel = activeService === "manifest" ? null : getActiveModel(draft, activeService as "embedding" | "search");
   const hasUnsavedChanges = JSON.stringify(catalog) !== JSON.stringify(draft);
   const searchProviderRaw =
     activeService === "search"
@@ -761,28 +832,30 @@ function SettingsPageContent() {
   };
 
   const addProfile = () => {
+    if (activeService === "manifest") return;
+    const svc = activeService as CatalogServiceName;
     mutateCatalog((next) => {
-      const service = next.services[activeService];
-      const profileId = `${activeService}-profile-${Date.now()}`;
+      const service = next.services[svc];
+      const profileId = `${svc}-profile-${Date.now()}`;
       const profile: CatalogProfile = {
         id: profileId,
         name: "New Profile",
-        binding: activeService === "search" ? undefined : "openai",
-        provider: activeService === "search" ? "brave" : undefined,
+        binding: svc === "search" ? undefined : "openai",
+        provider: svc === "search" ? "brave" : undefined,
         base_url: "",
         api_key: "",
         api_version: "",
-        extra_headers: activeService === "search" ? undefined : {},
-        proxy: activeService === "search" ? "" : undefined,
+        extra_headers: svc === "search" ? undefined : {},
+        proxy: svc === "search" ? "" : undefined,
         models: [],
       };
-      if (activeService !== "search") {
-        const modelId = `${activeService}-model-${Date.now()}`;
+      if (svc !== "search") {
+        const modelId = `${svc}-model-${Date.now()}`;
         profile.models.push({
           id: modelId,
           name: "New Model",
           model: "",
-          ...(activeService === "embedding"
+          ...(svc === "embedding"
             ? { dimension: embeddingDefaultDim(), send_dimensions: true }
             : {}),
         });
@@ -794,33 +867,36 @@ function SettingsPageContent() {
   };
 
   const removeActiveProfile = () => {
+    if (activeService === "manifest") return;
+    const svc = activeService as CatalogServiceName;
     mutateCatalog((next) => {
-      const service = next.services[activeService];
+      const service = next.services[svc];
       service.profiles = service.profiles.filter(
         (profile) => profile.id !== service.active_profile_id,
       );
       service.active_profile_id = service.profiles[0]?.id ?? null;
-      if (activeService !== "search") {
+      if (svc !== "search") {
         service.active_model_id = service.profiles[0]?.models?.[0]?.id ?? null;
       }
     });
   };
 
   const addModel = () => {
-    if (activeService === "search") return;
+    if (activeService === "manifest" || activeService === "search") return;
+    const svc = activeService as "embedding";
     mutateCatalog((next) => {
-      const service = next.services[activeService];
+      const service = next.services[svc];
       const profile =
         service.profiles.find(
           (item) => item.id === service.active_profile_id,
         ) ?? null;
       if (!profile) return;
-      const modelId = `${activeService}-model-${Date.now()}`;
+      const modelId = `${svc}-model-${Date.now()}`;
       profile.models.push({
         id: modelId,
         name: "New Model",
         model: "",
-        ...(activeService === "embedding"
+        ...(svc === "embedding"
           ? {
               dimension: embeddingDefaultDim(profile.binding),
               send_dimensions: true,
@@ -832,9 +908,10 @@ function SettingsPageContent() {
   };
 
   const removeActiveModel = () => {
-    if (activeService === "search") return;
+    if (activeService === "manifest" || activeService === "search") return;
+    const svc = activeService as "embedding";
     mutateCatalog((next) => {
-      const service = next.services[activeService];
+      const service = next.services[svc];
       const profile =
         service.profiles.find(
           (item) => item.id === service.active_profile_id,
@@ -848,27 +925,31 @@ function SettingsPageContent() {
   };
 
   const updateProfileField = (field: keyof CatalogProfile, value: string) => {
+    if (activeService === "manifest") return;
+    const svc = activeService as CatalogServiceName;
     mutateCatalog((next) => {
-      const profile = getActiveProfile(next, activeService);
+      const profile = getActiveProfile(next, svc);
       if (!profile) return;
       (profile[field] as string | undefined) = value;
     });
   };
 
   const updateModelField = (field: keyof CatalogModel, value: string) => {
-    if (activeService === "search") return;
+    if (activeService === "manifest" || activeService === "search") return;
+    const svc = activeService as CatalogServiceName;
     mutateCatalog((next) => {
-      const model = getActiveModel(next, activeService);
+      const model = getActiveModel(next, svc);
       if (!model) return;
       (model[field] as string | undefined) = value;
     });
   };
 
   const updateContextWindowField = (value: string) => {
-    if (activeService !== "llm") return;
+    if (activeService !== "embedding") return;
+    const svc = activeService as CatalogServiceName;
     const normalized = value.replace(/[^\d]/g, "");
     mutateCatalog((next) => {
-      const model = getActiveModel(next, activeService);
+      const model = getActiveModel(next, svc);
       if (!model) return;
       if (normalized) {
         model.context_window = normalized;
@@ -883,9 +964,10 @@ function SettingsPageContent() {
   };
 
   const updateModelBoolField = (field: keyof CatalogModel, value: boolean) => {
-    if (activeService === "search") return;
+    if (activeService === "manifest" || activeService === "search") return;
+    const svc = activeService as CatalogServiceName;
     mutateCatalog((next) => {
-      const model = getActiveModel(next, activeService);
+      const model = getActiveModel(next, svc);
       if (!model) return;
       (model[field] as boolean | undefined) = value;
     });
@@ -951,6 +1033,47 @@ function SettingsPageContent() {
       );
     } finally {
       setSavingAccessCode(false);
+    }
+  };
+
+  // -- Manifest + agent tier save (C.2) -----------------------------------
+
+  const saveManifest = async () => {
+    setSavingManifest(true);
+    try {
+      // Strip empty optional fields before saving to keep the file clean
+      const pruned: ManifestProfiles = {};
+      (Object.keys(manifestDraft) as ManifestTier[]).forEach((tier) => {
+        const entry = manifestDraft[tier];
+        if (!entry) return;
+        const clean: ManifestProfileEntry = { model: entry.model };
+        if (entry.binding) clean.binding = entry.binding;
+        if (entry.apiKey) clean.apiKey = entry.apiKey;
+        if (entry.baseUrl) clean.baseUrl = entry.baseUrl;
+        if (entry.description) clean.description = entry.description;
+        pruned[tier] = clean;
+      });
+      const [manifestRes, agentRes] = await Promise.all([
+        fetch("/api/settings/manifest", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ profiles: pruned }),
+        }),
+        fetch("/api/settings/agent-profiles", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ agents: agentTiersDraft }),
+        }),
+      ]);
+      if (manifestRes.ok) {
+        setManifestProfiles(JSON.parse(JSON.stringify(manifestDraft)) as Record<ManifestTier, ManifestProfileEntry>);
+      }
+      if (agentRes.ok) {
+        setAgentTiers(JSON.parse(JSON.stringify(agentTiersDraft)) as AgentTiers);
+      }
+      setToast(t("Manifest saved"));
+    } finally {
+      setSavingManifest(false);
     }
   };
 
@@ -1200,27 +1323,35 @@ function SettingsPageContent() {
           </div>
 
           {SERVICES.map((service, i) => {
-            const profile = getActiveProfile(draft, service);
-            const model = getActiveModel(draft, service);
+            const profile = service === "manifest" ? null : getActiveProfile(draft, service as "embedding" | "search");
+            const model = service === "manifest" ? null : getActiveModel(draft, service as "embedding" | "search");
             const serviceStatus =
-              service === "llm"
+              service === "manifest"
                 ? status?.llm
                 : service === "embedding"
                   ? status?.embeddings
                   : status?.search;
             const runtimeModel =
-              service === "llm"
+              service === "manifest"
                 ? status?.llm.model
                 : service === "embedding"
                   ? status?.embeddings.model
                   : undefined;
             const configured =
-              service === "search"
-                ? Boolean(profile?.provider || status?.search.provider)
-                : Boolean(model?.model || runtimeModel);
-            const pendingApply = servicePendingApply(catalog, draft, service);
-            const detail = activeModelDetail(profile, model, service, t);
-            const profileName = profile?.name || t("No profile");
+              service === "manifest"
+                ? Boolean(manifestProfiles["tutor-balanced"]?.model)
+                : service === "search"
+                  ? Boolean(profile?.provider || status?.search.provider)
+                  : Boolean(model?.model || runtimeModel);
+            const pendingApply = service === "manifest" ? manifestDirty : servicePendingApply(catalog, draft, service);
+            const detail =
+              service === "manifest"
+                ? (manifestProfiles["tutor-balanced"]?.model || t("Not configured"))
+                : activeModelDetail(profile, model, service, t);
+            const profileName =
+              service === "manifest"
+                ? "Manifest Profiles"
+                : (profile?.name || t("No profile"));
             const isActiveTab = activeService === service;
             const borderClasses =
               i === 0
@@ -1273,7 +1404,7 @@ function SettingsPageContent() {
         <div className="mb-8">
           <div className="mb-5 flex items-center justify-between">
             <div className="flex items-center gap-1">
-              {(["llm", "embedding", "search"] as const).map((service) => (
+              {(["manifest", "embedding", "search"] as const).map((service) => (
                 <button
                   key={service}
                   data-tour={`tour-${service}`}
@@ -1285,34 +1416,141 @@ function SettingsPageContent() {
                   }`}
                 >
                   {serviceIcon(service)}
-                  {service.toUpperCase()}
-                  <span className="text-[11px] text-[var(--muted-foreground)]/60">
-                    {draft.services[service].profiles.length}
-                  </span>
+                  {service === "manifest" ? "LLM" : service.toUpperCase()}
+                  {service !== "manifest" && (
+                    <span className="text-[11px] text-[var(--muted-foreground)]/60">
+                      {(draft.services as Record<string, { profiles: unknown[] }>)[service]?.profiles?.length ?? 0}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
             <div className="flex items-center gap-2">
-              <button
-                onClick={addProfile}
-                className="inline-flex items-center gap-1 rounded-lg border border-[var(--border)]/50 px-2.5 py-1 text-[12px] text-[var(--muted-foreground)] transition-colors hover:border-[var(--border)] hover:text-[var(--foreground)]"
-              >
-                <Plus className="h-3 w-3" />
-                {t("Profile")}
-              </button>
-              {activeService !== "search" && (
+              {activeService === "manifest" ? (
                 <button
-                  onClick={addModel}
-                  className="inline-flex items-center gap-1 rounded-lg border border-[var(--border)]/50 px-2.5 py-1 text-[12px] text-[var(--muted-foreground)] transition-colors hover:border-[var(--border)] hover:text-[var(--foreground)]"
+                  onClick={saveManifest}
+                  disabled={savingManifest || !manifestDirty}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)]/50 px-3 py-1.5 text-[12px] font-medium text-[var(--muted-foreground)] transition-colors hover:border-[var(--border)] hover:text-[var(--foreground)] disabled:opacity-40"
                 >
-                  <Plus className="h-3 w-3" />
-                  {t("Model")}
+                  {savingManifest ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                  {t("Save")}
                 </button>
+              ) : (
+                <>
+                  <button
+                    onClick={addProfile}
+                    className="inline-flex items-center gap-1 rounded-lg border border-[var(--border)]/50 px-2.5 py-1 text-[12px] text-[var(--muted-foreground)] transition-colors hover:border-[var(--border)] hover:text-[var(--foreground)]"
+                  >
+                    <Plus className="h-3 w-3" />
+                    {t("Profile")}
+                  </button>
+                  {activeService !== "search" && (
+                    <button
+                      onClick={addModel}
+                      className="inline-flex items-center gap-1 rounded-lg border border-[var(--border)]/50 px-2.5 py-1 text-[12px] text-[var(--muted-foreground)] transition-colors hover:border-[var(--border)] hover:text-[var(--foreground)]"
+                    >
+                      <Plus className="h-3 w-3" />
+                      {t("Model")}
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </div>
 
-          {activeProfile ? (
+          {/* ── Manifest LLM pane ── */}
+          {activeService === "manifest" && (
+            <div className="space-y-6">
+              {/* Tier rows */}
+              <div className="overflow-hidden rounded-xl border border-[var(--border)]/60">
+                {(["tutor-cheap", "tutor-balanced", "tutor-premium"] as ManifestTier[]).map((tier, idx) => {
+                  const entry = manifestDraft[tier] ?? { model: "" };
+                  const TIER_LABELS: Record<ManifestTier, string> = {
+                    "tutor-cheap": "Cheap",
+                    "tutor-balanced": "Balanced",
+                    "tutor-premium": "Premium",
+                  };
+                  return (
+                    <div
+                      key={tier}
+                      className={`px-5 py-4 ${idx > 0 ? "border-t border-[var(--border)]/40" : ""}`}
+                    >
+                      <div className="mb-3 flex items-center gap-2">
+                        <span className="text-[12px] font-semibold text-[var(--foreground)]">{TIER_LABELS[tier]}</span>
+                        <span className="rounded-md bg-[var(--muted)] px-1.5 py-0.5 text-[10px] text-[var(--muted-foreground)]">{tier}</span>
+                        <span className="ml-1 text-[11px] text-[var(--muted-foreground)]">{entry.description || ""}</span>
+                      </div>
+                      <div className="grid grid-cols-[1fr_120px] gap-3 sm:grid-cols-[2fr_1fr_1fr_1fr]">
+                        <div>
+                          <label className={`mb-1.5 block ${labelClass("sm")} text-[var(--muted-foreground)]`}>{t("Model")}</label>
+                          <input
+                            value={entry.model}
+                            onChange={(e) => setManifestDraft((prev) => ({ ...prev, [tier]: { ...entry, model: e.target.value } }))}
+                            placeholder="anthropic/claude-sonnet-4"
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className={`mb-1.5 block ${labelClass("sm")} text-[var(--muted-foreground)]`}>{t("Binding")}</label>
+                          <input
+                            value={entry.binding ?? ""}
+                            onChange={(e) => setManifestDraft((prev) => ({ ...prev, [tier]: { ...entry, binding: e.target.value || undefined } }))}
+                            placeholder="openrouter"
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className={`mb-1.5 block ${labelClass("sm")} text-[var(--muted-foreground)]`}>{t("API Key")}</label>
+                          <input
+                            type="password"
+                            value={entry.apiKey ?? ""}
+                            onChange={(e) => setManifestDraft((prev) => ({ ...prev, [tier]: { ...entry, apiKey: e.target.value || undefined } }))}
+                            placeholder={t("← Catalog fallback")}
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className={`mb-1.5 block ${labelClass("sm")} text-[var(--muted-foreground)]`}>{t("Base URL")}</label>
+                          <input
+                            value={entry.baseUrl ?? ""}
+                            onChange={(e) => setManifestDraft((prev) => ({ ...prev, [tier]: { ...entry, baseUrl: e.target.value || undefined } }))}
+                            placeholder={t("Default")}
+                            className={inputClass}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Per-agent tier overrides */}
+              <div>
+                <div className={`mb-3 ${labelClass("md")} text-[var(--muted-foreground)]`}>{t("Per-agent tier overrides")}</div>
+                <div className="overflow-hidden rounded-xl border border-[var(--border)]/60">
+                  {Object.entries(AGENT_LABELS).map(([agentKey, agentLabel], idx) => (
+                    <div
+                      key={agentKey}
+                      className={`flex items-center justify-between px-4 py-3 ${idx > 0 ? "border-t border-[var(--border)]/40" : ""}`}
+                    >
+                      <span className="text-[13px] text-[var(--foreground)]">{agentLabel}</span>
+                      <select
+                        value={agentTiersDraft[agentKey] ?? "tutor-balanced"}
+                        onChange={(e) => setAgentTiersDraft((prev) => ({ ...prev, [agentKey]: e.target.value as ManifestTier }))}
+                        className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 py-1 text-[12px] text-[var(--foreground)] outline-none focus:border-[var(--ring)]"
+                      >
+                        <option value="tutor-cheap">Cheap</option>
+                        <option value="tutor-balanced">Balanced</option>
+                        <option value="tutor-premium">Premium</option>
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeService !== "manifest" && (activeProfile ? (
             <div className="grid grid-cols-[200px_1fr] gap-5">
               {/* ── Profile list ── */}
               <div className="space-y-2">
@@ -1344,16 +1582,16 @@ function SettingsPageContent() {
                   return (
                     <button
                       key={profile.id}
-                      onClick={() =>
+                      onClick={() => {
+                        const svc = activeService as CatalogServiceName;
                         mutateCatalog((next) => {
-                          next.services[activeService].active_profile_id =
-                            profile.id;
-                          if (activeService !== "search") {
-                            next.services[activeService].active_model_id =
+                          next.services[svc].active_profile_id = profile.id;
+                          if (svc !== "search") {
+                            next.services[svc].active_model_id =
                               profile.models[0]?.id ?? null;
                           }
-                        })
-                      }
+                        });
+                      }}
                       className={`relative w-full overflow-hidden rounded-xl px-3.5 py-3 text-left transition-colors ${
                         isActive
                           ? "bg-[var(--muted)]/60 text-[var(--foreground)]"
@@ -1622,32 +1860,31 @@ function SettingsPageContent() {
                     </div>
                     {activeProfile.models.length > 0 && (
                       <div className="mb-4 flex flex-wrap gap-1.5">
-                        {activeProfile.models.map((model) => (
+                        {activeProfile.models.map((model) => {
+                          const svc = activeService as CatalogServiceName;
+                          return (
                           <button
                             key={model.id}
                             onClick={() =>
                               mutateCatalog((next) => {
-                                next.services[activeService].active_model_id =
-                                  model.id;
+                                next.services[svc].active_model_id = model.id;
                               })
                             }
                             className={`rounded-lg px-3 py-1.5 text-[13px] transition-colors ${
-                              model.id ===
-                              draft.services[activeService].active_model_id
+                              model.id === draft.services[svc].active_model_id
                                 ? "bg-[var(--foreground)] font-medium text-[var(--background)] shadow-sm"
                                 : "text-[var(--muted-foreground)] hover:bg-[var(--muted)]/50"
                             }`}
                           >
                             <span className="inline-flex items-center gap-1.5">
-                              {model.id ===
-                                draft.services[activeService]
-                                  .active_model_id && (
+                              {model.id === draft.services[svc].active_model_id && (
                                 <CheckCircle2 className="h-3 w-3" />
                               )}
                               {model.name}
                             </span>
                           </button>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                     {activeModel && (
@@ -1677,7 +1914,7 @@ function SettingsPageContent() {
                             placeholder="gpt-4o"
                           />
                         </div>
-                        {activeService === "llm" && (
+                        {false /* context window: LLM-only, managed by Manifest tier editor in C.2 */ && (
                           <>
                             <div>
                               <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
@@ -1686,7 +1923,7 @@ function SettingsPageContent() {
                               <input
                                 className={inputClass}
                                 inputMode="numeric"
-                                value={activeModel.context_window || ""}
+                                value={activeModel!.context_window || ""}
                                 onChange={(e) =>
                                   updateContextWindowField(e.target.value)
                                 }
@@ -1702,23 +1939,23 @@ function SettingsPageContent() {
                                 </div>
                                 <span className="rounded-full border border-[var(--border)]/70 bg-[var(--card)] px-2.5 py-1 text-[11px] font-medium text-[var(--foreground)]">
                                   {formatContextWindowSource(
-                                    activeModel.context_window_source,
+                                    activeModel!.context_window_source,
                                     t,
                                   )}
                                 </span>
                               </div>
                               <p className="mt-2 text-[12px] leading-relaxed text-[var(--muted-foreground)]">
-                                {activeModel.context_window_source ===
+                                {activeModel!.context_window_source ===
                                 "metadata"
                                   ? t(
                                       "Detected from the provider during the latest LLM test and saved into model_catalog.json.",
                                     )
-                                  : activeModel.context_window_source ===
+                                  : activeModel!.context_window_source ===
                                       "default"
                                     ? t(
                                         "The provider did not expose a context window, so the runtime fallback was saved during the latest LLM test.",
                                       )
-                                    : activeModel.context_window_source ===
+                                    : activeModel!.context_window_source ===
                                         "manual"
                                       ? t(
                                           "Manual override from Settings. Save Draft to persist your edit.",
@@ -1727,11 +1964,11 @@ function SettingsPageContent() {
                                           "Run the LLM test to auto-fill this field, or enter a value manually.",
                                         )}
                               </p>
-                              {activeModel.context_window_detected_at && (
+                              {activeModel!.context_window_detected_at && (
                                 <div className="mt-2 text-[11px] text-[var(--muted-foreground)]/70">
                                   {t("Detected at")}:{" "}
                                   {formatContextWindowUpdatedAt(
-                                    activeModel.context_window_detected_at,
+                                    activeModel!.context_window_detected_at,
                                     language,
                                   )}
                                 </div>
@@ -1798,7 +2035,7 @@ function SettingsPageContent() {
             <div className="rounded-xl border border-dashed border-[var(--border)] py-12 text-center text-[13px] text-[var(--muted-foreground)]">
               {t("No profiles configured. Add a profile to start.")}
             </div>
-          )}
+          ))}
         </div>
 
         {/* ── Diagnostics ── */}
@@ -1819,18 +2056,20 @@ function SettingsPageContent() {
               )}
             </button>
             <div className="ml-3 flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  if (!diagnosticsOpen) setDiagnosticsOpen(true);
-                  runDetailedTest();
-                }}
-                disabled={testRunning !== null}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)]/50 px-2.5 py-1 text-[12px] text-[var(--muted-foreground)] transition-colors hover:border-[var(--border)] hover:text-[var(--foreground)] disabled:opacity-40"
-              >
-                {serviceIcon(activeService)}
-                {t("Run test")}
-              </button>
+              {activeService !== "manifest" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!diagnosticsOpen) setDiagnosticsOpen(true);
+                    runDetailedTest();
+                  }}
+                  disabled={testRunning !== null}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)]/50 px-2.5 py-1 text-[12px] text-[var(--muted-foreground)] transition-colors hover:border-[var(--border)] hover:text-[var(--foreground)] disabled:opacity-40"
+                >
+                  {serviceIcon(activeService)}
+                  {t("Run test")}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setDiagnosticsOpen((v) => !v)}

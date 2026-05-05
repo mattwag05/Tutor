@@ -311,5 +311,6 @@ web/public/sw.js.map
 web/public/workbox-*.js
 web/public/workbox-*.js.map
 
-# Python MANIFEST is a dist artifact — don't shadow web/lib/ai/manifest/
+# Python MANIFEST is a dist artifact — don't shadow web/lib/ai/manifest/ or API routes
 !web/lib/ai/manifest/
+!web/app/api/settings/manifest/

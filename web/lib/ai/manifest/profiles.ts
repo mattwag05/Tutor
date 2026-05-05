@@ -16,6 +16,12 @@ export type ManifestTier = 'tutor-cheap' | 'tutor-balanced' | 'tutor-premium';
 export interface ManifestProfileConfig {
   /** OpenRouter model ID (without provider prefix, e.g. "anthropic/claude-sonnet-4"). */
   model: string;
+  /** Provider binding, e.g. "openrouter" | "anthropic" | "openai". When set together with apiKey, overrides the catalog credentials. */
+  binding?: string;
+  /** API key for this tier. When set with binding, takes precedence over catalog/env credentials. */
+  apiKey?: string;
+  /** Custom base URL for this tier's provider. */
+  baseUrl?: string;
   description?: string;
 }
 

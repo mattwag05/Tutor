@@ -184,6 +184,10 @@ class BaseAgent(ABC):
             "Please set LLM_MODEL in .env or activate a provider."
         )
 
+    def get_manifest_tier(self) -> str:
+        """Return the Manifest tier assigned to this agent in agents.yaml."""
+        return self._agent_params.get("profile", "tutor-balanced")
+
     def get_temperature(self) -> float:
         """
         Get temperature parameter from unified config (agents.yaml).

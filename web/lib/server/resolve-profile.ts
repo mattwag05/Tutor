@@ -26,7 +26,7 @@ interface ProfilesFile {
   profiles: Partial<Record<ManifestTier, ManifestProfileConfig>>;
 }
 
-interface LLMCredentials {
+export interface LLMCredentials {
   apiKey: string;
   baseUrl?: string;
   binding: string;
@@ -75,25 +75,41 @@ async function loadLLMCredentials(): Promise<LLMCredentials> {
   }
 }
 
+/** Pure credential-selection logic — exported for unit testing. */
+export function selectCredentials(
+  profileConfig: ManifestProfileConfig,
+  catalogCreds: LLMCredentials,
+): { binding: string; apiKey: string; baseUrl: string | undefined } {
+  const tierHasOwnCreds = !!(profileConfig.binding && profileConfig.apiKey);
+  return {
+    binding: tierHasOwnCreds ? profileConfig.binding! : catalogCreds.binding,
+    apiKey: tierHasOwnCreds ? profileConfig.apiKey! : catalogCreds.apiKey,
+    baseUrl: profileConfig.baseUrl ?? (tierHasOwnCreds ? undefined : catalogCreds.baseUrl),
+  };
+}
+
 /**
  * Resolve a language model from a Manifest tier name.
  *
- * Credentials come from the user's active LLM profile in model_catalog.json
- * (same key the Settings UI manages), so rotating the API key in Settings
- * applies to all Manifest-routed calls automatically.
+ * Credential precedence (highest to lowest):
+ *  1. Per-tier binding+apiKey in manifest_profiles.json (when both are set)
+ *  2. Active LLM profile in model_catalog.json
+ *  3. LLM_API_KEY / OPENROUTER_API_KEY env vars
  */
 export async function resolveModelFromProfile(tier: ManifestTier): Promise<ResolvedModel> {
-  const [overrides, creds] = await Promise.all([loadProfileOverrides(), loadLLMCredentials()]);
+  const [overrides, catalogCreds] = await Promise.all([
+    loadProfileOverrides(),
+    loadLLMCredentials(),
+  ]);
   const profileConfig = overrides[tier] ?? DEFAULT_MANIFEST_PROFILES[tier];
+  const { binding, apiKey, baseUrl } = selectCredentials(profileConfig, catalogCreds);
 
-  // Build the provider-prefixed model string that resolveModel expects, e.g.
-  // "openrouter/anthropic/claude-sonnet-4".
-  const modelString = `${creds.binding}/${profileConfig.model}`;
+  const modelString = `${binding}/${profileConfig.model}`;
   log.info(`[${tier}] → ${modelString}`);
 
   return resolveModel({
     modelString,
-    apiKey: creds.apiKey || undefined,
-    baseUrl: creds.baseUrl || undefined,
+    apiKey: apiKey || undefined,
+    baseUrl: baseUrl || undefined,
   });
 }

@@ -10,8 +10,9 @@ from __future__ import annotations
 import asyncio
 import json
 import time
-from typing import Any, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
+import yaml
 from dotenv import set_key, unset_key
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
@@ -423,3 +424,79 @@ async def reopen_tour():
         "message": "Run the terminal setup guide from the project root to re-open the guided setup.",
         "command": "python scripts/start_tour.py",
     }
+
+
+# ---------------------------------------------------------------------------
+# Agent Manifest Tier Overrides
+# ---------------------------------------------------------------------------
+
+AGENTS_YAML_PATH = _path_service.get_settings_dir() / "agents.yaml"
+
+_MANIFEST_TIERS = {"tutor-cheap", "tutor-balanced", "tutor-premium"}
+
+# Maps agent key → (section, name) in agents.yaml
+_AGENT_SECTION_MAP: dict[str, tuple[str, str]] = {
+    "solve": ("capabilities", "solve"),
+    "research": ("capabilities", "research"),
+    "question": ("capabilities", "question"),
+    "co_writer": ("capabilities", "co_writer"),
+    "chat": ("capabilities", "chat"),
+    "brainstorm": ("tools", "brainstorm"),
+    "personalization": ("services", "personalization"),
+    "vision_solver": ("plugins", "vision_solver"),
+    "math_animator": ("plugins", "math_animator"),
+}
+
+
+def _load_agents_yaml() -> dict[str, Any]:
+    if AGENTS_YAML_PATH.exists():
+        with open(AGENTS_YAML_PATH, encoding="utf-8") as f:
+            return yaml.safe_load(f) or {}
+    return {}
+
+
+def _save_agents_yaml(data: dict[str, Any]) -> None:
+    AGENTS_YAML_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(AGENTS_YAML_PATH, "w", encoding="utf-8") as f:
+        yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
+
+
+class AgentTierUpdate(BaseModel):
+    agents: Dict[str, str]
+
+
+@router.get("/agents")
+async def get_agent_tiers():
+    """Return the current Manifest tier assigned to each agent."""
+    data = _load_agents_yaml()
+    result: dict[str, str] = {}
+    for agent_key, (section, name) in _AGENT_SECTION_MAP.items():
+        entry = (data.get(section, {}) or {}).get(name, {}) or {}
+        result[agent_key] = entry.get("profile", "tutor-balanced")
+    return {"agents": result}
+
+
+@router.put("/agents")
+async def update_agent_tiers(update: AgentTierUpdate):
+    """Persist per-agent Manifest tier assignments to agents.yaml."""
+    unknown_agents = set(update.agents) - set(_AGENT_SECTION_MAP)
+    if unknown_agents:
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=422, detail=f"Unknown agents: {sorted(unknown_agents)}")
+    invalid_tiers = {t for t in update.agents.values() if t not in _MANIFEST_TIERS}
+    if invalid_tiers:
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=422, detail=f"Invalid tiers: {sorted(invalid_tiers)}")
+
+    data = _load_agents_yaml()
+    for agent_key, tier in update.agents.items():
+        section, name = _AGENT_SECTION_MAP[agent_key]
+        if section not in data:
+            data[section] = {}
+        if name not in data[section]:
+            data[section][name] = {}
+        data[section][name]["profile"] = tier
+    _save_agents_yaml(data)
+    return {"agents": update.agents}

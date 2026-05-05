@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { DEFAULT_MANIFEST_PROFILES } from '@/lib/ai/manifest/profiles';
-import type { ManifestTier } from '@/lib/ai/manifest/profiles';
+import type { ManifestTier, ManifestProfileConfig } from '@/lib/ai/manifest/profiles';
 
 const TIERS: ManifestTier[] = ['tutor-cheap', 'tutor-balanced', 'tutor-premium'];
 
@@ -33,5 +33,28 @@ describe('Manifest profiles', () => {
     expect(DEFAULT_MANIFEST_PROFILES['tutor-cheap'].model).not.toBe(
       DEFAULT_MANIFEST_PROFILES['tutor-premium'].model,
     );
+  });
+});
+
+describe('ManifestProfileConfig optional credential fields', () => {
+  it('accepts binding, apiKey, baseUrl without type errors', () => {
+    const cfg: ManifestProfileConfig = {
+      model: 'anthropic/claude-sonnet-4',
+      binding: 'anthropic',
+      apiKey: 'sk-test',
+      baseUrl: 'https://api.anthropic.com/v1',
+      description: 'custom',
+    };
+    expect(cfg.binding).toBe('anthropic');
+    expect(cfg.apiKey).toBe('sk-test');
+    expect(cfg.baseUrl).toBe('https://api.anthropic.com/v1');
+  });
+
+  it('all optional credential fields default to undefined on default profiles', () => {
+    for (const tier of ['tutor-cheap', 'tutor-balanced', 'tutor-premium'] as ManifestTier[]) {
+      expect(DEFAULT_MANIFEST_PROFILES[tier].binding).toBeUndefined();
+      expect(DEFAULT_MANIFEST_PROFILES[tier].apiKey).toBeUndefined();
+      expect(DEFAULT_MANIFEST_PROFILES[tier].baseUrl).toBeUndefined();
+    }
   });
 });
