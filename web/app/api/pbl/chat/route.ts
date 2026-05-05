@@ -10,7 +10,7 @@ import { callLLM } from '@/lib/ai/llm';
 import type { PBLAgent, PBLIssue } from '@/lib/pbl/types';
 import { createLogger } from '@/lib/logger';
 import { apiError, apiSuccess } from '@/lib/server/api-response';
-import { resolveModelFromRequest } from '@/lib/server/resolve-model';
+import { resolveModelFromProfile } from '@/lib/server/resolve-profile';
 const log = createLogger('PBL Chat');
 
 interface PBLChatRequest {
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Get model config from request headers/body
-    const { model, thinkingConfig } = await resolveModelFromRequest(req, body);
+    const { model } = await resolveModelFromProfile('tutor-balanced');
 
     // Build context for the agent, differentiating question vs judge
     let issueContext = '';
@@ -68,8 +68,6 @@ export async function POST(req: NextRequest) {
         prompt: message,
       },
       'pbl-chat',
-      undefined,
-      thinkingConfig,
     );
 
     return apiSuccess({ message: result.text, agentName: agent.name });

@@ -40,7 +40,8 @@ import type {
 } from '@/lib/types/generation';
 import { apiError } from '@/lib/server/api-response';
 import { createLogger } from '@/lib/logger';
-import { resolveModelFromRequest } from '@/lib/server/resolve-model';
+import { resolveModelFromProfile } from '@/lib/server/resolve-profile';
+import type { ThinkingConfig } from '@/lib/types/provider';
 import { getRAGContextForGeneration, isDeepTutorEnabled } from "@/lib/integrations";
 const log = createLogger('Outlines Stream');
 
@@ -140,12 +141,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
 
     // Get API configuration from request headers/body
-    const {
-      model: languageModel,
-      modelInfo,
-      modelString,
-      thinkingConfig,
-    } = await resolveModelFromRequest(req, body);
+    const { model: languageModel, modelInfo, modelString } = await resolveModelFromProfile('tutor-premium');
+    const thinkingConfig = (body as unknown as Record<string, unknown>).thinkingConfig as ThinkingConfig | undefined;
     resolvedModelString = modelString;
 
     if (!body.requirements) {

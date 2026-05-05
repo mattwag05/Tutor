@@ -51,6 +51,7 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
+!web/lib/ai/manifest/
 
 # Virtual Environments
 .env

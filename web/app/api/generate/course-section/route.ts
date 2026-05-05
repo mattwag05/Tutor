@@ -4,7 +4,7 @@ import { callLLM } from '@/lib/ai/llm';
 import { buildPrompt, PROMPT_IDS } from '@/lib/generation/prompts';
 import { parseJsonResponse } from '@/lib/generation/json-repair';
 import { apiError, API_ERROR_CODES } from '@/lib/server/api-response';
-import { resolveModelFromHeaders } from '@/lib/server/resolve-model';
+import { resolveModelFromProfile } from '@/lib/server/resolve-profile';
 import { getRAGContextForGeneration, isDeepTutorEnabled } from '@/lib/integrations';
 import { createLogger } from '@/lib/logger';
 import { formatPersonalization } from '@/lib/generation/format-personalization';
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     }
 
     const language: Language = body.language || 'en-US';
-    const { model: languageModel, modelInfo, modelString } = await resolveModelFromHeaders(req);
+    const { model: languageModel, modelInfo, modelString } = await resolveModelFromProfile('tutor-balanced');
 
     // RAG enrichment — query the KB for the specific section topic, not just
     // the course topic, so each section gets context targeted to its content.
