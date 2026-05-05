@@ -6,6 +6,7 @@ import type {
   FillBlankQuizBlock,
   MultipleChoiceQuizBlock,
 } from '@/lib/types/course';
+import { stripMarkdown } from '@/lib/utils/strip-markdown';
 
 // A4 page dimensions in mm
 const PAGE_W = 210;
@@ -18,18 +19,6 @@ const TEXT_W = PAGE_W - MARGIN_L - MARGIN_R;
 
 type Doc = InstanceType<typeof jsPDF>;
 
-// Strip inline markers: {{term:X}}, {{cite:X}}, **bold**, *italic*, `code`, [text](url)
-function stripMarkdown(text: string): string {
-  return text
-    .replace(/\{\{term:[^}]+\}\}/g, (m) => m.slice(7, -2))
-    .replace(/\{\{cite:[^}]+\}\}/g, '')
-    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
-    .replace(/\*\*([^*]+)\*\*/g, '$1')
-    .replace(/\*([^*]+)\*/g, '$1')
-    .replace(/`([^`]+)`/g, '$1')
-    .replace(/^#{1,4}\s+/gm, '')
-    .trim();
-}
 
 function checkPageBreak(doc: Doc, y: number, needed: number): number {
   if (y + needed > PAGE_H - MARGIN_B) {
