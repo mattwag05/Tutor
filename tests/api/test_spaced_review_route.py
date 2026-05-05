@@ -121,7 +121,7 @@ def test_full_lifecycle_to_ready(client, monkeypatch) -> None:
             await asyncio.sleep(0.05)
         return body
 
-    body = asyncio.get_event_loop().run_until_complete(_poll())
+    body = asyncio.run(_poll())
     assert body["status"] == "ready"
     assert len(body["items"]) == 2
     assert {item["source_question_id"] for item in body["items"]} == {"qA", "qB"}
@@ -150,7 +150,7 @@ def test_empty_when_no_candidates(client, monkeypatch) -> None:
             await asyncio.sleep(0.05)
         return body
 
-    body = asyncio.get_event_loop().run_until_complete(_poll())
+    body = asyncio.run(_poll())
     assert body["status"] == "empty"
     assert body["items"] == []
 
@@ -179,7 +179,7 @@ def test_ready_response_is_cached(client, monkeypatch) -> None:
                 return
             await asyncio.sleep(0.05)
 
-    asyncio.get_event_loop().run_until_complete(_wait_ready())
+    asyncio.run(_wait_ready())
     # Cached: subsequent calls do not re-pick.
     test_client.get("/api/v1/spaced-review/today")
     test_client.get("/api/v1/spaced-review/today")
@@ -205,5 +205,5 @@ def test_failure_during_generation_marks_empty(client, monkeypatch) -> None:
             await asyncio.sleep(0.05)
         return body
 
-    body = asyncio.get_event_loop().run_until_complete(_poll())
+    body = asyncio.run(_poll())
     assert body["status"] == "empty"
