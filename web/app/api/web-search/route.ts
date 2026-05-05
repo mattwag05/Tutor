@@ -15,7 +15,7 @@ import {
   buildSearchQuery,
   SEARCH_QUERY_REWRITE_EXCERPT_LENGTH,
 } from '@/lib/server/search-query-builder';
-import { resolveModelFromRequest } from '@/lib/server/resolve-model';
+import { resolveModelFromProfile } from '@/lib/server/resolve-profile';
 import type { AICallFn } from '@/lib/generation/pipeline-types';
 import { WEB_SEARCH_PROVIDERS } from '@/lib/web-search/constants';
 import type { WebSearchProviderId } from '@/lib/web-search/types';
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
 
     let aiCall: AICallFn | undefined;
     try {
-      const { model: languageModel, thinkingConfig } = await resolveModelFromRequest(req, body);
+      const { model: languageModel } = await resolveModelFromProfile('tutor-cheap');
       aiCall = async (systemPrompt, userPrompt) => {
         const result = await callLLM(
           {
@@ -82,8 +82,6 @@ export async function POST(req: NextRequest) {
             maxOutputTokens: 256,
           },
           'web-search-query-rewrite',
-          undefined,
-          thinkingConfig,
         );
         return result.text;
       };
