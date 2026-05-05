@@ -1645,7 +1645,7 @@
   "quiz.title": "Quiz",
   "quiz.subtitle": "Test your knowledge",
   "quiz.questionsCount": "questions",
-  "quiz.totalPrefix": "",
+  "quiz.totalPrefix": " ",
   "quiz.pointsSuffix": "pts",
   "quiz.startQuiz": "Start Quiz",
   "quiz.multipleChoiceHint": "(Multiple choice — select all correct answers)",
