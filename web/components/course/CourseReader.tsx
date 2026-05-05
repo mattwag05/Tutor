@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { toast } from 'sonner';
 import { useCourseStore } from '@/lib/course/store';
 import type { CourseArtifacts, CourseBlock, CourseCitation, CourseSection } from '@/lib/types/course';
@@ -346,6 +347,13 @@ function ReaderHeader({
       >
         {exportingSlides ? '…' : '⬇ Slides'}
       </button>
+      <Link
+        href={`/course/${courseId}/word-quest`}
+        aria-label="Open Word Quest vocabulary game"
+        className="flex shrink-0 items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-3 py-1 text-xs text-neutral-700 transition hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+      >
+        🎮 Word Quest
+      </Link>
       <button
         type="button"
         onClick={onOpenAsClassroom}
