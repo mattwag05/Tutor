@@ -165,6 +165,14 @@ npx tsc --noEmit  # TypeScript type check (run from web/ dir)
 
 24. **`pnpm tsc --noEmit` in OpenMAIC reports 5–6 known eval-test errors after B.1** — `services/openmaic/tests/eval/` still references `@/eval/shared/*` and `@/eval/outline-language/types` which moved to `web/eval/`. These are expected — B.4 will retire the OpenMAIC service entirely. The production build (`pnpm build`) is clean. Don't treat these as regressions when running verification.
 
+25. **`gh` defaults to upstream (HKUDS) when two remotes exist.** `gh pr create`, `gh run list`, `gh pr checks`, etc. target the remote `gh repo view` resolves — which is `HKUDS/DeepTutor` in this repo. Always pass `-R mattwag05/DeepTutor` explicitly, and use `--head mattwag05:<branch>` on `gh pr create` so GitHub doesn't confuse same-named branches across forks.
+
+26. **`git add` with Next.js bracket paths requires quotes.** `git add services/openmaic/app/classroom/[id]/page.tsx` fails (zsh glob expansion). Use `"services/openmaic/app/classroom/[id]/page.tsx"` with double quotes.
+
+27. **Background fixer subagents share the same working tree.** A subagent dispatched to fix a CI failure on `main` will `git checkout main`, reverting your in-progress branch files. Fence subagents explicitly to avoid touching active branch dirs; after the subagent completes, `git checkout <your-branch>` to restore. The remote branch is unaffected — only the local working tree changes.
+
+28. **`npx tsc --noEmit` in `web/` produces iCloud dupe errors in `.next/types/*.d 2.ts`.** Filter with `grep -v " 2\.ts"` (not just `grep -v eval/`). Source code is clean; the `.next/` build dir accumulates `" 2"`-suffix iCloud artifacts.
+
 ---
 
 ## Course Builder

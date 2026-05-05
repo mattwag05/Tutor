@@ -14,6 +14,8 @@ AI-directed classroom/presentation layer — Next.js full-stack app with scene/o
 - **Phase A.6 landed:** DeepTutor's sidebar no longer links externally to OpenMAIC; classroom + course are mounted under the unified `tutor.tail6e035b.ts.net` Caddy origin (parent CLAUDE.md gotcha #12).
 - **Phase B.6 landed:** quiz attempts dual-write through DeepTutor's unified SQLite store via `/api/quiz/attempts` proxy + one-shot localStorage migration runner mounted in root layout (see `lib/quiz/migration.ts`).
 - **Phase B.1 landed (DeepTutor-hrf, 2026-05-05):** generation pipeline + dependencies moved to `web/lib/`. API routes `/api/generate/*`, `/api/web-search`, `/api/chat` now served by web/ (port 3782). `lib/generation/scene-generator|scene-builder|outline-generator.ts` left as throw-stubs; `lib/orchestration/director-prompt|prompt-builder.ts` left as throw-stubs. Phase B.4 retires these stubs when the OpenMAIC Docker service drops.
+- **Phase B.2 landed (DeepTutor-61l, 2026-05-05):** Course↔Classroom projections via `lib/generation/projections.ts` (`materializeAsClassroom` / `materializeAsCourse`). Routes: `POST /api/project/course-to-classroom` + `POST /api/project/classroom-to-course`. Shared `CompletionPage` at `components/completion/CompletionPage.tsx` (gated at end-of-content, fetches `/api/v1/quiz/attempts` for stats). PR #7.
+- **Phase B.3 landed (DeepTutor-1bc, 2026-05-05):** `web/app/(workspace)/page.tsx` unified capture UI (Chat / Course / PDF drop). `services/openmaic/app/page.tsx` reduced to 9-line stub. Course landing reads `?topic` param. `tsconfig.json` excludes `eval/` + `tests/eval/` to fix Docker production build (see gotcha #9). PR #8.
 
 ---
 
