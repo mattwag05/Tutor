@@ -12,6 +12,7 @@ import { useMediaGenerationStore } from '@/lib/store/media-generation';
 import { useWhiteboardHistoryStore } from '@/lib/store/whiteboard-history';
 import { createLogger } from '@/lib/logger';
 import { MediaStageProvider } from '@/lib/contexts/media-stage-context';
+import { I18nProvider } from '@/lib/hooks/use-i18n';
 import { generateMediaForOutlines } from '@/lib/media/media-orchestrator';
 
 const log = createLogger('Classroom');
@@ -202,6 +203,7 @@ export default function ClassroomDetailPage() {
   }, [loading, error, generateRemaining]);
 
   return (
+    <I18nProvider>
     <ThemeProvider>
       <MediaStageProvider value={classroomId}>
         <div className="h-screen flex flex-col overflow-hidden">
@@ -244,5 +246,6 @@ export default function ClassroomDetailPage() {
         </div>
       </MediaStageProvider>
     </ThemeProvider>
+    </I18nProvider>
   );
 }
