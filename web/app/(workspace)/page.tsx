@@ -2,8 +2,9 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BookOpen, MessageSquare, GraduationCap, Upload } from "lucide-react";
+import { BookOpen, MessageSquare, GraduationCap, Upload, ArrowRight, NotebookPen } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { classifyIntent, buildIntentUrl } from "@/lib/intent/classify";
 
 export default function HomePage() {
   const router = useRouter();
@@ -11,23 +12,14 @@ export default function HomePage() {
   const [dragging, setDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const goChat = () => {
-    if (!text.trim()) {
-      router.push("/chat");
-      return;
-    }
-    router.push(`/chat?q=${encodeURIComponent(text.trim())}`);
-  };
-
-  const goCourse = () => {
-    const topic = text.trim();
-    router.push(topic ? `/course?topic=${encodeURIComponent(topic)}` : "/course");
+  const handleContinue = () => {
+    router.push(buildIntentUrl(classifyIntent({ text: text || undefined })));
   };
 
   const handleKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
-      goChat();
+      handleContinue();
     }
   };
 
@@ -35,7 +27,8 @@ export default function HomePage() {
     if (!files?.length) return;
     const file = files[0];
     if (!file.name.toLowerCase().endsWith(".pdf")) return;
-    router.push(`/book?upload=1&name=${encodeURIComponent(file.name)}`);
+    const result = classifyIntent({ fileName: file.name });
+    router.push(buildIntentUrl(result));
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -65,22 +58,51 @@ export default function HomePage() {
           className="w-full resize-none rounded-xl border border-[var(--border)] bg-[var(--card)] px-4 py-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 transition"
         />
 
+        <Button
+          variant="default"
+          onClick={handleContinue}
+          className="w-full gap-2"
+        >
+          Continue
+          <ArrowRight className="h-4 w-4" />
+        </Button>
+
         <div className="flex gap-2">
           <Button
-            variant="default"
-            onClick={goChat}
-            className="flex-1 gap-1.5"
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push(buildIntentUrl({ target: 'chat', params: text.trim() ? { q: text.trim() } : {} }))}
+            className="flex-1 gap-1.5 text-xs text-[var(--muted-foreground)]"
           >
-            <MessageSquare className="h-4 w-4" />
+            <MessageSquare className="h-3.5 w-3.5" />
             Chat
           </Button>
           <Button
-            variant="secondary"
-            onClick={goCourse}
-            className="flex-1 gap-1.5"
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push(buildIntentUrl({ target: 'course', params: text.trim() ? { topic: text.trim() } : {} }))}
+            className="flex-1 gap-1.5 text-xs text-[var(--muted-foreground)]"
           >
-            <GraduationCap className="h-4 w-4" />
+            <GraduationCap className="h-3.5 w-3.5" />
             Course
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push('/book')}
+            className="flex-1 gap-1.5 text-xs text-[var(--muted-foreground)]"
+          >
+            <BookOpen className="h-3.5 w-3.5" />
+            Library
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push('/notebook')}
+            className="flex-1 gap-1.5 text-xs text-[var(--muted-foreground)]"
+          >
+            <NotebookPen className="h-3.5 w-3.5" />
+            Notebook
           </Button>
         </div>
 
@@ -111,17 +133,6 @@ export default function HomePage() {
             onChange={(e) => handleFiles(e.target.files)}
           />
         </div>
-      </div>
-
-      <div className="flex gap-4 text-xs text-[var(--muted-foreground)]">
-        <button onClick={() => router.push("/book")} className="flex items-center gap-1.5 hover:text-[var(--foreground)] transition">
-          <BookOpen className="h-3.5 w-3.5" />
-          Library
-        </button>
-        <span className="opacity-30">·</span>
-        <button onClick={() => router.push("/knowledge")} className="hover:text-[var(--foreground)] transition">
-          Knowledge Base
-        </button>
       </div>
     </div>
   );
