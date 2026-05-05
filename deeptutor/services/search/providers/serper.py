@@ -38,6 +38,7 @@ class SerperProvider(BaseSearchProvider):
     description = "Google SERP results"
     supports_answer = False  # Raw SERP results, no LLM answer
     BASE_URL = "https://google.serper.dev"
+    API_KEY_ENV_VARS = ("SERPER_API_KEY", "SEARCH_API_KEY")
 
     def search(
         self,
