@@ -148,6 +148,7 @@ export function CourseReader({ courseId }: Props) {
   return (
     <div className="min-h-screen bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
       <ReaderHeader
+        courseId={courseId}
         title={course.title}
         projecting={projecting}
         onOpenToc={() => setTocOpen(true)}
@@ -252,16 +253,48 @@ function ArtifactOverlay({
 }
 
 function ReaderHeader({
+  courseId,
   title,
   projecting,
   onOpenToc,
   onOpenAsClassroom,
 }: {
+  courseId: string;
   title: string;
   projecting: boolean;
   onOpenToc: () => void;
   onOpenAsClassroom: () => void;
 }) {
+  const [downloading, setDownloading] = useState(false);
+  const downloadingRef = useRef(false);
+
+  const downloadPdf = useCallback(async () => {
+    if (downloadingRef.current) return;
+    downloadingRef.current = true;
+    setDownloading(true);
+    try {
+      const res = await fetch('/api/export/course-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ courseId }),
+      });
+      if (!res.ok) { toast.error('PDF export failed'); return; }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 60)}.pdf`;
+      a.click();
+      // Defer revoke so the browser has time to queue the download before the URL is freed.
+      setTimeout(() => URL.revokeObjectURL(url), 100);
+    } catch {
+      toast.error('PDF export failed');
+    } finally {
+      downloadingRef.current = false;
+      setDownloading(false);
+    }
+  }, [courseId, title]);
+
   return (
     <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-neutral-200 bg-white/90 px-4 py-3 backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/90">
       <button
@@ -277,6 +310,15 @@ function ReaderHeader({
       <div className="min-w-0 flex-1 truncate font-serif text-lg text-neutral-900 dark:text-neutral-50">
         {title}
       </div>
+      <button
+        type="button"
+        onClick={() => void downloadPdf()}
+        disabled={downloading}
+        aria-label="Download course as PDF"
+        className="flex shrink-0 items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-3 py-1 text-xs text-neutral-700 transition hover:bg-neutral-50 disabled:cursor-progress disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+      >
+        {downloading ? '…' : '⬇ PDF'}
+      </button>
       <button
         type="button"
         onClick={onOpenAsClassroom}
