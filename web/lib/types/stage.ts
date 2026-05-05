@@ -1,8 +1,7 @@
-// Stage and Scene data types (web/ copy — Phase B.1)
-import type { Slide } from './slides';
-import type { Action } from './action';
+import type { Slide } from '@/lib/types/slides';
+import type { Action } from '@/lib/types/action';
 import type { PBLProjectConfig } from '@/lib/pbl/types';
-import type { WidgetType, WidgetConfig, TeacherAction } from './widgets';
+import type { WidgetType, WidgetConfig, TeacherAction } from '@/lib/types/widgets';
 
 export type SceneType = 'slide' | 'quiz' | 'interactive' | 'pbl';
 
@@ -20,6 +19,11 @@ export interface Stage {
   style?: string;
   whiteboard?: Whiteboard[];
   agentIds?: string[];
+  /**
+   * Server-generated agent configurations embedded in persisted classroom JSON so clients
+   * can hydrate the registry without relying on IndexedDB pre-population.
+   * Only present for API-generated classrooms.
+   */
   generatedAgentConfigs?: Array<{
     id: string;
     name: string;
@@ -29,6 +33,10 @@ export interface Stage {
     color: string;
     priority: number;
   }>;
+  /**
+   * True when generated with Interactive Mode (INTERACTIVE_OUTLINES prompt branch).
+   * Absent on legacy classrooms, imports, and regular-mode generations.
+   */
   interactiveMode?: boolean;
 }
 
