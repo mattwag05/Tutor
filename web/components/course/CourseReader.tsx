@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { useCourseStore } from '@/lib/course/store';
 import type { CourseArtifacts, CourseBlock, CourseCitation, CourseSection } from '@/lib/types/course';
+import { triggerBlobDownload } from '@/lib/utils/blob-download';
 import { CourseTOCDrawer } from './CourseTOCDrawer';
 import { AdvanceBar } from './AdvanceBar';
 import { GoDeeperStrip } from './GoDeeperStrip';
@@ -267,6 +268,8 @@ function ReaderHeader({
 }) {
   const [downloading, setDownloading] = useState(false);
   const downloadingRef = useRef(false);
+  const [exportingSlides, setExportingSlides] = useState(false);
+  const exportingSlidesRef = useRef(false);
 
   const downloadPdf = useCallback(async () => {
     if (downloadingRef.current) return;
@@ -280,18 +283,33 @@ function ReaderHeader({
       });
       if (!res.ok) { toast.error('PDF export failed'); return; }
       const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 60)}.pdf`;
-      a.click();
-      // Defer revoke so the browser has time to queue the download before the URL is freed.
-      setTimeout(() => URL.revokeObjectURL(url), 100);
+      triggerBlobDownload(blob, `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 60)}.pdf`);
     } catch {
       toast.error('PDF export failed');
     } finally {
       downloadingRef.current = false;
       setDownloading(false);
+    }
+  }, [courseId, title]);
+
+  const exportSlides = useCallback(async () => {
+    if (exportingSlidesRef.current) return;
+    exportingSlidesRef.current = true;
+    setExportingSlides(true);
+    try {
+      const res = await fetch('/api/generate/course-slides', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ courseId }),
+      });
+      if (!res.ok) { toast.error('Slides export failed'); return; }
+      const blob = await res.blob();
+      triggerBlobDownload(blob, `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 60)}.pptx`);
+    } catch {
+      toast.error('Slides export failed');
+    } finally {
+      exportingSlidesRef.current = false;
+      setExportingSlides(false);
     }
   }, [courseId, title]);
 
@@ -318,6 +336,15 @@ function ReaderHeader({
         className="flex shrink-0 items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-3 py-1 text-xs text-neutral-700 transition hover:bg-neutral-50 disabled:cursor-progress disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
       >
         {downloading ? '…' : '⬇ PDF'}
+      </button>
+      <button
+        type="button"
+        onClick={() => void exportSlides()}
+        disabled={exportingSlides}
+        aria-label="Export course as PowerPoint slides"
+        className="flex shrink-0 items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-3 py-1 text-xs text-neutral-700 transition hover:bg-neutral-50 disabled:cursor-progress disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+      >
+        {exportingSlides ? '…' : '⬇ Slides'}
       </button>
       <button
         type="button"
