@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { useCourseStore } from '@/lib/course/store';
 import type { CourseArtifacts, CourseBlock, CourseCitation, CourseSection } from '@/lib/types/course';
@@ -19,12 +20,14 @@ import { FlashcardDeck } from './artifacts/FlashcardDeck';
 import { StudyGuideView } from './artifacts/StudyGuideView';
 import { FinalExamView } from './artifacts/FinalExamView';
 import { PodcastPlayer } from './artifacts/PodcastPlayer';
+import { CompletionPage } from '@/components/completion/CompletionPage';
 
 interface Props {
   courseId: string;
 }
 
 export function CourseReader({ courseId }: Props) {
+  const router = useRouter();
   const course = useCourseStore.use.course();
   const loadCourse = useCourseStore.use.loadCourse();
   const generateSection = useCourseStore.use.generateSection();
@@ -36,7 +39,29 @@ export function CourseReader({ courseId }: Props) {
   const [activeArtifact, setActiveArtifact] = useState<
     'podcast' | 'flashcards' | 'studyGuide' | 'finalExam' | null
   >(null);
+  const [projecting, setProjecting] = useState(false);
+  const projectingRef = useRef(false);
   const sectionRefs = useRef<Array<HTMLElement | null>>([]);
+
+  const openAsClassroom = useCallback(async () => {
+    if (projectingRef.current) return;
+    projectingRef.current = true;
+    setProjecting(true);
+    try {
+      const res = await fetch('/api/project/course-to-classroom', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ courseId }),
+      });
+      if (!res.ok) throw new Error('Projection failed');
+      const { id } = (await res.json()) as { id: string };
+      router.push(`/classroom/${id}`);
+    } catch {
+      toast.error('Could not open as classroom. Try again.');
+      projectingRef.current = false;
+      setProjecting(false);
+    }
+  }, [courseId, router]);
 
   useEffect(() => {
     void loadCourse(courseId);
@@ -122,7 +147,12 @@ export function CourseReader({ courseId }: Props) {
 
   return (
     <div className="min-h-screen bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
-      <ReaderHeader title={course.title} onOpenToc={() => setTocOpen(true)} />
+      <ReaderHeader
+        title={course.title}
+        projecting={projecting}
+        onOpenToc={() => setTocOpen(true)}
+        onOpenAsClassroom={() => void openAsClassroom()}
+      />
 
       <CourseTOCDrawer
         course={course}
@@ -146,6 +176,14 @@ export function CourseReader({ courseId }: Props) {
             }}
           />
         ))}
+        {!nextSection && (
+          <CompletionPage
+            title={course.title}
+            type="course"
+            sourceId={courseId}
+            onProjection={() => void openAsClassroom()}
+          />
+        )}
       </main>
 
       <AdvanceBar nextTitle={nextSection?.title} onAdvance={onAdvance} />
@@ -213,7 +251,17 @@ function ArtifactOverlay({
   );
 }
 
-function ReaderHeader({ title, onOpenToc }: { title: string; onOpenToc: () => void }) {
+function ReaderHeader({
+  title,
+  projecting,
+  onOpenToc,
+  onOpenAsClassroom,
+}: {
+  title: string;
+  projecting: boolean;
+  onOpenToc: () => void;
+  onOpenAsClassroom: () => void;
+}) {
   return (
     <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-neutral-200 bg-white/90 px-4 py-3 backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/90">
       <button
@@ -226,9 +274,18 @@ function ReaderHeader({ title, onOpenToc }: { title: string; onOpenToc: () => vo
           ≡
         </span>
       </button>
-      <div className="truncate font-serif text-lg text-neutral-900 dark:text-neutral-50">
+      <div className="min-w-0 flex-1 truncate font-serif text-lg text-neutral-900 dark:text-neutral-50">
         {title}
       </div>
+      <button
+        type="button"
+        onClick={onOpenAsClassroom}
+        disabled={projecting}
+        aria-label="Open as classroom slide deck"
+        className="flex shrink-0 items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-3 py-1 text-xs text-neutral-700 transition hover:bg-neutral-50 disabled:cursor-progress disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+      >
+        {projecting ? '…' : '▶ Classroom'}
+      </button>
     </header>
   );
 }
