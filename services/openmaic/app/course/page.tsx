@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { nanoid } from 'nanoid';
 import { BookOpen, GraduationCap } from 'lucide-react';
 import type {
@@ -23,7 +23,8 @@ const selectClass =
 
 export default function CourseLandingPage() {
   const router = useRouter();
-  const [topic, setTopic] = useState('');
+  const searchParams = useSearchParams();
+  const [topic, setTopic] = useState(() => searchParams.get('topic') ?? '');
   const [language, setLanguage] = useState<Language>('en-US');
   const [depth, setDepth] = useState<CoursePersonalization['depth']>('introductory');
   const [audience, setAudience] = useState<CoursePersonalization['audience']>('student');
