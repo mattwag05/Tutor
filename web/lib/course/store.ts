@@ -29,6 +29,7 @@ interface CourseStoreState {
   ) => void;
   setSectionAudio: (sectionId: string, audio: NonNullable<CourseSection['audio']>) => void;
   markSectionComplete: (sectionId: string) => void;
+  setBlockSrc: (blockId: string, src: string) => void;
 
   loadCourse: (id: string) => Promise<void>;
   generateSection: (sectionId: string) => Promise<void>;
@@ -135,6 +136,25 @@ const useCourseStoreBase = create<CourseStoreState>((set, get) => ({
           ...progress,
           sections: { ...progress.sections, [sectionId]: 'completed' },
         },
+      },
+    });
+    schedulePersist(() => get().course);
+  },
+
+  setBlockSrc: (blockId, src) => {
+    const course = get().course;
+    if (!course) return;
+    set({
+      course: {
+        ...course,
+        sections: course.sections.map((section) => ({
+          ...section,
+          blocks: section.blocks.map((block) =>
+            block.id === blockId && block.type === 'illustration'
+              ? { ...block, src, pending: false }
+              : block,
+          ),
+        })),
       },
     });
     schedulePersist(() => get().course);

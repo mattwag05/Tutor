@@ -21,6 +21,10 @@ export function courseAudioPath(courseId: string, sectionId: string): string {
   return path.join(COURSES_DIR, courseId, 'audio', `${sectionId}.mp3`);
 }
 
+export function courseImagePath(courseId: string, blockId: string): string {
+  return path.join(COURSES_DIR, courseId, 'images', `${blockId}.jpg`);
+}
+
 export async function writeSectionAudio(
   courseId: string,
   sectionId: string,
