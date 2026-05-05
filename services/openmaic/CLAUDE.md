@@ -13,6 +13,7 @@ AI-directed classroom/presentation layer — Next.js full-stack app with scene/o
 - **Phase A.5 landed (DeepTutor-616):** the settings button in `components/header.tsx` now redirects to `/settings` on the DeepTutor frontend (full page load via `window.location.href`). The `<SettingsDialog>` component is left in place but unreachable from the header trigger — Phase B.4 retires `services/openmaic/` as a deployable.
 - **Phase A.6 landed:** DeepTutor's sidebar no longer links externally to OpenMAIC; classroom + course are mounted under the unified `tutor.tail6e035b.ts.net` Caddy origin (parent CLAUDE.md gotcha #12).
 - **Phase B.6 landed:** quiz attempts dual-write through DeepTutor's unified SQLite store via `/api/quiz/attempts` proxy + one-shot localStorage migration runner mounted in root layout (see `lib/quiz/migration.ts`).
+- **Phase B.1 landed (DeepTutor-hrf, 2026-05-05):** generation pipeline + dependencies moved to `web/lib/`. API routes `/api/generate/*`, `/api/web-search`, `/api/chat` now served by web/ (port 3782). `lib/generation/scene-generator|scene-builder|outline-generator.ts` left as throw-stubs; `lib/orchestration/director-prompt|prompt-builder.ts` left as throw-stubs. Phase B.4 retires these stubs when the OpenMAIC Docker service drops.
 
 ---
 
