@@ -163,6 +163,8 @@ npx tsc --noEmit  # TypeScript type check (run from web/ dir)
 
 23. **Cleaning up `.claude/worktrees/` after squash-merge PRs** — claude-spawned worktrees accumulate; their branches look "unmerged" to `git merge-base --is-ancestor` because squash creates new SHAs on `main`. Verify a worktree branch shipped by matching commit subjects in `git log origin/main` AND confirming the change is duplicated in main's tree, then: `git worktree remove [--force] .claude/worktrees/<name> && git branch -D claude/<name>`. Use `--force` if the worktree has uncommitted changes — common stray is `web/next-env.d.ts` flipping between `./.next/types/routes.d.ts` (build) and `./.next/dev/types/routes.d.ts` (dev server), a Next.js artifact safe to discard.
 
+24. **`pnpm tsc --noEmit` in OpenMAIC reports 5–6 known eval-test errors after B.1** — `services/openmaic/tests/eval/` still references `@/eval/shared/*` and `@/eval/outline-language/types` which moved to `web/eval/`. These are expected — B.4 will retire the OpenMAIC service entirely. The production build (`pnpm build`) is clean. Don't treat these as regressions when running verification.
+
 ---
 
 ## Course Builder
