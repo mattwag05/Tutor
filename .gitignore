@@ -298,6 +298,9 @@ celerybeat.pid
 .dolt/
 .beads-credential-key
 
+# Claude Code runtime artifacts
+.claude/scheduled_tasks.lock
+
 # pnpm content-addressed store (used during lockfile regen)
 .pnpm-store/
 **/.pnpm-store/
