@@ -19,17 +19,12 @@ AI-directed classroom/presentation layer — Next.js full-stack app with scene/o
 
 ---
 
-## Quick Start
+## ⚠️ Archive — Do Not Run
 
-```bash
-# Local dev
-pnpm install
-pnpm dev
-
-# Docker (on Pi)
-docker build -t openmaic:latest .
-cd ~/Projects/DeepTutor && docker compose up -d openmaic
-```
+This service is not built or deployed. All classroom and course functionality moved to
+`web/app/classroom/` and `web/app/course/` during Phase B.1–B.4 (completed 2026-05-05).
+The `openmaic` container and `bind tailscale/openmaic` Caddyfile block are removed from Pironman.
+This source tree is preserved for historical reference only.
 
 ---
 
@@ -83,14 +78,15 @@ All integration functions return empty/null when DeepTutor is unavailable. OpenM
 
 ---
 
-## Development
+## Development (Historical Reference Only)
+
+Commands valid before B.4 retirement — kept for reference if studying the architecture.
+Do not run against Pironman; the container and compose entry no longer exist.
 
 ```bash
-pnpm dev          # dev server
-pnpm build        # production build
-pnpm lint         # eslint
-pnpm tsc --noEmit # type check
-npx vitest run tests/generation/  # projection + generation unit tests
+# NOT applicable to current deployment — historical reference only
+# pnpm dev | pnpm build | pnpm lint | pnpm tsc --noEmit
+# npx vitest run tests/generation/
 ```
 
 **Dependencies added for integration:**

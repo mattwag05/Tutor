@@ -133,6 +133,10 @@ npm run build     # production build
 npm run lint      # eslint
 npx tsc --noEmit  # TypeScript type check (run from web/ dir)
 npx vitest run tests/generation/ tests/integrations/ tests/prompts/  # generation pipeline tests
+npm run test:node      # Node-only integration tests (separate from vitest)
+npm run i18n:check     # i18n parity + audit (run after adding/removing locale keys)
+npm run perf:check     # route bundle budget check (requires prior next build)
+npm run audit          # Playwright UI audit (requires next start)
 ```
 
 ---
