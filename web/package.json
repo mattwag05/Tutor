@@ -30,12 +30,13 @@
     "chart.js": "^4.5.1",
     "clsx": "^2.1.1",
     "cytoscape": "^3.33.1",
+    "dexie": "^4.4.2",
     "framer-motion": "^12.24.0",
     "html2canvas": "^1.4.1",
     "i18next": "^25.8.0",
     "js-yaml": "^4.1.1",
-    "jspdf": "^4.2.1",
     "jsonrepair": "^3.13.2",
+    "jspdf": "^4.2.1",
     "lodash": "^4.18.1",
     "lucide-react": "^0.562.0",
     "mermaid": "^11.14.0",
@@ -58,7 +59,8 @@
     "undici": "^7.24.0",
     "unpdf": "^1.4.0",
     "ws": "^8.18.0",
-    "zod": "^4.3.5"
+    "zod": "^4.3.5",
+    "zustand": "^5.0.13"
   },
   "devDependencies": {
     "@playwright/test": "^1.53.2",

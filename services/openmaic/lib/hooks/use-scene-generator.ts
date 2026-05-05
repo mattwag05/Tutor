@@ -6,7 +6,8 @@ import { getCurrentModelConfig } from '@/lib/utils/model-config';
 import { useSettingsStore } from '@/lib/store/settings';
 import { db } from '@/lib/utils/database';
 import type { SceneOutline, PdfImage, ImageMapping } from '@/lib/types/generation';
-import type { AgentInfo } from '@/lib/generation/generation-pipeline';
+// AgentInfo inlined — generation-pipeline moved to web/ in Phase B.1
+interface AgentInfo { id: string; name: string; role: string; persona?: string; }
 import type { Scene } from '@/lib/types/stage';
 import type { SpeechAction } from '@/lib/types/action';
 import { splitLongSpeechActions } from '@/lib/audio/tts-utils';
