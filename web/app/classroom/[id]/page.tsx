@@ -34,10 +34,11 @@ export default function ClassroomDetailPage() {
     projectingRef.current = true;
     setProjecting(true);
     try {
+      const { stage, scenes } = useStageStore.getState();
       const res = await fetch('/api/project/classroom-to-course', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ classroomId }),
+        body: JSON.stringify({ classroomId, stage, scenes }),
       });
       if (!res.ok) throw new Error('Projection failed');
       const { id } = (await res.json()) as { id: string };
