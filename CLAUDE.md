@@ -72,6 +72,21 @@ services/openmaic/           # OpenMAIC (classroom/reader layer) — separate co
 
 Next.js 16 app. Configured via environment variables at build time for API URL.
 
+```
+web/
+├── app/                     # Next.js routes ((workspace)/, chat/, book/, api/)
+├── components/              # Shared UI components (sidebar, notebook, common)
+├── lib/
+│   ├── generation/          # Scene/outline/course generation pipeline (moved from OpenMAIC in B.1)
+│   ├── orchestration/       # Director graph, tool schemas, summarizers
+│   ├── pbl/                 # Project-based learning + MCP agents
+│   ├── prompts/             # Prompt loader + templates
+│   ├── ai/                  # callLLM / streamLLM wrappers
+│   ├── integrations/        # DeepTutor client (health, KB, RAG)
+│   └── types/               # Shared renderer types (action, slides, stage, widgets)
+└── tests/                   # Vitest: generation/, integrations/, prompts/
+```
+
 ### Config files (`config/`)
 
 - `main.yaml` — Agent behavior, RAG settings, tool configuration
@@ -111,6 +126,7 @@ npm run dev       # dev server
 npm run build     # production build
 npm run lint      # eslint
 npx tsc --noEmit  # TypeScript type check (run from web/ dir)
+npx vitest run tests/generation/ tests/integrations/ tests/prompts/  # generation pipeline tests
 ```
 
 ---
@@ -172,6 +188,10 @@ npx tsc --noEmit  # TypeScript type check (run from web/ dir)
 27. **Background fixer subagents share the same working tree.** A subagent dispatched to fix a CI failure on `main` will `git checkout main`, reverting your in-progress branch files. Fence subagents explicitly to avoid touching active branch dirs; after the subagent completes, `git checkout <your-branch>` to restore. The remote branch is unaffected — only the local working tree changes.
 
 28. **`npx tsc --noEmit` in `web/` produces iCloud dupe errors in `.next/types/*.d 2.ts`.** Filter with `grep -v " 2\.ts"` (not just `grep -v eval/`). Source code is clean; the `.next/` build dir accumulates `" 2"`-suffix iCloud artifacts.
+
+29. **`asyncio.run(_poll())` in sync tests doesn't yield to TestClient's background thread.** Routes that use `asyncio.create_task()` schedule work in TestClient's internal event loop thread. `asyncio.run()` creates a separate loop; `await asyncio.sleep(0.05)` in that loop never gives the background task CPU. Fix: use synchronous `time.sleep(0.05)` polling in sync test functions — `time.sleep` releases the GIL so the background thread runs. Affects all of `tests/api/test_spaced_review_route.py`.
+
+30. **Stacked PR rebase after squash-merge: force-push then re-merge.** After squash-merging the base branch into main, run `git rebase origin/main` on the dependent branch — git auto-skips the now-landed commit (`warning: skipped previously applied commit`). Then `git push --force-with-lease` and `sleep 5` before `gh pr merge`. PRs targeting the old base branch gain a spurious merge-conflict state on GitHub until the rebase + push clears it.
 
 ---
 
@@ -313,6 +333,8 @@ The full stack runs on the Pironman (100.126.176.86) via Docker Compose, fronted
 - OpenMAIC (legacy): https://openmaic.tail6e035b.ts.net (→ 127.0.0.1:3101)
 
 **Containers:** `deeptutor`, `openmaic` (caddy-tailscale runs separately under `~/homelab/caddy/pironman/`)
+
+**B.4 (drop OpenMAIC) is blocked:** `/classroom*` and `/course*` route to OpenMAIC (3101); `web/` has no classroom or course pages. Must migrate those UIs to `web/app/classroom/` and `web/app/course/` first (DeepTutor-99w, DeepTutor-568) before removing the service from compose.
 
 **Rebuild & deploy:**
 ```bash

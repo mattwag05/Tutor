@@ -2,7 +2,7 @@
 
 AI-directed classroom/presentation layer — Next.js full-stack app with scene/outline generation, roundtable discussions, quiz grading, PBL, and PPTX export.
 
-**Status:** Integrated with DeepTutor (RAG-enhanced outlines via REST `/query`)
+**Status:** Integrated with DeepTutor (RAG-enhanced outlines via REST `/query`). **Pending retirement in Phase B.4** — classroom/course UI migration to `web/` must land first (DeepTutor-99w, DeepTutor-568).
 **Runtime:** Next.js 16, pnpm, Docker (multi-stage build)
 **Internal Port:** 3000 (per `docker-compose.pironman.yml`'s hardcoded `PORT=3000`); ts-serve.json forwards external 3100 → 3101 — the two have drifted (see DeepTutor CLAUDE.md gotcha #12).
 
@@ -37,14 +37,14 @@ cd ~/Projects/DeepTutor && docker compose up -d openmaic
 
 ### Architecture
 
-OpenMAIC connects to DeepTutor's FastAPI backend over the shared Tailscale network namespace (both containers use `network_mode: service:tailscale-deeptutor`).
+OpenMAIC connects to DeepTutor's FastAPI backend over a shared Docker bridge network (`deeptutor-network`). The `network_mode: service:tailscale-deeptutor` sidecar pattern in `docker-compose.yml` is dev-clone reference only — Pironman's override drops it. See parent CLAUDE.md gotcha #12.
 
 **Integration files:**
 - `lib/integrations/types.ts` — Type definitions, error classes, config interface
 - `lib/integrations/deeptutor-client.ts` — API client (health, KB listing, RAG queries via WebSocket)
 - `lib/integrations/index.ts` — Barrel exports
-- `lib/generation/pipeline-types.ts` — `DeepTutorOptions` type
-- `lib/generation/outline-generator.ts` — RAG context injection into outline generation
+- `lib/generation/pipeline-types.ts` — **throw-stub** (actual code moved to `web/lib/generation/` in B.1)
+- `lib/generation/outline-generator.ts` — **throw-stub** (actual code moved to `web/lib/generation/` in B.1)
 - `app/api/generate/scene-outlines-stream/route.ts` — RAG enrichment in scene outline streaming
 - `app/api/knowledge-bases/route.ts` — KB listing endpoint
 - `app/api/health/route.ts` — Health endpoint with DeepTutor status
@@ -90,6 +90,7 @@ pnpm dev          # dev server
 pnpm build        # production build
 pnpm lint         # eslint
 pnpm tsc --noEmit # type check
+npx vitest run tests/generation/  # projection + generation unit tests
 ```
 
 **Dependencies added for integration:**
