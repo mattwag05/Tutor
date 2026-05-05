@@ -49,6 +49,14 @@ const SECONDARY_NAV: NavEntry[] = [
   { href: "/notebook", label: "Notebook", icon: NotebookIcon },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
+
+const BOTTOM_NAV: NavEntry[] = [
+  { href: "/chat", label: "Chat", icon: MessageSquare },
+  { href: "/read", label: "Read", icon: BookOpen },
+  { href: "/knowledge", label: "Library", icon: Library },
+  { href: "/notebook", label: "Quiz", icon: NotebookIcon },
+];
+
 const DEFAULT_SESSION_VIEWPORT_CLASS_NAME = "max-h-[112px]";
 const GITHUB_REPO_URL = "https://github.com/HKUDS/DeepTutor";
 
@@ -91,10 +99,33 @@ export function SidebarShell({
     router.push("/chat");
   };
 
+  const mobileNav = (
+    <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-14 items-stretch border-t border-[var(--border)] bg-[var(--secondary)] sm:hidden">
+      {BOTTOM_NAV.map((item) => {
+        const active = pathname.startsWith(item.href);
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={`flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] transition-colors ${
+              active
+                ? "text-[var(--foreground)]"
+                : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+            }`}
+          >
+            <item.icon size={20} strokeWidth={active ? 2 : 1.5} />
+            <span>{t(item.label)}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
+
   /* ---- Collapsed state ---- */
   if (collapsed) {
     return (
-      <aside className="group/sb relative flex h-screen w-[60px] shrink-0 flex-col items-center bg-[var(--secondary)] py-3 transition-all duration-200">
+      <>
+      <aside className="group/sb relative hidden h-screen w-[60px] shrink-0 flex-col items-center bg-[var(--secondary)] py-3 transition-all duration-200 sm:flex">
         {/* Header: logo + collapse toggle (toggle replaces logo on hover) */}
         <div className="relative mb-2 flex h-9 w-9 items-center justify-center">
           <Link
@@ -197,12 +228,15 @@ export function SidebarShell({
           <VersionBadge collapsed />
         </div>
       </aside>
+      {mobileNav}
+      </>
     );
   }
 
   /* ---- Expanded state ---- */
   return (
-    <aside className="flex w-[220px] h-screen shrink-0 flex-col bg-[var(--secondary)] transition-all duration-200">
+    <>
+    <aside className="hidden h-screen w-[220px] shrink-0 flex-col bg-[var(--secondary)] transition-all duration-200 sm:flex">
       {/* Header: logo + collapse toggle */}
       <div className="flex h-14 items-center justify-between px-4">
         <Link href="/" className="group flex items-center gap-2">
@@ -320,5 +354,7 @@ export function SidebarShell({
         </div>
       </div>
     </aside>
+    {mobileNav}
+    </>
   );
 }
