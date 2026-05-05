@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import importlib
 from pathlib import Path
+import time
 
 import pytest
 
@@ -196,14 +197,15 @@ def test_failure_during_generation_marks_empty(client, monkeypatch) -> None:
 
     test_client.get("/api/v1/spaced-review/today")
 
-    async def _poll():
-        for _ in range(40):
-            response = test_client.get("/api/v1/spaced-review/today")
-            body = response.json()
-            if body["status"] in {"empty", "ready"}:
-                return body
-            await asyncio.sleep(0.05)
-        return body
+    # Use synchronous polling so time.sleep yields the GIL to TestClient's
+    # internal loop where the background task runs. asyncio.run(_poll()) creates
+    # a separate event loop whose asyncio.sleep never yields to TestClient's loop.
+    body: dict = {"status": "generating"}
+    for _ in range(40):
+        time.sleep(0.05)
+        response = test_client.get("/api/v1/spaced-review/today")
+        body = response.json()
+        if body["status"] in {"empty", "ready"}:
+            break
 
-    body = asyncio.run(_poll())
     assert body["status"] == "empty"
