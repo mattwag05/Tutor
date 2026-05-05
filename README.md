@@ -1,4 +1,4 @@
-> **Fork notice:** This is the [mattwag05/DeepTutor](https://github.com/mattwag05/DeepTutor) fork. It tracks [HKUDS/DeepTutor](https://github.com/HKUDS/DeepTutor) and additionally vendors [THU-MAIC/OpenMAIC](https://github.com/THU-MAIC/OpenMAIC) under `services/openmaic/` with a Course Builder layered on top — an article-reader-style learning experience modeled on [oboe.com](https://oboe.com) (topic prompt → streamed outline → block-typed sections with glossary, citations, and follow-up prompts). Production deployment: https://deeptutor.tail6e035b.ts.net (Pironman). See [CLAUDE.md](CLAUDE.md) and [services/openmaic/CLAUDE.md](services/openmaic/CLAUDE.md) for fork-specific operational details. The rest of this README is upstream's canonical documentation.
+> **Fork notice:** This is the [mattwag05/DeepTutor](https://github.com/mattwag05/DeepTutor) fork. It tracks [HKUDS/DeepTutor](https://github.com/HKUDS/DeepTutor) and layers on a Course Builder (topic prompt → streamed outline → block-typed article reader), a Manifest tier-based LLM router (`tutor-cheap / tutor-balanced / tutor-premium`), a home-page intent classifier, and a PWA with offline spaced-review. OpenMAIC (`services/openmaic/`) is retained as an archive — all classroom and course UIs now live in `web/`. Production: https://deeptutor.tail6e035b.ts.net (Pironman). See [CLAUDE.md](CLAUDE.md) for fork-specific details.
 
 ---
 
@@ -31,6 +31,8 @@
 > 🤝 **We welcome any kinds of contributing!** See our [Contributing Guide](CONTRIBUTING.md) for branching strategy, coding standards, and how to get started.
 
 ### 📦 Releases
+
+> **[2026.5.5]** [v1.4.0](https://github.com/mattwag05/DeepTutor/releases/tag/v1.4.0) *(fork)* — Manifest tier-based LLM router (`tutor-cheap / tutor-balanced / tutor-premium`), home-page intent classifier, PWA manifest + service worker with offline spaced-review, and mobile bottom nav.
 
 > **[2026.5.4]** [v1.3.7](https://github.com/HKUDS/DeepTutor/releases/tag/v1.3.7) — Thinking-model/provider fixes, visible Knowledge index history, and safer Co-Writer clear/template editing.
 

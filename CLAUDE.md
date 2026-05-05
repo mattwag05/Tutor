@@ -2,7 +2,7 @@
 
 AI tutoring platform — multi-agent RAG architecture, Python/FastAPI backend, Next.js frontend.
 
-**Status:** 🔨 In Development (synced from upstream 2026-04-30 → v1.3.7; OpenMAIC retired 2026-05-05 B.4)
+**Status:** 🔨 In Development (synced from upstream 2026-04-30 → v1.3.7; OpenMAIC retired B.4; Manifest router live C.1 2026-05-05)
 **Repo:** https://github.com/mattwag05/DeepTutor.git
 **Upstream:** https://github.com/HKUDS/DeepTutor (main at 445e762)
 **Deployed:** https://deeptutor.tail6e035b.ts.net (Pironman — 100.126.176.86)
@@ -85,11 +85,12 @@ web/
 │   ├── orchestration/       # Director graph, tool schemas, summarizers
 │   ├── pbl/                 # Project-based learning + MCP agents
 │   ├── prompts/             # Prompt loader + templates
-│   ├── ai/                  # callLLM / streamLLM wrappers
+│   ├── ai/                  # callLLM / streamLLM wrappers; manifest/ — Manifest tier-based profile router (C.1)
 │   ├── integrations/        # DeepTutor client (health, KB, RAG)
+│   ├── server/              # Server-only utilities: resolve-profile.ts (Manifest→model), tts/, course-storage.ts
 │   ├── types/               # Shared renderer types (action, slides, stage, widgets)
 │   └── utils/               # Shared utilities: strip-markdown.ts, blob-download.ts
-└── tests/                   # Vitest: generation/, integrations/, prompts/
+└── tests/                   # Vitest: generation/, integrations/, prompts/, ai/
 ```
 
 ### Config files (`config/`)
@@ -238,6 +239,19 @@ Generation pipeline moved from `services/openmaic/lib/generation/` to `web/lib/g
 **Key cross-boundary types:** `web/lib/types/{action,slides,stage,widgets}.ts` are local copies of renderer types (duplicated for build independence). Shim pattern from the plan was replaced by direct copy — same contract, zero additional files.
 
 **Vitest:** 55 generation/integrations/prompts tests now run from `web/tests/` via `cd web && npx vitest run tests/generation/ tests/integrations/ tests/prompts/`.
+
+---
+
+## Manifest Profile Router (Phase C.1, 2026-05-05)
+
+Generation routes pick a **tier** rather than a concrete model. Tiers per PRD §11:
+- `tutor-cheap` — intent classification, quiz grading, summarization (fast/cheap)
+- `tutor-balanced` — chat, section bodies, slide text, podcast narration
+- `tutor-premium` — quiz authoring, outline generation, roundtable director
+
+**Key files:** `web/lib/ai/manifest/profiles.ts` (tier definitions + defaults), `web/lib/server/resolve-profile.ts` (async resolver → `ResolvedModel`). Override per-tier via `data/user/settings/manifest_profiles.json`.
+
+**Adding a new route:** call `resolveModelFromProfile('tutor-balanced')` from `@/lib/server/resolve-profile` — returns a `languageModel` ready for `callLLM`/`streamLLM`. Do not pass `{provider, model}` directly to new routes.
 
 ---
 
