@@ -33,18 +33,20 @@ ENV APP_VERSION=$APP_VERSION
 
 # Copy package files first for better caching
 COPY web/package.json web/package-lock.json* ./
-# Copy vendored workspace packages before npm ci so file: protocol deps resolve
-COPY web/packages/ ./packages/
 
 # Install dependencies with generous timeout for CI environments
-# --install-links copies file: protocol packages as real dirs (not symlinks),
-# which is required for Docker layer caching to resolve them correctly.
 RUN npm config set fetch-timeout 600000 && \
     npm config set fetch-retries 5 && \
-    npm ci --legacy-peer-deps --install-links
+    npm ci --legacy-peer-deps
 
 # Copy frontend source code
 COPY web/ ./
+
+# npm ci creates symlinks for file: protocol deps (pptxgenjs, mathml2omml) that
+# may dangle on case-sensitive (Linux) Docker builds. Replace with real copies.
+RUN rm -rf node_modules/mathml2omml node_modules/pptxgenjs && \
+    cp -r packages/mathml2omml node_modules/mathml2omml && \
+    cp -r packages/pptxgenjs node_modules/pptxgenjs
 
 # Create .env.local with placeholder that will be replaced at runtime
 # Use a unique placeholder that can be safely replaced
