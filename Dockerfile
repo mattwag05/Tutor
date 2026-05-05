@@ -33,6 +33,8 @@ ENV APP_VERSION=$APP_VERSION
 
 # Copy package files first for better caching
 COPY web/package.json web/package-lock.json* ./
+# Copy vendored workspace packages before npm ci so file: protocol deps resolve
+COPY web/packages/ ./packages/
 
 # Install dependencies with generous timeout for CI environments
 RUN npm config set fetch-timeout 600000 && \
