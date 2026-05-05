@@ -112,17 +112,16 @@ def test_full_lifecycle_to_ready(client, monkeypatch) -> None:
 
     test_client.get("/api/v1/spaced-review/today")
 
-    # Drain the background task. Polling for up to 2s.
-    async def _poll():
-        for _ in range(40):
-            response = test_client.get("/api/v1/spaced-review/today")
-            body = response.json()
-            if body["status"] == "ready":
-                return body
-            await asyncio.sleep(0.05)
-        return body
+    # Synchronous poll: time.sleep releases the GIL so TestClient's internal
+    # event loop thread can run the background task to completion.
+    body: dict = {"status": "generating"}
+    for _ in range(40):
+        time.sleep(0.05)
+        response = test_client.get("/api/v1/spaced-review/today")
+        body = response.json()
+        if body["status"] == "ready":
+            break
 
-    body = asyncio.run(_poll())
     assert body["status"] == "ready"
     assert len(body["items"]) == 2
     assert {item["source_question_id"] for item in body["items"]} == {"qA", "qB"}
@@ -142,16 +141,14 @@ def test_empty_when_no_candidates(client, monkeypatch) -> None:
 
     test_client.get("/api/v1/spaced-review/today")
 
-    async def _poll():
-        for _ in range(40):
-            response = test_client.get("/api/v1/spaced-review/today")
-            body = response.json()
-            if body["status"] == "empty":
-                return body
-            await asyncio.sleep(0.05)
-        return body
+    body: dict = {"status": "generating"}
+    for _ in range(40):
+        time.sleep(0.05)
+        response = test_client.get("/api/v1/spaced-review/today")
+        body = response.json()
+        if body["status"] == "empty":
+            break
 
-    body = asyncio.run(_poll())
     assert body["status"] == "empty"
     assert body["items"] == []
 
@@ -173,14 +170,11 @@ def test_ready_response_is_cached(client, monkeypatch) -> None:
 
     test_client.get("/api/v1/spaced-review/today")
 
-    async def _wait_ready():
-        for _ in range(40):
-            response = test_client.get("/api/v1/spaced-review/today")
-            if response.json()["status"] == "ready":
-                return
-            await asyncio.sleep(0.05)
+    for _ in range(40):
+        time.sleep(0.05)
+        if test_client.get("/api/v1/spaced-review/today").json()["status"] == "ready":
+            break
 
-    asyncio.run(_wait_ready())
     # Cached: subsequent calls do not re-pick.
     test_client.get("/api/v1/spaced-review/today")
     test_client.get("/api/v1/spaced-review/today")
