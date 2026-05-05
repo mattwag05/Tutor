@@ -1,4 +1,9 @@
 /** @type {import('next').NextConfig} */
+const withSerwist = require("@serwist/next").default({
+  swSrc: "app/sw.ts",
+  swDest: "public/sw.js",
+  disable: process.env.NODE_ENV === "development",
+});
 
 // Resolve the build-time application version. Priority:
 //   1. Explicit APP_VERSION env (set by CI from the release tag)
@@ -60,4 +65,4 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+module.exports = withSerwist(nextConfig);

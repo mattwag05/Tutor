@@ -133,6 +133,10 @@ npm run build     # production build
 npm run lint      # eslint
 npx tsc --noEmit  # TypeScript type check (run from web/ dir)
 npx vitest run tests/generation/ tests/integrations/ tests/prompts/  # generation pipeline tests
+npm run test:node      # Node-only integration tests (separate from vitest)
+npm run i18n:check     # i18n parity + audit (run after adding/removing locale keys)
+npm run perf:check     # route bundle budget check (requires prior next build)
+npm run audit          # Playwright UI audit (requires next start)
 ```
 
 ---
@@ -204,6 +208,12 @@ npx vitest run tests/generation/ tests/integrations/ tests/prompts/  # generatio
 32. **`tests.yml` CI path filter excludes `web/`** — the workflow only runs on `deeptutor/**`, `tests/**`, `requirements/**`, `pyproject.toml`. PRs that only touch `web/` will show no CI runs on GitHub. Don't wait for green CI on web-only PRs — there won't be any check to wait on. The docker-release workflow has its own trigger (push to main, not PRs).
 
 33. **`Buffer.buffer` for `Response` body needs `.slice()` due to pool sharing.** Node's `Buffer` objects share a backing `ArrayBuffer` from a pool, so `buf.buffer` has non-zero `byteOffset`. `new Response(buf.buffer, ...)` sends the entire pool. Fix: `buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer`. Affects all course API routes that return binary data (PDF, PPTX, images): `web/app/api/export/course-pdf/`, `web/app/api/generate/course-slides/`, `web/app/api/course/[id]/image/[blockId]/`.
+
+34. **`@serwist/next` service worker setup has three gotchas** — (a) Install with `--legacy-peer-deps` due to Next.js peer dep conflict: `npm install @serwist/next serwist --save --legacy-peer-deps`. (b) Exclude `"app/sw.ts"` from tsconfig `"exclude"` — `webworker` globals conflict with the `dom` lib; serwist compiles the SW independently during `next build`. (c) Add an SSE exclusion to any `NetworkFirst` `/api/*` catch-all: `request.headers.get("accept") !== "text/event-stream"` — without it, `/api/chat` and `/api/generate/*-stream` streaming routes get intercepted and partial payloads are stored in the SW cache.
+
+35. **Session-summary file existence is not guaranteed** — when resuming from a compacted session, "file X was created but not committed" may mean the write never landed on disk (context cleared before execution). Always `ls` / `git status` on the branch before treating described-but-uncommitted work as present. Re-create from scratch if files are missing.
+
+36. **`bd close <id>` fails when blocked by open issues** — use `bd close <id> --force` to override dependency blocks when the blocking bead was shipped in the same PR batch.
 
 ---
 
