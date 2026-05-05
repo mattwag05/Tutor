@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BookOpen, MessageSquare, GraduationCap, Upload } from "lucide-react";
-import Button from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 
 export default function HomePage() {
   const router = useRouter();
@@ -67,21 +67,19 @@ export default function HomePage() {
 
         <div className="flex gap-2">
           <Button
-            variant="primary"
-            size="md"
-            icon={<MessageSquare className="h-4 w-4" />}
+            variant="default"
             onClick={goChat}
-            className="flex-1"
+            className="flex-1 gap-1.5"
           >
+            <MessageSquare className="h-4 w-4" />
             Chat
           </Button>
           <Button
             variant="secondary"
-            size="md"
-            icon={<GraduationCap className="h-4 w-4" />}
             onClick={goCourse}
-            className="flex-1"
+            className="flex-1 gap-1.5"
           >
+            <GraduationCap className="h-4 w-4" />
             Course
           </Button>
         </div>
