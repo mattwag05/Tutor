@@ -74,7 +74,11 @@ export function createLocalStageAPI(store: StageStore): SceneAPI {
             createdAt: Date.now(),
             updatedAt: Date.now(),
           };
-          const newScenes = [...state.scenes, newScene].sort((a, b) => a.order - b.order);
+          // Only sort when a specific order was requested; auto-assigned order is always last.
+          const newScenes =
+            params.order !== undefined
+              ? [...state.scenes, newScene].sort((a, b) => a.order - b.order)
+              : [...state.scenes, newScene];
           store.setState({ scenes: newScenes });
           return { success: true, data: sceneId };
         } catch (error) {

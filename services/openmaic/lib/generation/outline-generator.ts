@@ -8,6 +8,6 @@ export async function generateSceneOutlinesFromRequirements(..._args: any[]): Pr
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function applyOutlineFallbacks(outline: any, _hasLanguageModel?: any): any {
-  return outline;
+export function applyOutlineFallbacks(..._args: any[]): any {
+  throw new Error('applyOutlineFallbacks: use web/lib/generation (Phase B.1)');
 }
