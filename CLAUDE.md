@@ -135,7 +135,7 @@ npm run dev       # dev server
 npm run build     # production build
 npm run lint      # eslint
 npx tsc --noEmit  # TypeScript type check (run from web/ dir)
-npx vitest run tests/generation/ tests/integrations/ tests/prompts/  # generation pipeline tests
+npx vitest run tests/generation/ tests/integrations/ tests/prompts/ tests/intent/  # generation + intent tests
 npm run test:node      # Node-only integration tests (separate from vitest)
 npm run i18n:check     # i18n parity + audit (run after adding/removing locale keys)
 npm run perf:check     # route bundle budget check (requires prior next build)
@@ -158,7 +158,7 @@ npm run audit          # Playwright UI audit (requires next start)
 
 6. **Sidebar refactored to directory** — Upstream refactored `Sidebar.tsx` into `sidebar/SidebarShell.tsx`, `WorkspaceSidebar.tsx`, and `UtilitySidebar.tsx`. Classroom nav routes to `/classroom` within web/ (same-origin, no `external` field). OpenMAIC external link retired in B.4.
 
-7. **i18n system (backend/OpenMAIC)** — Upstream replaced the old per-file `.ts` translation approach with i18next + JSON locale files at `lib/i18n/locales/{en-US,zh-CN,ja-JP,ru-RU}.json`. All KB toolbar strings are under the `toolbar` namespace. When adding new UI strings to OpenMAIC components, add keys to all four locale files. **For `web/` UI strings, see gotcha #16 — only 2 locales, flat dot-notation keys.**
+7. **i18n system (backend)** — Upstream replaced the old per-file `.ts` translation approach with i18next + JSON locale files at `lib/i18n/locales/{en-US,zh-CN,ja-JP,ru-RU}.json`. All KB toolbar strings are under the `toolbar` namespace. **For `web/` UI strings, see gotcha #16 — only 2 locales, flat dot-notation keys.** (OpenMAIC i18n is moot — `services/openmaic/` is archived.)
 
 8. **WebSocket disconnect handling** — Course router's `except` block tries to `send_json` on a closed WebSocket, causing `RuntimeError: Cannot call "send" once a close message has been sent`. Wrap sends in the error handler with a `WebSocketDisconnect` catch.
 
@@ -251,7 +251,7 @@ Generation pipeline moved from `services/openmaic/lib/generation/` to `web/lib/g
 
 **Key cross-boundary types:** `web/lib/types/{action,slides,stage,widgets}.ts` are local copies of renderer types (duplicated for build independence). Shim pattern from the plan was replaced by direct copy — same contract, zero additional files.
 
-**Vitest:** 55 generation/integrations/prompts tests now run from `web/tests/` via `cd web && npx vitest run tests/generation/ tests/integrations/ tests/prompts/`.
+**Vitest:** 72 generation/integrations/prompts/intent tests now run from `web/tests/` via `cd web && npx vitest run tests/generation/ tests/integrations/ tests/prompts/ tests/intent/`.
 
 ---
 
@@ -265,6 +265,33 @@ Generation routes pick a **tier** rather than a concrete model. Tiers per PRD §
 **Key files:** `web/lib/ai/manifest/profiles.ts` (tier definitions + defaults), `web/lib/server/resolve-profile.ts` (async resolver → `ResolvedModel`). Override per-tier via `data/user/settings/manifest_profiles.json`.
 
 **Adding a new route:** call `resolveModelFromProfile('tutor-balanced')` from `@/lib/server/resolve-profile` — returns a `languageModel` ready for `callLLM`/`streamLLM`. Do not pass `{provider, model}` directly to new routes.
+
+---
+
+## Intent Router (Phase C.3, 2026-05-05)
+
+Home-page routing based on what the user types or drops. Single **Continue →** button replaces the old Chat/Course split; ghost overflow buttons remain for explicit overrides.
+
+**Key files:**
+- `web/lib/intent/classify.ts` — `classifyIntent({text?, fileName?})` → `IntentTarget` (`chat` | `course` | `book` | `notebook`)
+- `web/app/(workspace)/page.tsx` — wires `classifyIntent` to the Continue button; passes `?topic=` or `?q=` to the target route
+
+**Routing rules (in order):** PDF/EPUB filename → `book`; short question (ends `?`, starts wh-word) → `chat`; 1–5 words, no question marks → `course`; long text or markdown → `notebook`; default → `chat`.
+
+**Tests:** `web/tests/intent/classify.test.ts` (17 cases, also tests `buildIntentUrl`). Uses `tutor-cheap` Manifest tier.
+
+---
+
+## PWA / Mobile (Phase C.4, 2026-05-05)
+
+Progressive Web App support and narrow-viewport bottom navigation.
+
+**Key files:**
+- `web/app/manifest.ts` — Next.js metadata route; standalone display, orange brand (`#F97316`), icons at `web/public/icons/`
+- `web/app/sw.ts` — `@serwist/next` service worker: SWR for `/api/v1/spaced-review/today` (offline quiz cache), CacheFirst for `/_next/static`, NetworkFirst for `/api/*` (SSE routes excluded — see gotcha #34)
+- `web/components/sidebar/SidebarShell.tsx` — mobile bottom nav (`<640px`): Chat / Read / Library / Quiz; sidebar hidden on narrow viewports
+
+**Install:** `@serwist/next` installed with `--legacy-peer-deps`. `app/sw.ts` excluded from `tsconfig.json` — see gotcha #34 for all three setup gotchas.
 
 ---
 
@@ -296,7 +323,7 @@ upstream  https://github.com/HKUDS/DeepTutor.git      (HKUDS original)
 ```
 
 **Branches:**
-- `main` — fork of HKUDS/DeepTutor (last upstream merge: v1.3.7 / 93891789, 2026-04-30) + all local customizations (B.1–B.5)
+- `main` — fork of HKUDS/DeepTutor (last upstream merge: v1.3.7 / 93891789, 2026-04-30) + all local customizations (B.1–B.5, C.1–C.4)
 - `backup-pre-upstream-sync` — snapshot of old codebase before upstream sync
 
 To sync upstream changes:
