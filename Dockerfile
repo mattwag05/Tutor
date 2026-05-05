@@ -37,9 +37,11 @@ COPY web/package.json web/package-lock.json* ./
 COPY web/packages/ ./packages/
 
 # Install dependencies with generous timeout for CI environments
+# --install-links copies file: protocol packages as real dirs (not symlinks),
+# which is required for Docker layer caching to resolve them correctly.
 RUN npm config set fetch-timeout 600000 && \
     npm config set fetch-retries 5 && \
-    npm ci --legacy-peer-deps
+    npm ci --legacy-peer-deps --install-links
 
 # Copy frontend source code
 COPY web/ ./
