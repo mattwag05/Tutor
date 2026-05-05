@@ -73,7 +73,12 @@ Next.js 16 app. Configured via environment variables at build time for API URL.
 
 ```
 web/
-├── app/                     # Next.js routes ((workspace)/, chat/, book/, classroom/, course/, api/)
+├── app/
+│   ├── (workspace)/         # Main workspace: chat, book, co-writer, agents, playground, knowledge, notebook, space
+│   ├── (utility)/           # Utility panels: settings, memory
+│   ├── classroom/           # Classroom viewer
+│   ├── course/              # Course builder + reader + word-quest
+│   └── api/                 # Next.js API routes (/api/generate/*, /api/export/*, /api/course/*, /api/project/*)
 ├── components/              # Shared UI components (sidebar, notebook, common)
 ├── lib/
 │   ├── generation/          # Scene/outline/course generation pipeline (moved from OpenMAIC in B.1)
@@ -82,7 +87,8 @@ web/
 │   ├── prompts/             # Prompt loader + templates
 │   ├── ai/                  # callLLM / streamLLM wrappers
 │   ├── integrations/        # DeepTutor client (health, KB, RAG)
-│   └── types/               # Shared renderer types (action, slides, stage, widgets)
+│   ├── types/               # Shared renderer types (action, slides, stage, widgets)
+│   └── utils/               # Shared utilities: strip-markdown.ts, blob-download.ts
 └── tests/                   # Vitest: generation/, integrations/, prompts/
 ```
 
@@ -243,7 +249,7 @@ Daily micro-quiz variant system at `deeptutor/services/spaced_review/`. On first
 
 ## Dropbox Conflict Artifacts
 
-The working tree periodically accumulates `* 2.{py,ts,tsx,md,...}` duplicate files from iCloud/Dropbox sync. Verify they're byte-identical to their non-`2` counterparts (`diff -q`), then bulk-move to `~/.Trash/deeptutor-dupes-<date>/` BEFORE any `git merge` or `git pull` — they otherwise pollute merge commits. Python faster than shell for the bulk move: loop `git status --porcelain`, filter `' 2\.[A-Za-z0-9]+$'`, `shutil.move`.
+The working tree periodically accumulates `* 2.{py,ts,tsx,md,...}` duplicate **files** AND `* 2` duplicate **directories** from iCloud sync. In `web/`, the dupes are mostly directories (e.g. `lib/server/tts 2`, `app/(workspace)/agents 2`, `lib/prompts/templates 2`) — 20+ at last count. Directory dupes silently shadow real content and can confuse `tsc`. Verify they're byte-identical to their non-`2` counterparts (`diff -rq`), then bulk-move to `~/.Trash/deeptutor-dupes-<date>/` BEFORE any `git merge` or `git pull` — they otherwise pollute merge commits. Python faster than shell for the bulk move: loop `git status --porcelain`, filter `' 2\b'`, `shutil.move`.
 
 ---
 
@@ -251,27 +257,7 @@ The working tree periodically accumulates `* 2.{py,ts,tsx,md,...}` duplicate fil
 
 **DeepTutor upstream:** `git fetch upstream && git merge upstream/main` — accept upstream deletion of `docs/roadmap.md` and `docs/guide/docker-start.md` (fork customization notes live in `AGENTS.md` / `CLAUDE.md` instead, not in the docs tree).
 
-**OpenMAIC upstream** — **Archive-only post-B.4 (retired 2026-05-05). No further upstream syncs needed.** Historical procedure preserved below for reference only.
-
-(vendored, NOT a submodule):
-1. Once-only: `git remote add upstream-openmaic https://github.com/THU-MAIC/OpenMAIC.git`
-2. Sync: worktree-overlay 3-way merge. Create worktree of `upstream-openmaic/main` at `/tmp/openmaic-upstream`, `rsync -a --exclude=.git --exclude=node_modules --exclude=.next --exclude='.env*'` into `services/openmaic/`. Back up the protected customization files first. Then for each protected file, run `git merge-file --marker-size=7 <backup> <d797e42:path> <rsynced>` — `d797e42` is the initial vendor commit and serves as the natural merge base.
-3. **Protected files list** (3-way merge these, never blind-overwrite):
-   - `CLAUDE.md`, `Dockerfile`
-   - `app/api/generate/scene-outlines-stream/route.ts`
-   - `app/api/health/route.ts`, `app/api/knowledge-bases/route.ts`
-   - `app/generation-preview/{page,types}.tsx`, `app/page.tsx`
-   - `components/generation/generation-toolbar.tsx`
-   - `lib/generation/{generation-pipeline,outline-generator,pipeline-types}.ts`
-   - `lib/integrations/*`, `lib/i18n/locales/*.json`, `package.json`
-4. **Course Builder fork-local paths** (entirely fork-only — upstream has no `course/` namespace; restore from backup after `--delete` rsync, do not 3-way merge):
-   - `app/course/**`, `app/api/course/**`
-   - `app/api/generate/course-outline-stream/**`, `app/api/generate/course-section/**`, `app/api/generate/course-audio/**`
-   - `components/course/**`
-   - `lib/course/**`, `lib/server/course-storage.ts`, `lib/server/tts/**`, `lib/types/course.ts`
-   - `lib/generation/prompts/templates/course-outline/**`, `lib/generation/prompts/templates/course-section/**`
-   - After restore, verify `lib/generation/prompts/types.ts` `PromptId` union and `lib/generation/prompts/index.ts` `PROMPT_IDS` still include `course-outline` and `course-section`.
-5. **Never** use `git subtree pull` on OpenMAIC — it was added via plain file copy (not `git subtree add`), so subtree tooling produces 60+ spurious add/add conflicts.
+**OpenMAIC upstream** — Archive-only post-B.4 (retired 2026-05-05). No further upstream syncs needed or possible.
 
 ---
 
@@ -283,7 +269,7 @@ upstream  https://github.com/HKUDS/DeepTutor.git      (HKUDS original)
 ```
 
 **Branches:**
-- `main` — latest upstream + all local customizations (DeepTutor synced to v1.3.3 on 2026-04-30; OpenMAIC at 10b1fc83 / v0.2.1+6, no upstream changes since 2026-04-22)
+- `main` — fork of HKUDS/DeepTutor (last upstream merge: v1.3.7 / 93891789, 2026-04-30) + all local customizations (B.1–B.5)
 - `backup-pre-upstream-sync` — snapshot of old codebase before upstream sync
 
 To sync upstream changes:
