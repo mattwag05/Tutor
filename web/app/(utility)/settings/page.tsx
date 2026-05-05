@@ -27,12 +27,15 @@ import { useTranslation } from "react-i18next";
 import { writeStoredLanguage } from "@/context/app-shell-storage";
 import { apiUrl } from "@/lib/api";
 import { setTheme as applyThemePreference } from "@/lib/theme";
+import {
+  DEFAULT_MANIFEST_PROFILES,
+  MANIFEST_TIERS,
+  type ManifestTier,
+} from "@/lib/ai/manifest/profiles";
 
 // "manifest" is the Manifest-tier LLM surface; "llm" catalog still exists in
 // the backend but is no longer surfaced as a first-class tab (C.2).
 type ServiceName = "manifest" | "embedding" | "search";
-
-type ManifestTier = "tutor-cheap" | "tutor-balanced" | "tutor-premium";
 
 type ManifestProfileEntry = {
   model: string;
@@ -43,6 +46,12 @@ type ManifestProfileEntry = {
 };
 
 type ManifestProfiles = Partial<Record<ManifestTier, ManifestProfileEntry>>;
+
+const TIER_LABELS: Record<ManifestTier, string> = {
+  "tutor-cheap": "Cheap",
+  "tutor-balanced": "Balanced",
+  "tutor-premium": "Premium",
+};
 
 // Canonical agent key → human label
 const AGENT_LABELS: Record<string, string> = {
@@ -652,16 +661,11 @@ function SettingsPageContent() {
   const [tourGuideStep, setTourGuideStep] = useState(-1);
 
   // Manifest profiles + agent tier state (C.2)
-  const MANIFEST_DEFAULTS: Record<ManifestTier, ManifestProfileEntry> = {
-    "tutor-cheap": { model: "anthropic/claude-haiku-4-5-20251001", description: "Fast — intent, grading, summarization" },
-    "tutor-balanced": { model: "anthropic/claude-sonnet-4", description: "General — chat, bodies, slide text" },
-    "tutor-premium": { model: "anthropic/claude-sonnet-4-5-20251001", description: "Capable — quiz, outline, director" },
-  };
   const [manifestProfiles, setManifestProfiles] = useState<Record<ManifestTier, ManifestProfileEntry>>(
-    MANIFEST_DEFAULTS,
+    DEFAULT_MANIFEST_PROFILES,
   );
   const [manifestDraft, setManifestDraft] = useState<Record<ManifestTier, ManifestProfileEntry>>(
-    MANIFEST_DEFAULTS,
+    DEFAULT_MANIFEST_PROFILES,
   );
   const [agentTiers, setAgentTiers] = useState<AgentTiers>({});
   const [agentTiersDraft, setAgentTiersDraft] = useState<AgentTiers>({});
@@ -1463,13 +1467,8 @@ function SettingsPageContent() {
             <div className="space-y-6">
               {/* Tier rows */}
               <div className="overflow-hidden rounded-xl border border-[var(--border)]/60">
-                {(["tutor-cheap", "tutor-balanced", "tutor-premium"] as ManifestTier[]).map((tier, idx) => {
+                {MANIFEST_TIERS.map((tier, idx) => {
                   const entry = manifestDraft[tier] ?? { model: "" };
-                  const TIER_LABELS: Record<ManifestTier, string> = {
-                    "tutor-cheap": "Cheap",
-                    "tutor-balanced": "Balanced",
-                    "tutor-premium": "Premium",
-                  };
                   return (
                     <div
                       key={tier}
@@ -1539,9 +1538,9 @@ function SettingsPageContent() {
                         onChange={(e) => setAgentTiersDraft((prev) => ({ ...prev, [agentKey]: e.target.value as ManifestTier }))}
                         className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 py-1 text-[12px] text-[var(--foreground)] outline-none focus:border-[var(--ring)]"
                       >
-                        <option value="tutor-cheap">Cheap</option>
-                        <option value="tutor-balanced">Balanced</option>
-                        <option value="tutor-premium">Premium</option>
+                        {MANIFEST_TIERS.map((t) => (
+                          <option key={t} value={t}>{TIER_LABELS[t]}</option>
+                        ))}
                       </select>
                     </div>
                   ))}

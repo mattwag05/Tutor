@@ -40,3 +40,5 @@ export const DEFAULT_MANIFEST_PROFILES: Record<ManifestTier, ManifestProfileConf
     description: 'Capable — quiz authoring, course outline, roundtable director',
   },
 };
+
+export const MANIFEST_TIERS = Object.keys(DEFAULT_MANIFEST_PROFILES) as ManifestTier[];

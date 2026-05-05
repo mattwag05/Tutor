@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { NextResponse } from 'next/server';
-import { DEFAULT_MANIFEST_PROFILES, type ManifestTier } from '@/lib/ai/manifest/profiles';
+import { DEFAULT_MANIFEST_PROFILES, MANIFEST_TIERS, type ManifestTier } from '@/lib/ai/manifest/profiles';
 import type { ManifestProfileConfig } from '@/lib/ai/manifest/profiles';
 
 const PROFILES_PATH = path.join(process.cwd(), 'data/user/settings/manifest_profiles.json');
@@ -22,12 +22,9 @@ async function loadProfiles(): Promise<Partial<Record<ManifestTier, ManifestProf
 
 export async function GET() {
   const saved = await loadProfiles();
-  // Merge saved overrides on top of defaults so the UI always sees all three tiers
-  const merged: Record<ManifestTier, ManifestProfileConfig> = {
-    'tutor-cheap': { ...DEFAULT_MANIFEST_PROFILES['tutor-cheap'], ...saved['tutor-cheap'] },
-    'tutor-balanced': { ...DEFAULT_MANIFEST_PROFILES['tutor-balanced'], ...saved['tutor-balanced'] },
-    'tutor-premium': { ...DEFAULT_MANIFEST_PROFILES['tutor-premium'], ...saved['tutor-premium'] },
-  };
+  const merged = Object.fromEntries(
+    MANIFEST_TIERS.map((tier) => [tier, { ...DEFAULT_MANIFEST_PROFILES[tier], ...saved[tier] }]),
+  ) as Record<ManifestTier, ManifestProfileConfig>;
   return NextResponse.json({ profiles: merged });
 }
 
@@ -37,8 +34,7 @@ export async function PUT(request: Request) {
     if (!body?.profiles || typeof body.profiles !== 'object') {
       return NextResponse.json({ error: 'profiles object required' }, { status: 422 });
     }
-    const validTiers: ManifestTier[] = ['tutor-cheap', 'tutor-balanced', 'tutor-premium'];
-    const invalidKeys = Object.keys(body.profiles).filter((k) => !validTiers.includes(k as ManifestTier));
+    const invalidKeys = Object.keys(body.profiles).filter((k) => !MANIFEST_TIERS.includes(k as ManifestTier));
     if (invalidKeys.length > 0) {
       return NextResponse.json({ error: `Unknown tiers: ${invalidKeys.join(', ')}` }, { status: 422 });
     }
