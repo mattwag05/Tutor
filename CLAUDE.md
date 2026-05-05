@@ -186,11 +186,17 @@ npx vitest run tests/generation/ tests/integrations/ tests/prompts/  # generatio
 
 27. **`asyncio.run(_poll())` in sync tests doesn't yield to TestClient's background thread.** Routes that use `asyncio.create_task()` schedule work in TestClient's internal event loop thread. `asyncio.run()` creates a separate loop; `await asyncio.sleep(0.05)` in that loop never gives the background task CPU. Fix: use synchronous `time.sleep(0.05)` polling in sync test functions — `time.sleep` releases the GIL so the background thread runs. Affects all of `tests/api/test_spaced_review_route.py`.
 
-28. **Stacked PR rebase after squash-merge: force-push then re-merge.** After squash-merging the base branch into main, run `git rebase origin/main` on the dependent branch — git auto-skips the now-landed commit (`warning: skipped previously applied commit`). Then `git push --force-with-lease` and `sleep 5` before `gh pr merge`. PRs targeting the old base branch gain a spurious merge-conflict state on GitHub until the rebase + push clears it.
+28. **Stacked PR rebase after squash-merge: force-push then re-merge.** After squash-merging the base branch into main, run `git rebase origin/main` on the dependent branch — git auto-skips the now-landed commit (`warning: skipped previously applied commit`). Then `git push --force` (NOT `--force-with-lease` — the lease check fails with "stale info" because the local tracking ref is stale after rebase) and `sleep 5` before `gh pr merge`. PRs targeting the old base branch gain a spurious merge-conflict state on GitHub until the rebase + push clears it.
 
 29. **`web/i18n/init.ts` sets `returnEmptyString: false`** — i18next returns the key name (not `""`) when a translation value is an empty string. For intentionally-empty English translations (e.g. `quiz.totalPrefix` — no prefix word in English), use `" "` (single space) instead of `""`. The space is invisible in rendered HTML but satisfies the non-empty check.
 
 30. **Client-generated classrooms are IndexedDB-only — server filesystem misses them.** `lib/server/classroom-storage.ts` reads from `data/classrooms/<id>.json` on disk. Browser-generated classrooms are never written there. Any server route that reads a classroom (e.g. `classroom-to-course`) must accept inline `stage` + `scenes` from the request body as a fallback when the filesystem lookup returns null.
+
+31. **`.beads/issues.jsonl` dirty after any `bd` write blocks `git checkout`.** `bd close`, `bd update --claim`, etc. write to `.beads/issues.jsonl` immediately. During stacked-PR merge flows, `git checkout <next-branch>` will abort with "local changes would be overwritten." Fix: `git stash` before checkout; the stash is safe to leave dangling (beads re-syncs from Dolt on next `bd` call). Pop with `git stash pop` when done or when returning to the branch.
+
+32. **`tests.yml` CI path filter excludes `web/`** — the workflow only runs on `deeptutor/**`, `tests/**`, `requirements/**`, `pyproject.toml`. PRs that only touch `web/` will show no CI runs on GitHub. Don't wait for green CI on web-only PRs — there won't be any check to wait on. The docker-release workflow has its own trigger (push to main, not PRs).
+
+33. **`Buffer.buffer` for `Response` body needs `.slice()` due to pool sharing.** Node's `Buffer` objects share a backing `ArrayBuffer` from a pool, so `buf.buffer` has non-zero `byteOffset`. `new Response(buf.buffer, ...)` sends the entire pool. Fix: `buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer`. Affects all course API routes that return binary data (PDF, PPTX, images): `web/app/api/export/course-pdf/`, `web/app/api/generate/course-slides/`, `web/app/api/course/[id]/image/[blockId]/`.
 
 ---
 
@@ -204,6 +210,12 @@ The Course Builder (Oboe.com-style article reader) now lives in `web/`. Entry po
 - `web/lib/course/store.ts` — zustand client store
 
 Classrooms can be projected to a course via the "📖 Course" button (calls `POST /api/project/classroom-to-course`, which materializes scenes as course sections). Parallel to the slide-based classroom.
+
+**Course artifacts (all shipped B.5, 2026-05-05):**
+- **PDF export** — `web/lib/server/course-pdf.ts` (Playwright render), route `web/app/api/export/course-pdf/route.ts`. Requires `playwright` and `pdf-lib` in `web/`.
+- **Slide export** — `web/lib/course/slides-adapter.ts` + `web/app/api/generate/course-slides/route.ts`. Uses vendored `pptxgenjs` at `web/packages/pptxgenjs`. Returns PPTX; see gotcha #33 for Buffer slicing.
+- **Illustration pipeline** — `web/app/api/generate/course-illustration/route.ts`, feature-flagged (`ENABLE_COURSE_ILLUSTRATIONS=true`). Does NOT call `writeCourse()` — client `schedulePersist` serializes all block src updates; concurrent server writes would race and lose earlier URLs.
+- **Word Quest game** — `web/app/course/[id]/word-quest/page.tsx`. Extracts `{{term:X}}` tokens from prose blocks; no LLM call. Shared utilities: `web/lib/utils/strip-markdown.ts`, `web/lib/utils/blob-download.ts`.
 
 ---
 
