@@ -5,7 +5,8 @@ import { ThemeProvider } from '@/lib/hooks/use-theme';
 import { useStageStore } from '@/lib/store';
 import { loadImageMapping } from '@/lib/utils/image-storage';
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { useSceneGenerator } from '@/lib/hooks/use-scene-generator';
 import { useMediaGenerationStore } from '@/lib/store/media-generation';
 import { useWhiteboardHistoryStore } from '@/lib/store/whiteboard-history';
@@ -17,12 +18,35 @@ const log = createLogger('Classroom');
 
 export default function ClassroomDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const classroomId = params?.id as string;
 
   const { loadFromStorage } = useStageStore();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [projecting, setProjecting] = useState(false);
+  const projectingRef = useRef(false);
+
+  const openAsCourse = useCallback(async () => {
+    if (projectingRef.current) return;
+    projectingRef.current = true;
+    setProjecting(true);
+    try {
+      const res = await fetch('/api/project/classroom-to-course', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ classroomId }),
+      });
+      if (!res.ok) throw new Error('Projection failed');
+      const { id } = (await res.json()) as { id: string };
+      router.push(`/course/${id}`);
+    } catch {
+      toast.error('Could not open as course. Try again.');
+      projectingRef.current = false;
+      setProjecting(false);
+    }
+  }, [classroomId, router]);
 
   const generationStartedRef = useRef(false);
 
@@ -204,7 +228,18 @@ export default function ClassroomDetailPage() {
               </div>
             </div>
           ) : (
-            <Stage onRetryOutline={retrySingleOutline} />
+            <div className="relative flex-1 min-h-0">
+              <Stage onRetryOutline={retrySingleOutline} />
+              <button
+                type="button"
+                onClick={() => void openAsCourse()}
+                disabled={projecting}
+                aria-label="Open as course reader"
+                className="absolute right-3 top-3 z-50 flex items-center gap-1.5 rounded-md border border-white/20 bg-black/60 px-3 py-1 text-xs text-white backdrop-blur transition hover:bg-black/80 disabled:cursor-progress disabled:opacity-60"
+              >
+                {projecting ? '…' : '📖 Course'}
+              </button>
+            </div>
           )}
         </div>
       </MediaStageProvider>
