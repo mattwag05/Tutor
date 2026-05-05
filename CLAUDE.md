@@ -2,7 +2,7 @@
 
 AI tutoring platform — multi-agent RAG architecture, Python/FastAPI backend, Next.js frontend.
 
-**Status:** 🔨 In Development (synced from upstream 2026-04-30 → v1.3.7; OpenMAIC retired B.4; Manifest router live C.1 2026-05-05)
+**Status:** 🔨 In Development (synced from upstream 2026-04-30 → v1.3.7; OpenMAIC retired B.4; Manifest router live C.1; Intent router + PWA live C.3/C.4 2026-05-05)
 **Repo:** https://github.com/mattwag05/DeepTutor.git
 **Upstream:** https://github.com/HKUDS/DeepTutor (main at 445e762)
 **Deployed:** https://deeptutor.tail6e035b.ts.net (Pironman — 100.126.176.86)
@@ -78,10 +78,13 @@ web/
 │   ├── (utility)/           # Utility panels: settings, memory
 │   ├── classroom/           # Classroom viewer
 │   ├── course/              # Course builder + reader + word-quest
-│   └── api/                 # Next.js API routes (/api/generate/*, /api/export/*, /api/course/*, /api/project/*)
+│   ├── api/                 # Next.js API routes (/api/generate/*, /api/export/*, /api/course/*, /api/project/*)
+│   ├── manifest.ts          # PWA web app manifest (Next.js metadata route) (C.4)
+│   └── sw.ts                # Serwist service worker — SWR spaced-review, CacheFirst statics, NetworkFirst API, SSE-excluded (C.4)
 ├── components/              # Shared UI components (sidebar, notebook, common)
 ├── lib/
 │   ├── generation/          # Scene/outline/course generation pipeline (moved from OpenMAIC in B.1)
+│   ├── intent/              # Intent classifier: classifyIntent({text?,fileName?}) → chat/course/book/notebook (C.3)
 │   ├── orchestration/       # Director graph, tool schemas, summarizers
 │   ├── pbl/                 # Project-based learning + MCP agents
 │   ├── prompts/             # Prompt loader + templates
@@ -90,7 +93,7 @@ web/
 │   ├── server/              # Server-only utilities: resolve-profile.ts (Manifest→model), tts/, course-storage.ts
 │   ├── types/               # Shared renderer types (action, slides, stage, widgets)
 │   └── utils/               # Shared utilities: strip-markdown.ts, blob-download.ts
-└── tests/                   # Vitest: generation/, integrations/, prompts/, ai/
+└── tests/                   # Vitest: generation/, integrations/, prompts/, ai/, intent/
 ```
 
 ### Config files (`config/`)
