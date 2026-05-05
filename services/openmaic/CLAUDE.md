@@ -2,7 +2,7 @@
 
 AI-directed classroom/presentation layer — Next.js full-stack app with scene/outline generation, roundtable discussions, quiz grading, PBL, and PPTX export.
 
-**Status:** Integrated with DeepTutor (RAG-enhanced outlines via REST `/query`). **Pending retirement in Phase B.4** — classroom/course UI migration to `web/` must land first (DeepTutor-99w, DeepTutor-568).
+**Status:** ⚠️ RETIRED 2026-05-05 (B.4 complete). This source tree is preserved as an archive — no longer built or deployed on Pironman. Classroom and course UIs now live in `web/app/classroom/` and `web/app/course/`.
 **Runtime:** Next.js 16, pnpm, Docker (multi-stage build)
 **Internal Port:** 3000 (per `docker-compose.pironman.yml`'s hardcoded `PORT=3000`); ts-serve.json forwards external 3100 → 3101 — the two have drifted (see DeepTutor CLAUDE.md gotcha #12).
 

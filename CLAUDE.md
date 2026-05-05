@@ -64,7 +64,7 @@ deeptutor/
 ├── knowledge/               # RAG / retrieval / embedding adapters
 ├── logging/
 └── ...
-services/openmaic/           # OpenMAIC (classroom/reader layer) — separate container
+services/openmaic/           # OpenMAIC (classroom/reader layer) — ARCHIVE ONLY, not deployed (retired B.4)
 ```
 
 ### Frontend (`web/`)
@@ -73,7 +73,7 @@ Next.js 16 app. Configured via environment variables at build time for API URL.
 
 ```
 web/
-├── app/                     # Next.js routes ((workspace)/, chat/, book/, api/)
+├── app/                     # Next.js routes ((workspace)/, chat/, book/, classroom/, course/, api/)
 ├── components/              # Shared UI components (sidebar, notebook, common)
 ├── lib/
 │   ├── generation/          # Scene/outline/course generation pipeline (moved from OpenMAIC in B.1)
@@ -144,7 +144,7 @@ npx vitest run tests/generation/ tests/integrations/ tests/prompts/  # generatio
 
 6. **Sidebar refactored to directory** — Upstream refactored `Sidebar.tsx` into `sidebar/SidebarShell.tsx`, `WorkspaceSidebar.tsx`, and `UtilitySidebar.tsx`. Classroom nav routes to `/classroom` within web/ (same-origin, no `external` field). OpenMAIC external link retired in B.4.
 
-7. **i18n system** — Upstream replaced the old per-file `.ts` translation approach with i18next + JSON locale files at `lib/i18n/locales/{en-US,zh-CN,ja-JP,ru-RU}.json`. All KB toolbar strings are under the `toolbar` namespace. When adding new UI strings, add keys to ALL four locale files.
+7. **i18n system (backend/OpenMAIC)** — Upstream replaced the old per-file `.ts` translation approach with i18next + JSON locale files at `lib/i18n/locales/{en-US,zh-CN,ja-JP,ru-RU}.json`. All KB toolbar strings are under the `toolbar` namespace. When adding new UI strings to OpenMAIC components, add keys to all four locale files. **For `web/` UI strings, see gotcha #16 — only 2 locales, flat dot-notation keys.**
 
 8. **WebSocket disconnect handling** — Course router's `except` block tries to `send_json` on a closed WebSocket, causing `RuntimeError: Cannot call "send" once a close message has been sent`. Wrap sends in the error handler with a `WebSocketDisconnect` catch.
 
@@ -156,11 +156,11 @@ npx vitest run tests/generation/ tests/integrations/ tests/prompts/  # generatio
 
 12. **Pironman never adopted the tailscale sidecar pattern** — base `docker-compose.yml` defines a `tailscale-deeptutor` sidecar; Pironman's `docker-compose.pironman.yml` ignores it. The production reverse proxy is `caddy-tailscale` (`~/homelab/caddy/pironman/`) which registers `bind tailscale/{deeptutor, deeptutor-api, tutor}` against host loopback ports `3782 / 8001`. **OpenMAIC (port 3101) was retired 2026-05-05 (B.4)** — classroom + course routes now all proxy to 3782. The `tailscale-deeptutor` orphan container has no production role. For new tailnet hostnames, edit Caddyfile and `docker compose restart caddy`.
 
-13. ~~**OpenMAIC TTS needs a direct OpenAI key**~~ — Retired. `.env.openmaic` no longer exists; OpenMAIC service removed in B.4. TTS for course audio lives in `web/app/api/generate/course-audio/route.ts` and uses `TTS_OPENAI_API_KEY` from the main `.env`.
+13. **TTS for course audio** uses `TTS_OPENAI_API_KEY` from the main `.env`. Route: `web/app/api/generate/course-audio/route.ts`.
 
 14. **Artifact endpoints need long curl timeouts** — `/api/generate/course-{flashcards,study-guide,final-exam}` make non-streaming LLM calls that take 60–180s. When testing via curl, use `--max-time 180` minimum or you'll get an empty body and a misleading "JSON parse" error.
 
-15. **`gh` OAuth token lacks `workflow` scope** (verified 2026-05-04) — `git push origin main` fails with `! [remote rejected] main -> main (refusing to allow an OAuth App to create or update workflow .github/workflows/tests.yml without 'workflow' scope)` whenever the push range touches a `.github/workflows/*.yml` file (e.g. after an upstream HKUDS sync that picks up CI changes). Two workarounds: (a) push once via SSH URL: `git push git@github.com:mattwag05/DeepTutor.git main` — the SSH key is already on the GitHub account and bypasses the OAuth scope check; (b) refresh the token: `gh auth refresh -h github.com -s workflow` (interactive device flow). Don't permanently switch the remote to SSH unless you also want to use SSH for fetch — option (a) is the targeted fix.
+15. **`gh` OAuth token lacks `workflow` scope** (verified 2026-05-04) — `git push origin main` fails with `! [remote rejected] main -> main (refusing to allow an OAuth App to create or update workflow .github/workflows/tests.yml without 'workflow' scope)` whenever the push range touches a `.github/workflows/*.yml` file (e.g. after an upstream HKUDS sync that picks up CI changes). Two workarounds: (a) push once via SSH URL: `git push git@github.com:mattwag05/DeepTutor.git main` — the SSH key is already on the GitHub account and bypasses the OAuth scope check; (b) refresh the token: `gh auth refresh -h github.com -s workflow` (interactive device flow). Don't permanently switch the remote to SSH unless you also want to use SSH for fetch — option (a) is the targeted fix. After pushing via SSH URL, run `git fetch origin` to sync the tracking ref; otherwise `git status` will falsely show "ahead of 'origin/main'".
 
 16. **i18n locales for `web/` are 2 files** at `web/locales/{en,zh}/app.json` — NOT 4 like OpenMAIC. Keys are flat dot-notation strings (`"quiz.title": "Quiz"` — `keySeparator: false`), NOT nested objects. Values are translations. The parity script `web/scripts/i18n_parity.mjs` MUST be run from inside `web/` (`cd web && node scripts/i18n_parity.mjs`); from project root it errors with "Missing locales roots" because it resolves `locales/` relative to cwd.
 
@@ -168,33 +168,29 @@ npx vitest run tests/generation/ tests/integrations/ tests/prompts/  # generatio
 
 18. **Adding a web-search provider needs three sites updated:** (a) `deeptutor/services/search/providers/<name>.py` (the adapter, mirror an existing one like `tavily.py`), (b) `deeptutor/services/config/provider_runtime.py` `SUPPORTED_SEARCH_PROVIDERS` + `SEARCH_ENV_FALLBACK`, (c) `deeptutor/api/routers/settings.py` `_provider_choices()` (the UI dropdown). The first two without the third = invisible in UI; the third without the first = no-op at runtime.
 
-19. ~~**Cross-app nav from OpenMAIC → `/settings` uses `window.location.href`**~~ — Retired. OpenMAIC removed in B.4; everything is same-origin at `tutor.tail6e035b.ts.net`. Use `router.push` anywhere in web/.
+19. **`MarkdownRenderer` prop is `content`, not `markdown`** — `web/components/common/MarkdownRenderer.tsx` takes a `content` prop. Passing `markdown={...}` silently renders nothing (TypeScript won't catch it without strict props). Use `<MarkdownRenderer content={q.question} />`.
 
-20. **`MarkdownRenderer` prop is `content`, not `markdown`** — `web/components/common/MarkdownRenderer.tsx` takes a `content` prop. Passing `markdown={...}` silently renders nothing (TypeScript won't catch it without strict props). Use `<MarkdownRenderer content={q.question} />`.
+20. **Variant submissions go to `/api/v1/quiz/attempts`, not notebook upsert** — `/api/v1/question-notebook/entries/upsert` requires a real `session_id` (looks it up in the QuestionNotebookEntry store) and returns 404 for synthetic IDs. Any new UI that submits quiz answers outside a real notebook session should POST to `/api/v1/quiz/attempts` with `source="book"` and the `source_id` from the attempt.
 
-21. **Variant submissions go to `/api/v1/quiz/attempts`, not notebook upsert** — `/api/v1/question-notebook/entries/upsert` requires a real `session_id` (looks it up in the QuestionNotebookEntry store) and returns 404 for synthetic IDs. Any new UI that submits quiz answers outside a real notebook session should POST to `/api/v1/quiz/attempts` with `source="book"` and the `source_id` from the attempt.
+21. **uvicorn `--reload` can silently revert mid-session file edits** — the watchdog fires on any project-tree change and may re-read cached bytecode, discarding a just-written edit if the reload races with the write. Verify critical edits (especially `deeptutor/api/main.py` router imports) with `grep` immediately after writing them.
 
-22. **uvicorn `--reload` can silently revert mid-session file edits** — the watchdog fires on any project-tree change and may re-read cached bytecode, discarding a just-written edit if the reload races with the write. Verify critical edits (especially `deeptutor/api/main.py` router imports) with `grep` immediately after writing them.
+22. **Cleaning up `.claude/worktrees/` after squash-merge PRs** — claude-spawned worktrees accumulate; their branches look "unmerged" to `git merge-base --is-ancestor` because squash creates new SHAs on `main`. Verify a worktree branch shipped by matching commit subjects in `git log origin/main` AND confirming the change is duplicated in main's tree, then: `git worktree remove [--force] .claude/worktrees/<name> && git branch -D claude/<name>`. Use `--force` if the worktree has uncommitted changes — common stray is `web/next-env.d.ts` flipping between `./.next/types/routes.d.ts` (build) and `./.next/dev/types/routes.d.ts` (dev server), a Next.js artifact safe to discard.
 
-23. **Cleaning up `.claude/worktrees/` after squash-merge PRs** — claude-spawned worktrees accumulate; their branches look "unmerged" to `git merge-base --is-ancestor` because squash creates new SHAs on `main`. Verify a worktree branch shipped by matching commit subjects in `git log origin/main` AND confirming the change is duplicated in main's tree, then: `git worktree remove [--force] .claude/worktrees/<name> && git branch -D claude/<name>`. Use `--force` if the worktree has uncommitted changes — common stray is `web/next-env.d.ts` flipping between `./.next/types/routes.d.ts` (build) and `./.next/dev/types/routes.d.ts` (dev server), a Next.js artifact safe to discard.
+23. **`gh` defaults to upstream (HKUDS) when two remotes exist.** `gh pr create`, `gh run list`, `gh pr checks`, etc. target the remote `gh repo view` resolves — which is `HKUDS/DeepTutor` in this repo. Always pass `-R mattwag05/DeepTutor` explicitly, and use `--head mattwag05:<branch>` on `gh pr create` so GitHub doesn't confuse same-named branches across forks.
 
-24. ~~**`pnpm tsc --noEmit` in OpenMAIC reports eval-test errors**~~ — Retired. OpenMAIC service removed in B.4; `services/openmaic/` is archive-only. No further tsc/build runs needed for it.
+24. **`git add` with Next.js bracket paths requires quotes.** `git add services/openmaic/app/classroom/[id]/page.tsx` fails (zsh glob expansion). Use `"services/openmaic/app/classroom/[id]/page.tsx"` with double quotes.
 
-25. **`gh` defaults to upstream (HKUDS) when two remotes exist.** `gh pr create`, `gh run list`, `gh pr checks`, etc. target the remote `gh repo view` resolves — which is `HKUDS/DeepTutor` in this repo. Always pass `-R mattwag05/DeepTutor` explicitly, and use `--head mattwag05:<branch>` on `gh pr create` so GitHub doesn't confuse same-named branches across forks.
+25. **Background fixer subagents share the same working tree.** A subagent dispatched to fix a CI failure on `main` will `git checkout main`, reverting your in-progress branch files. Fence subagents explicitly to avoid touching active branch dirs; after the subagent completes, `git checkout <your-branch>` to restore. The remote branch is unaffected — only the local working tree changes.
 
-26. **`git add` with Next.js bracket paths requires quotes.** `git add services/openmaic/app/classroom/[id]/page.tsx` fails (zsh glob expansion). Use `"services/openmaic/app/classroom/[id]/page.tsx"` with double quotes.
+26. **`npx tsc --noEmit` in `web/` produces iCloud dupe errors in `.next/types/*.d 2.ts`.** Filter with `grep -v " 2\.ts"` (not just `grep -v eval/`). Source code is clean; the `.next/` build dir accumulates `" 2"`-suffix iCloud artifacts.
 
-27. **Background fixer subagents share the same working tree.** A subagent dispatched to fix a CI failure on `main` will `git checkout main`, reverting your in-progress branch files. Fence subagents explicitly to avoid touching active branch dirs; after the subagent completes, `git checkout <your-branch>` to restore. The remote branch is unaffected — only the local working tree changes.
+27. **`asyncio.run(_poll())` in sync tests doesn't yield to TestClient's background thread.** Routes that use `asyncio.create_task()` schedule work in TestClient's internal event loop thread. `asyncio.run()` creates a separate loop; `await asyncio.sleep(0.05)` in that loop never gives the background task CPU. Fix: use synchronous `time.sleep(0.05)` polling in sync test functions — `time.sleep` releases the GIL so the background thread runs. Affects all of `tests/api/test_spaced_review_route.py`.
 
-28. **`npx tsc --noEmit` in `web/` produces iCloud dupe errors in `.next/types/*.d 2.ts`.** Filter with `grep -v " 2\.ts"` (not just `grep -v eval/`). Source code is clean; the `.next/` build dir accumulates `" 2"`-suffix iCloud artifacts.
+28. **Stacked PR rebase after squash-merge: force-push then re-merge.** After squash-merging the base branch into main, run `git rebase origin/main` on the dependent branch — git auto-skips the now-landed commit (`warning: skipped previously applied commit`). Then `git push --force-with-lease` and `sleep 5` before `gh pr merge`. PRs targeting the old base branch gain a spurious merge-conflict state on GitHub until the rebase + push clears it.
 
-29. **`asyncio.run(_poll())` in sync tests doesn't yield to TestClient's background thread.** Routes that use `asyncio.create_task()` schedule work in TestClient's internal event loop thread. `asyncio.run()` creates a separate loop; `await asyncio.sleep(0.05)` in that loop never gives the background task CPU. Fix: use synchronous `time.sleep(0.05)` polling in sync test functions — `time.sleep` releases the GIL so the background thread runs. Affects all of `tests/api/test_spaced_review_route.py`.
+29. **`web/i18n/init.ts` sets `returnEmptyString: false`** — i18next returns the key name (not `""`) when a translation value is an empty string. For intentionally-empty English translations (e.g. `quiz.totalPrefix` — no prefix word in English), use `" "` (single space) instead of `""`. The space is invisible in rendered HTML but satisfies the non-empty check.
 
-30. **Stacked PR rebase after squash-merge: force-push then re-merge.** After squash-merging the base branch into main, run `git rebase origin/main` on the dependent branch — git auto-skips the now-landed commit (`warning: skipped previously applied commit`). Then `git push --force-with-lease` and `sleep 5` before `gh pr merge`. PRs targeting the old base branch gain a spurious merge-conflict state on GitHub until the rebase + push clears it.
-
-31. **`web/i18n/init.ts` sets `returnEmptyString: false`** — i18next returns the key name (not `""`) when a translation value is an empty string. For intentionally-empty English translations (e.g. `quiz.totalPrefix` — no prefix word in English), use `" "` (single space) instead of `""`. The space is invisible in rendered HTML but satisfies the non-empty check.
-
-32. **Client-generated classrooms are IndexedDB-only — server filesystem misses them.** `lib/server/classroom-storage.ts` reads from `data/classrooms/<id>.json` on disk. Browser-generated classrooms are never written there. Any server route that reads a classroom (e.g. `classroom-to-course`) must accept inline `stage` + `scenes` from the request body as a fallback when the filesystem lookup returns null.
+30. **Client-generated classrooms are IndexedDB-only — server filesystem misses them.** `lib/server/classroom-storage.ts` reads from `data/classrooms/<id>.json` on disk. Browser-generated classrooms are never written there. Any server route that reads a classroom (e.g. `classroom-to-course`) must accept inline `stage` + `scenes` from the request body as a fallback when the filesystem lookup returns null.
 
 ---
 
@@ -243,7 +239,9 @@ The working tree periodically accumulates `* 2.{py,ts,tsx,md,...}` duplicate fil
 
 **DeepTutor upstream:** `git fetch upstream && git merge upstream/main` — accept upstream deletion of `docs/roadmap.md` and `docs/guide/docker-start.md` (fork customization notes live in `AGENTS.md` / `CLAUDE.md` instead, not in the docs tree).
 
-**OpenMAIC upstream** (vendored, NOT a submodule):
+**OpenMAIC upstream** — **Archive-only post-B.4 (retired 2026-05-05). No further upstream syncs needed.** Historical procedure preserved below for reference only.
+
+(vendored, NOT a submodule):
 1. Once-only: `git remote add upstream-openmaic https://github.com/THU-MAIC/OpenMAIC.git`
 2. Sync: worktree-overlay 3-way merge. Create worktree of `upstream-openmaic/main` at `/tmp/openmaic-upstream`, `rsync -a --exclude=.git --exclude=node_modules --exclude=.next --exclude='.env*'` into `services/openmaic/`. Back up the protected customization files first. Then for each protected file, run `git merge-file --marker-size=7 <backup> <d797e42:path> <rsynced>` — `d797e42` is the initial vendor commit and serves as the natural merge base.
 3. **Protected files list** (3-way merge these, never blind-overwrite):
