@@ -2,10 +2,9 @@
 
 AI tutoring platform — multi-agent RAG architecture, Python/FastAPI backend, Next.js frontend.
 
-**Status:** 🔨 In Development (synced from upstream 2026-04-30 → v1.3.7)
+**Status:** 🔨 In Development (synced from upstream 2026-04-30 → v1.3.7; OpenMAIC retired 2026-05-05 B.4)
 **Repo:** https://github.com/mattwag05/DeepTutor.git
 **Upstream:** https://github.com/HKUDS/DeepTutor (main at 445e762)
-**OpenMAIC Upstream:** https://github.com/THU-MAIC/OpenMAIC
 **Deployed:** https://deeptutor.tail6e035b.ts.net (Pironman — 100.126.176.86)
 
 ---
@@ -143,7 +142,7 @@ npx vitest run tests/generation/ tests/integrations/ tests/prompts/  # generatio
 
 5. **`npm audit` warnings** — 24 known vulnerabilities in frontend deps (moderate/high). Not blocking for local dev. Track via a bd task when addressing.
 
-6. **Sidebar refactored to directory** — Upstream refactored `Sidebar.tsx` into `sidebar/SidebarShell.tsx`, `WorkspaceSidebar.tsx`, and `UtilitySidebar.tsx`. The Classroom nav item is in `SidebarShell.tsx` using an `external` field on `NavEntry` for the OpenMAIC link (`https://deeptutor.tail6e035b.ts.net:3100`).
+6. **Sidebar refactored to directory** — Upstream refactored `Sidebar.tsx` into `sidebar/SidebarShell.tsx`, `WorkspaceSidebar.tsx`, and `UtilitySidebar.tsx`. Classroom nav routes to `/classroom` within web/ (same-origin, no `external` field). OpenMAIC external link retired in B.4.
 
 7. **i18n system** — Upstream replaced the old per-file `.ts` translation approach with i18next + JSON locale files at `lib/i18n/locales/{en-US,zh-CN,ja-JP,ru-RU}.json`. All KB toolbar strings are under the `toolbar` namespace. When adding new UI strings, add keys to ALL four locale files.
 
@@ -155,9 +154,9 @@ npx vitest run tests/generation/ tests/integrations/ tests/prompts/  # generatio
 
 11. **Tailscale sidecar** — `docker-compose.yml` includes `tailscale-deeptutor` sidecar (ScaleTail/coder pattern). `deeptutor` uses `network_mode: service:tailscale-deeptutor` — remove `ports:` and `networks:` directives as they conflict. Auth key in Vaultwarden: `get-secret "Tailscale Auth Key"`. Serve config: `tailscale/ts-serve.json`.
 
-12. **Pironman never adopted the tailscale sidecar pattern** (verified 2026-05-04 during A.2) — base `docker-compose.yml` defines a `tailscale-deeptutor` sidecar with `network_mode: service:tailscale-deeptutor` and `tailscale/ts-serve.json` forwarding external `8001 → internal 8002` / `3100 → internal 3101`. **The deployed Pironman compose (`docker-compose.pironman.yml`) ignores all of that** — it puts `deeptutor` and `openmaic` on a regular `deeptutor-network` bridge with `127.0.0.1:*:*` host loopback bindings, and the production reverse proxy is the homelab-wide `caddy-tailscale` (network_mode: host, embedded tsnet) at `~/homelab/caddy/pironman/`, which registers `bind tailscale/{deeptutor, deeptutor-api, openmaic, tutor, ...}` against host loopback ports `3782 / 8001 / 3101`. The `tailscale-deeptutor` container is an orphan from a prior `docker-compose.yml` invocation; auth state on it doesn't affect production. **For new tailnet hostnames, edit `~/homelab/caddy/pironman/Caddyfile` and `docker compose restart caddy` — no port reconcile or sidecar re-auth needed.** ts-serve.json is M5-dev-clone reference only.
+12. **Pironman never adopted the tailscale sidecar pattern** — base `docker-compose.yml` defines a `tailscale-deeptutor` sidecar; Pironman's `docker-compose.pironman.yml` ignores it. The production reverse proxy is `caddy-tailscale` (`~/homelab/caddy/pironman/`) which registers `bind tailscale/{deeptutor, deeptutor-api, tutor}` against host loopback ports `3782 / 8001`. **OpenMAIC (port 3101) was retired 2026-05-05 (B.4)** — classroom + course routes now all proxy to 3782. The `tailscale-deeptutor` orphan container has no production role. For new tailnet hostnames, edit Caddyfile and `docker compose restart caddy`.
 
-13. **OpenMAIC TTS needs a direct OpenAI key, not OpenRouter** — Course Builder's `/api/generate/course-audio` calls OpenAI's `/v1/audio/speech` endpoint directly. Set `TTS_OPENAI_API_KEY=sk-proj-...` in `.env.openmaic` (separate from `OPENAI_API_KEY` which is the OpenRouter LLM key). Without it the route returns a clear "TTS_OPENAI_API_KEY is not set" error.
+13. ~~**OpenMAIC TTS needs a direct OpenAI key**~~ — Retired. `.env.openmaic` no longer exists; OpenMAIC service removed in B.4. TTS for course audio lives in `web/app/api/generate/course-audio/route.ts` and uses `TTS_OPENAI_API_KEY` from the main `.env`.
 
 14. **Artifact endpoints need long curl timeouts** — `/api/generate/course-{flashcards,study-guide,final-exam}` make non-streaming LLM calls that take 60–180s. When testing via curl, use `--max-time 180` minimum or you'll get an empty body and a misleading "JSON parse" error.
 
@@ -169,7 +168,7 @@ npx vitest run tests/generation/ tests/integrations/ tests/prompts/  # generatio
 
 18. **Adding a web-search provider needs three sites updated:** (a) `deeptutor/services/search/providers/<name>.py` (the adapter, mirror an existing one like `tavily.py`), (b) `deeptutor/services/config/provider_runtime.py` `SUPPORTED_SEARCH_PROVIDERS` + `SEARCH_ENV_FALLBACK`, (c) `deeptutor/api/routers/settings.py` `_provider_choices()` (the UI dropdown). The first two without the third = invisible in UI; the third without the first = no-op at runtime.
 
-19. **Cross-app nav from OpenMAIC components → `/settings` uses `window.location.href`, not `router.push`** — `/settings` is served by the DeepTutor frontend (port 3782), routed at the unified `tutor.tail6e035b.ts.net` Caddy origin. `router.push('/settings')` from inside OpenMAIC's React tree would 404 in standalone OpenMAIC dev. Full page load is correct here. Phase B.4 (drop OpenMAIC service) retires this asymmetry.
+19. ~~**Cross-app nav from OpenMAIC → `/settings` uses `window.location.href`**~~ — Retired. OpenMAIC removed in B.4; everything is same-origin at `tutor.tail6e035b.ts.net`. Use `router.push` anywhere in web/.
 
 20. **`MarkdownRenderer` prop is `content`, not `markdown`** — `web/components/common/MarkdownRenderer.tsx` takes a `content` prop. Passing `markdown={...}` silently renders nothing (TypeScript won't catch it without strict props). Use `<MarkdownRenderer content={q.question} />`.
 
@@ -179,7 +178,7 @@ npx vitest run tests/generation/ tests/integrations/ tests/prompts/  # generatio
 
 23. **Cleaning up `.claude/worktrees/` after squash-merge PRs** — claude-spawned worktrees accumulate; their branches look "unmerged" to `git merge-base --is-ancestor` because squash creates new SHAs on `main`. Verify a worktree branch shipped by matching commit subjects in `git log origin/main` AND confirming the change is duplicated in main's tree, then: `git worktree remove [--force] .claude/worktrees/<name> && git branch -D claude/<name>`. Use `--force` if the worktree has uncommitted changes — common stray is `web/next-env.d.ts` flipping between `./.next/types/routes.d.ts` (build) and `./.next/dev/types/routes.d.ts` (dev server), a Next.js artifact safe to discard.
 
-24. **`pnpm tsc --noEmit` in OpenMAIC reports 5–6 known eval-test errors after B.1** — `services/openmaic/tests/eval/` still references `@/eval/shared/*` and `@/eval/outline-language/types` which moved to `web/eval/`. These are expected — B.4 will retire the OpenMAIC service entirely. The production build (`pnpm build`) is clean. Don't treat these as regressions when running verification.
+24. ~~**`pnpm tsc --noEmit` in OpenMAIC reports eval-test errors**~~ — Retired. OpenMAIC service removed in B.4; `services/openmaic/` is archive-only. No further tsc/build runs needed for it.
 
 25. **`gh` defaults to upstream (HKUDS) when two remotes exist.** `gh pr create`, `gh run list`, `gh pr checks`, etc. target the remote `gh repo view` resolves — which is `HKUDS/DeepTutor` in this repo. Always pass `-R mattwag05/DeepTutor` explicitly, and use `--head mattwag05:<branch>` on `gh pr create` so GitHub doesn't confuse same-named branches across forks.
 
@@ -197,14 +196,14 @@ npx vitest run tests/generation/ tests/integrations/ tests/prompts/  # generatio
 
 ## Course Builder
 
-The Course Builder feature lives **entirely in `services/openmaic/`** (Oboe.com-style reader), NOT in `deeptutor/agents/course/` which does not exist. Entry points:
-- `services/openmaic/app/course/page.tsx` — landing (topic input + outline streaming)
-- `services/openmaic/app/course/[id]/page.tsx` — article-reader viewer
-- `services/openmaic/lib/generation/prompts/templates/course-{outline,section}/` — prompts
-- `services/openmaic/lib/server/course-storage.ts` — file-based CRUD under `data/courses/<id>.json`
-- `services/openmaic/lib/course/store.ts` — zustand client store
+The Course Builder (Oboe.com-style article reader) now lives in `web/`. Entry points:
+- `web/app/course/page.tsx` — landing (topic input + outline streaming)
+- `web/app/course/[id]/page.tsx` — article-reader viewer
+- `web/lib/generation/prompts/templates/course-{outline,section}/` — prompts
+- `web/lib/server/course-storage.ts` — file-based CRUD under `data/courses/<id>.json`
+- `web/lib/course/store.ts` — zustand client store
 
-Parallel to the slide-based classroom (NOT a replacement).
+Classrooms can be projected to a course via the "📖 Course" button (calls `POST /api/project/classroom-to-course`, which materializes scenes as course sections). Parallel to the slide-based classroom.
 
 ---
 
@@ -216,7 +215,7 @@ Unified store at `deeptutor/services/quiz/sqlite_store.py` (DB: `data/user/quiz/
 
 ## Generation Pipeline (Phase B.1, 2026-05-05)
 
-Generation pipeline moved from `services/openmaic/lib/generation/` to `web/lib/generation/`. API routes `/api/generate/*`, `/api/web-search`, `/api/chat` now served by `web/` (port 3782) — OpenMAIC's copies are stub-replaced (throw or 501). Supporting libs also in web/: `lib/{ai,audio,constants,course,integrations,media,orchestration,pbl,prompts,server,store,types,utils,web-search}/`. Phase B.4 retires the stubs and removes duplicate copies from `services/openmaic/`.
+Generation pipeline moved from `services/openmaic/lib/generation/` to `web/lib/generation/`. API routes `/api/generate/*`, `/api/web-search`, `/api/chat` now served by `web/` (port 3782). Supporting libs also in web/: `lib/{ai,audio,constants,course,integrations,media,orchestration,pbl,prompts,server,store,types,utils,web-search}/`. B.4 (2026-05-05) retired the OpenMAIC stub copies — `services/openmaic/` is archive-only.
 
 **Key cross-boundary types:** `web/lib/types/{action,slides,stage,widgets}.ts` are local copies of renderer types (duplicated for build independence). Shim pattern from the plan was replaced by direct copy — same contract, zero additional files.
 
@@ -327,83 +326,32 @@ The full stack runs on the Pironman (100.126.176.86) via Docker Compose, fronted
 **Access:** `ssh pironman` (key auth as `matthewwagner`)
 
 **Live URLs** (served by `caddy-tailscale` against host loopback — see gotcha #12):
-- Unified: https://tutor.tail6e035b.ts.net (path-routed: `/` → 3782, `/api/v1/*` → 8001, `/classroom*` + `/course*` → 3101) — Phase A.2, 2026-05-04
-- Frontend (legacy): https://deeptutor.tail6e035b.ts.net (→ 127.0.0.1:3782)
-- API (legacy): https://deeptutor-api.tail6e035b.ts.net (→ 127.0.0.1:8001)
-- OpenMAIC (legacy): https://openmaic.tail6e035b.ts.net (→ 127.0.0.1:3101)
+- Unified: https://tutor.tail6e035b.ts.net (path-routed: `/` → 3782, `/api/v1/*` → 8001, `/classroom*` + `/course*` → 3782) — B.4 complete 2026-05-05
+- Frontend: https://deeptutor.tail6e035b.ts.net (→ 127.0.0.1:3782)
+- API: https://deeptutor-api.tail6e035b.ts.net (→ 127.0.0.1:8001)
+- ~~OpenMAIC: https://openmaic.tail6e035b.ts.net~~ — Retired 2026-05-05
 
-**Containers:** `deeptutor`, `openmaic` (caddy-tailscale runs separately under `~/homelab/caddy/pironman/`)
-
-**B.4 (drop OpenMAIC) is blocked:** `/classroom*` and `/course*` route to OpenMAIC (3101); `web/` has no classroom or course pages. Must migrate those UIs to `web/app/classroom/` and `web/app/course/` first (DeepTutor-99w, DeepTutor-568) before removing the service from compose.
+**Containers:** `deeptutor` only (caddy-tailscale runs separately under `~/homelab/caddy/pironman/`)
 
 **Rebuild & deploy:**
 ```bash
-ssh pironman "cd /home/matthewwagner/homelab/deeptutor && \
+ssh pironman 'cd /home/matthewwagner/homelab/deeptutor && \
   git pull origin main && \
-  cd services/openmaic && docker build -t openmaic:latest . && cd ../.. && \
   docker compose -f docker-compose.pironman.yml build deeptutor && \
-  docker compose -f docker-compose.pironman.yml up -d"
-```
-
-**pnpm lockfile:** If `services/openmaic/package.json` has new deps, update the lockfile before building:
-```bash
-cd services/openmaic
-docker run --rm -v $(pwd):/app -w /app node:22-alpine \
-  sh -c 'corepack enable && corepack prepare pnpm@10.28.0 --activate && pnpm install --no-frozen-lockfile'
+  docker compose -f docker-compose.pironman.yml up -d deeptutor'
 ```
 
 ---
 
-## OpenMAIC Integration (services/openmaic/)
+## OpenMAIC — Retired 2026-05-05 (B.4)
 
-OpenMAIC is a Next.js classroom/presentation layer that runs as a Docker service alongside DeepTutor on a shared `deeptutor-network` bridge.
+The standalone OpenMAIC Docker service (`services/openmaic/`) has been decommissioned. Classroom and course UIs now live entirely in `web/app/classroom/` and `web/app/course/`. The `openmaic` container, `openmaic-data` volume, and `bind tailscale/openmaic` Caddyfile block are all gone from Pironman.
 
-### Port Mapping (Pironman, as actually deployed 2026-05-04)
+**Port mapping (post-B.4):**
 
 | Service | Container port | Host loopback | Caddy reverse_proxy |
 |---------|----------------|---------------|---------------------|
 | DeepTutor Backend (uvicorn) | 8001 | 127.0.0.1:8001 | `tailscale/deeptutor-api`, `tailscale/tutor /api/v1/*` |
-| DeepTutor Frontend (Next.js) | 3782 | 127.0.0.1:3782 | `tailscale/deeptutor`, `tailscale/tutor` (catch-all) |
-| OpenMAIC (Next.js) | 3000 | 127.0.0.1:3101 | `tailscale/openmaic`, `tailscale/tutor /classroom*` + `/course*` |
+| DeepTutor Frontend (Next.js) | 3782 | 127.0.0.1:3782 | `tailscale/deeptutor`, `tailscale/tutor` (all paths) |
 
-The base `docker-compose.yml`'s sidecar pattern (`network_mode: service:tailscale-deeptutor` + ts-serve.json) is dev-clone reference only — Pironman's `.pironman.yml` overlay drops it. See gotcha #12.
-
-### Integration Client
-
-OpenMAIC talks to DeepTutor's backend via `lib/integrations/deeptutor-client.ts`:
-- **Health check:** `checkHealth()` — hits `http://127.0.0.1:8002/health`
-- **Knowledge bases:** `listKnowledgeBases()`, `getKnowledgeBase()` — lists/gets DeepTutor KBs
-- **RAG queries:** `queryKnowledgeBase()` — WebSocket-based RAG query via chat endpoint
-- **Outline enrichment:** `getRAGContextForGeneration()` — injects RAG context into scene/outline generation
-
-All functions degrade gracefully when DeepTutor is unavailable (return empty/null).
-
-**Config env vars (in .env.openmaic):**
-- `OPENAI_API_KEY` — OpenRouter API key from Vaultwarden (`get-secret "OpenRouter API - Pi"`)
-- `OPENAI_BASE_URL=https://openrouter.ai/api/v1`
-- `DEFAULT_MODEL=openai:anthropic/claude-sonnet-4-5`
-- `DEEPTUTOR_API_URL=http://127.0.0.1:8002` — internal port, NOT the TS Serve port
-- `DEEPTUTOR_ENABLED=true`
-
-### New API Endpoints
-
-- `GET /api/health` — Now includes `integrations.deepTutor.status` (healthy/unavailable)
-- `GET /api/knowledge-bases` — Lists DeepTutor knowledge bases with graceful degradation
-
-### Docker Build & Restart
-
-OpenMAIC uses a multi-stage pnpm Docker build. The image is built on the Pi:
-```bash
-cd services/openmaic
-docker build -t openmaic:latest .
-```
-
-After rebuilding or changing env vars, recreate (not restart) the container to pick up new env/compose changes:
-```bash
-docker compose up -d openmaic   # recreates if config changed
-# NOT: docker compose restart openmaic  (restart doesn't re-read compose file)
-```
-
-### Cowork Scheduled Task Limitation
-
-Cowork Desktop scheduled tasks run in sandboxed environments that do **NOT** have Tailscale access. They cannot SSH to Tailscale IPs (e.g., 100.120.127.35). For Pi operations, use Desktop Commander (runs on the Mac host which has Tailscale) or run commands directly from a Dispatch session.
+The `services/openmaic/` source tree is preserved in the repo as an archive but is no longer built or deployed.
