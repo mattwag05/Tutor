@@ -79,6 +79,8 @@ All integration functions return empty/null when DeepTutor is unavailable. OpenM
 
 8. **`pnpm dev` zombies block ports across sessions.** If `preview_start` shows no logs after ~15s, check `ps aux | grep "next dev\|pnpm.*dev"` — stale processes from prior sessions (sometimes days old) hold the port plus child postcss/turbopack processes. `kill <pids>` then restart. The preview tooling can't recover from this on its own.
 
+9. **`eval/` and `tests/eval/` break the Docker pnpm build after B.1.** `eval/whiteboard-layout/runner.ts` references `'../shared/run-dir'` which moved to `web/eval/shared/` in B.1. `pnpm tsc --noEmit` locally is filtered with `grep -v eval/`, masking the error. But `pnpm build` inside Docker compiles ALL files, causing a type error that aborts the image build. Fix: `tsconfig.json` excludes both `"eval"` and `"tests/eval"`. If Docker build fails with `Cannot find module '../shared/run-dir'`, check these excludes are present. B.4 retires the files entirely.
+
 ---
 
 ## Development
