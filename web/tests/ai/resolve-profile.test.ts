@@ -4,9 +4,14 @@
  * selectCredentials is a pure function — no mocking needed.
  */
 import { describe, it, expect } from 'vitest';
-import { selectCredentials, type LLMCredentials } from '@/lib/server/resolve-profile';
-import { DEFAULT_MANIFEST_PROFILES } from '@/lib/ai/manifest/profiles';
+import {
+  buildModelString,
+  selectCredentials,
+  type LLMCredentials,
+} from '@/lib/server/resolve-profile';
+import { DEFAULT_MANIFEST_PROFILES, MANIFEST_TIERS } from '@/lib/ai/manifest/profiles';
 import type { ManifestProfileConfig } from '@/lib/ai/manifest/profiles';
+import { parseModelString } from '@/lib/ai/providers';
 
 const CATALOG: LLMCredentials = {
   binding: 'openrouter',
@@ -72,6 +77,18 @@ describe('selectCredentials — credential precedence', () => {
       const result = selectCredentials(DEFAULT_MANIFEST_PROFILES[tier], CATALOG);
       expect(result.apiKey).toBe('catalog-key');
       expect(result.binding).toBe('openrouter');
+    }
+  });
+});
+
+describe('buildModelString — parseModelString round-trip', () => {
+  it('produces a string parseModelString routes to the binding (not OpenAI default)', () => {
+    for (const tier of MANIFEST_TIERS) {
+      const { model } = DEFAULT_MANIFEST_PROFILES[tier];
+      const built = buildModelString('openrouter', model);
+      const parsed = parseModelString(built);
+      expect(parsed.providerId).toBe('openrouter');
+      expect(parsed.modelId).toBe(model);
     }
   });
 });

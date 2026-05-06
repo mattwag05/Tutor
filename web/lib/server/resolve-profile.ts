@@ -88,6 +88,12 @@ export function selectCredentials(
   };
 }
 
+// Must use ":" — parseModelString splits on the first colon to extract the
+// provider. Using "/" silently routes everything to the OpenAI default.
+export function buildModelString(binding: string, model: string): string {
+  return `${binding}:${model}`;
+}
+
 /**
  * Resolve a language model from a Manifest tier name.
  *
@@ -104,7 +110,7 @@ export async function resolveModelFromProfile(tier: ManifestTier): Promise<Resol
   const profileConfig = overrides[tier] ?? DEFAULT_MANIFEST_PROFILES[tier];
   const { binding, apiKey, baseUrl } = selectCredentials(profileConfig, catalogCreds);
 
-  const modelString = `${binding}/${profileConfig.model}`;
+  const modelString = buildModelString(binding, profileConfig.model);
   log.info(`[${tier}] → ${modelString}`);
 
   return resolveModel({

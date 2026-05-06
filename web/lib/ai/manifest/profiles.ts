@@ -28,7 +28,7 @@ export interface ManifestProfileConfig {
 /** Defaults shipped with the application. Overridden by manifest_profiles.json. */
 export const DEFAULT_MANIFEST_PROFILES: Record<ManifestTier, ManifestProfileConfig> = {
   'tutor-cheap': {
-    model: 'anthropic/claude-haiku-4-5-20251001',
+    model: 'anthropic/claude-haiku-4.5',
     description: 'Fast and cheap — intent classification, quiz grading, summarization',
   },
   'tutor-balanced': {
@@ -36,7 +36,7 @@ export const DEFAULT_MANIFEST_PROFILES: Record<ManifestTier, ManifestProfileConf
     description: 'General — chat, section bodies, slide text, podcast narration',
   },
   'tutor-premium': {
-    model: 'anthropic/claude-sonnet-4-5-20251001',
+    model: 'anthropic/claude-sonnet-4.6',
     description: 'Capable — quiz authoring, course outline, roundtable director',
   },
 };

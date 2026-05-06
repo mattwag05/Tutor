@@ -16,7 +16,7 @@ AI tutoring platform — multi-agent RAG architecture, Python/FastAPI backend, N
 - **Frontend phases:** Generation Pipeline (B.1) • Course Builder (B.5) • Quiz Attempts (B.6) • Spaced Review (B.6 + kgj) • Manifest Profile Router (C.1) • Intent Router (C.3) • PWA / Mobile (C.4)
 - **Production:** Deployment (Pironman) • OpenMAIC retirement (B.4)
 - **Operations:** Troubleshooting • Upstream Sync • Task Tracking • Remotes • Dropbox/iCloud Conflict Artifacts
-- **Gotchas (1–41):** see "Known Gotchas" — most-cited: #6 (sidebar refactor), #12 (caddy/tailscale on Pironman), #16 (web/ i18n: 2 locales flat), #20 (`/api/v1/quiz/attempts` vs notebook upsert), #28 (stacked-PR rebase), #32 (CI excludes web/), #33 (Buffer.slice for binary Response), #34 (Serwist setup), #40 (dependabot api caps), #41 (vendored-lib devDep prune).
+- **Gotchas (1–44):** see "Known Gotchas" — most-cited: #6 (sidebar refactor), #12 (caddy/tailscale on Pironman), #16 (web/ i18n: 2 locales flat), #20 (`/api/v1/quiz/attempts` vs notebook upsert), #28 (stacked-PR rebase), #32 (CI excludes web/), #33 (Buffer.slice for binary Response), #34 (Serwist setup), #40 (dependabot api caps), #41 (vendored-lib devDep prune), #42 (Next 16 POST `localhost` 404), #44 (Manifest `:` separator + OpenRouter slugs).
 
 ---
 
@@ -238,6 +238,12 @@ npm run audit          # Playwright UI audit (requires next start)
 40. **`gh api -X PATCH dependabot/alerts/<n>` `dismissed_comment` is capped at 280 chars** — exceeding it returns HTTP 422 `Invalid property /dismissed_comment: Only 280 characters are allowed; N were supplied`. Path is `repos/<owner>/<repo>/dependabot/alerts/<n>`; valid `dismissed_reason` values: `fix_started` / `inaccurate` / `no_bandwidth` / `not_used` / `tolerable_risk`. Dependabot path-exclusion is NOT configurable — `.github/dependabot.yml` only controls update PRs, not alerts; archived/unbuilt manifests will keep generating noise on every new advisory and require per-alert dismissal.
 
 41. **Vendored libs at `web/packages/<name>/` ship pre-built `dist/` artifacts — their `devDependencies` are dead weight in `web/`'s install tree.** `web/packages/pptxgenjs/package.json` was pruned of its gulp toolchain (`gulp`, `gulp-concat`, `gulp-delete-lines`, `gulp-ignore`, `gulp-insert`, `gulp-sourcemaps`, `gulp-uglify`) and `express` in PR #34, removing 270 transitive packages and clearing 3 dependabot alerts (lodash.template HIGH, postcss@7 ×2 medium). Verify the prune with: `cd web && npm install --legacy-peer-deps && npm ls <vulnerable-pkg>` (should show no result), `npx tsc --noEmit`, `npx vitest run tests/{generation,integrations,prompts,intent}/`, and a runtime smoke `node -e "require('<lib>')"`. Keep only the build chain actually invoked by the lib's `scripts.build` (rollup + typescript + eslint here).
+
+42. **Next.js 16 dev rejects POST to `localhost`** — `POST http://localhost:3000/api/*` returns `404` with `Content-Length: 0`, CORS headers, and zero log lines, while GET on the same URL is 200. Use `127.0.0.1:3000` for any curl/test against the dev server. Affects all API routes including the generation streams.
+
+43. **Dev `process.cwd()` is `web/`, not project root** — `web/lib/server/resolve-profile.ts` resolves `data/user/settings/model_catalog.json` relative to cwd; `npm run dev` from `web/` makes that path miss (catalog lives at project root). Falls through to env defaults, which require `LLM_API_KEY` (or `OPENROUTER_API_KEY`) to be exported in the dev shell. Production via `start_web.py` runs from project root and works fine.
+
+44. **Manifest tier model strings join with `:` not `/`** — `parseModelString` (`web/lib/ai/providers.ts`) splits on the first colon and silently defaults to `providerId='openai'` when no colon is present. `web/lib/server/resolve-profile.ts` uses the exported `buildModelString(binding, model)` helper for this; never reintroduce a `/` join. Default profiles in `web/lib/ai/manifest/profiles.ts` must use OpenRouter slugs (`anthropic/claude-sonnet-4.6`, `anthropic/claude-haiku-4.5`) — Anthropic-direct date snapshots like `claude-sonnet-4-5-20251001` 404 silently on OpenRouter and the route surfaces "LLM returned empty response."
 
 ---
 
