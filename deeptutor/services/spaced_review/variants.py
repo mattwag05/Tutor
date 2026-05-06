@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from typing import Awaitable, Callable
 import uuid
 
@@ -21,6 +22,32 @@ logger = logging.getLogger(__name__)
 # blowing past them returns 429s that surface as failed variants. 4 is the
 # tested ceiling that holds under Pi-class hardware on the default key.
 _MAX_CONCURRENCY = 4
+
+# Defense-in-depth against near-duplicates the Generator's previous_questions
+# slot misses. Token-set Jaccard above this threshold counts as "too similar
+# to the original"; we regenerate once, then drop. 0.85 was tuned to flag
+# trivial substitutions ("What is the capital of France?" → "What's the
+# capital of France?") while letting genuinely fresh rephrasings through.
+_JACCARD_DUPLICATE_THRESHOLD = 0.85
+_TOKEN_RE = re.compile(r"\w+", re.UNICODE)
+
+
+def _tokenize(text: str) -> set[str]:
+    return {t.lower() for t in _TOKEN_RE.findall(text)}
+
+
+def _jaccard_token_similarity(a: str, b: str) -> float:
+    """Token-set Jaccard. Cheap, no embedding call needed."""
+    ta, tb = _tokenize(a), _tokenize(b)
+    if not ta or not tb:
+        return 0.0
+    intersection = len(ta & tb)
+    union = len(ta | tb)
+    return intersection / union if union else 0.0
+
+
+def _is_too_similar(variant: str, original: str) -> bool:
+    return _jaccard_token_similarity(variant, original) > _JACCARD_DUPLICATE_THRESHOLD
 
 
 def _build_template(candidate: ReviewCandidate) -> QuestionTemplate:
@@ -91,31 +118,57 @@ async def generate_variants(
     generator = factory()
     semaphore = asyncio.Semaphore(_MAX_CONCURRENCY)
 
+    async def _call_once(
+        candidate: ReviewCandidate,
+        template: QuestionTemplate,
+        previous: list[str] | None,
+    ) -> QAPair | None:
+        try:
+            if process_override is not None:
+                return await process_override(generator, template, previous or [])
+            return await generator.process(
+                template=template,
+                user_topic=candidate.original_concentration or "",
+                preference="",
+                history_context="",
+                previous_questions=previous,
+            )
+        except Exception as exc:
+            logger.warning("variant generation call failed: %s", exc)
+            return None
+
     async def _generate_one(candidate: ReviewCandidate) -> VariantQuestion | None:
         template = _build_template(candidate)
         previous = (
             [candidate.original_question] if candidate.original_question else None
         )
         async with semaphore:
-            try:
-                if process_override is not None:
-                    pair = await process_override(generator, template, previous or [])
-                else:
-                    pair = await generator.process(
-                        template=template,
-                        user_topic=candidate.original_concentration or "",
-                        preference="",
-                        history_context="",
-                        previous_questions=previous,
-                    )
-            except Exception as exc:
-                logger.warning(
-                    "variant generation failed for %s: %s",
+            pair = await _call_once(candidate, template, previous)
+            if pair and pair.question and _is_too_similar(pair.question, candidate.original_question):
+                # Regenerate once with the original variant added to the
+                # previous-questions slot so the Generator avoids it on the
+                # retry. (Higher-temperature retry is tracked separately —
+                # would require Generator.process to accept a per-call
+                # temperature override, out of scope for the guard itself.)
+                logger.info(
+                    "variant for %s too similar to original (jaccard above %.2f); regenerating once",
                     candidate.question_id,
-                    exc,
+                    _JACCARD_DUPLICATE_THRESHOLD,
                 )
-                return None
-        if not pair.question:
+                retry_previous = list(previous or [])
+                retry_previous.append(pair.question)
+                retry = await _call_once(candidate, template, retry_previous)
+                if retry and retry.question and not _is_too_similar(
+                    retry.question, candidate.original_question
+                ):
+                    pair = retry
+                else:
+                    logger.info(
+                        "variant for %s remained too similar after retry; dropping",
+                        candidate.question_id,
+                    )
+                    return None
+        if not pair or not pair.question:
             return None
         candidate_source_id = (
             f"{candidate.book_id}::{candidate.page_id}::{candidate.block_id}"

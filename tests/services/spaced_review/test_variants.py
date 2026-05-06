@@ -169,6 +169,93 @@ async def test_empty_input_returns_empty() -> None:
 
 
 @pytest.mark.asyncio
+async def test_near_duplicate_variant_triggers_one_retry() -> None:
+    """A variant too similar to the original should regenerate once. If the
+    retry produces a fresh question, it ships."""
+    call_count = 0
+
+    async def near_duplicate_then_fresh(generator, template, previous):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return QAPair(
+                question_id=template.question_id,
+                question="What is the capital of France?",
+                correct_answer="Paris",
+                explanation="ok",
+                question_type="choice",
+            )
+        return QAPair(
+            question_id=template.question_id,
+            question="Which European city has been the seat of French government since 987 AD?",
+            correct_answer="Paris",
+            explanation="ok",
+            question_type="choice",
+        )
+
+    variants = await generate_variants(
+        [_candidate()],
+        generator_factory=lambda: object(),
+        process_override=near_duplicate_then_fresh,
+    )
+    assert call_count == 2, "guard should retry exactly once on near-duplicate"
+    assert len(variants) == 1
+    assert "987" in variants[0].question
+
+
+@pytest.mark.asyncio
+async def test_persistent_near_duplicate_dropped_after_retry() -> None:
+    """If the retry is still too similar, drop the candidate rather than ship
+    a duplicate."""
+    call_count = 0
+
+    async def always_duplicate(generator, template, previous):
+        nonlocal call_count
+        call_count += 1
+        return QAPair(
+            question_id=template.question_id,
+            question="What is the capital of France?",
+            correct_answer="Paris",
+            explanation="ok",
+            question_type="choice",
+        )
+
+    variants = await generate_variants(
+        [_candidate()],
+        generator_factory=lambda: object(),
+        process_override=always_duplicate,
+    )
+    assert call_count == 2, "guard should retry once then give up"
+    assert variants == []
+
+
+@pytest.mark.asyncio
+async def test_fresh_variant_skips_retry() -> None:
+    """A variant clearly different from the original ships on the first call
+    without invoking a retry — guard must not double-call the LLM unnecessarily."""
+    call_count = 0
+
+    async def fresh(generator, template, previous):
+        nonlocal call_count
+        call_count += 1
+        return QAPair(
+            question_id=template.question_id,
+            question="Which city served as the seat of the French monarchy from 987 AD?",
+            correct_answer="Paris",
+            explanation="ok",
+            question_type="choice",
+        )
+
+    variants = await generate_variants(
+        [_candidate()],
+        generator_factory=lambda: object(),
+        process_override=fresh,
+    )
+    assert call_count == 1, "no retry should fire when variant is fresh"
+    assert len(variants) == 1
+
+
+@pytest.mark.asyncio
 async def test_candidates_run_concurrently_bounded_by_semaphore() -> None:
     """Locks in the parallelism contract: candidates fan out via asyncio.gather
     and the Semaphore caps in-flight calls at _MAX_CONCURRENCY (4)."""
