@@ -6,9 +6,10 @@ import { cn } from '@/lib/utils/cn';
 
 interface Props {
   block: FillBlankQuizBlock;
+  onAttempt?: (args: { isCorrect: boolean; userAnswer: string }) => void;
 }
 
-export function FillBlankQuizBlockView({ block }: Props) {
+export function FillBlankQuizBlockView({ block, onAttempt }: Props) {
   const [selected, setSelected] = useState<string | null>(null);
   const [revealed, setRevealed] = useState(false);
 
@@ -16,6 +17,10 @@ export function FillBlankQuizBlockView({ block }: Props) {
     if (revealed) return;
     setSelected(letter);
     setRevealed(true);
+    onAttempt?.({
+      isCorrect: letter === block.correctAnswer,
+      userAnswer: letter,
+    });
   };
 
   const correct = revealed && selected === block.correctAnswer;

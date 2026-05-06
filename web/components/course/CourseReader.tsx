@@ -23,6 +23,7 @@ import { StudyGuideView } from './artifacts/StudyGuideView';
 import { FinalExamView } from './artifacts/FinalExamView';
 import { PodcastPlayer } from './artifacts/PodcastPlayer';
 import { CompletionPage } from '@/components/completion/CompletionPage';
+import { recordCourseAttempt } from '@/lib/quiz/api-client';
 
 interface Props {
   courseId: string;
@@ -173,6 +174,7 @@ export function CourseReader({ courseId }: Props) {
             index={i}
             section={section}
             citations={course.citations}
+            courseId={courseId}
             onAsk={onGoDeeper}
             registerRef={(el) => {
               sectionRefs.current[i] = el;
@@ -314,24 +316,13 @@ function ReaderHeader({
     }
   }, [courseId, title]);
 
-  // Shared button class — used inline on sm+ and inside the mobile overflow menu.
-  const inlineActionClass =
-    'flex shrink-0 items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-3 py-1 text-xs text-neutral-700 transition hover:bg-neutral-50 disabled:cursor-progress disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800';
-  const menuItemClass =
-    'flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-neutral-700 transition hover:bg-neutral-100 disabled:cursor-progress disabled:opacity-60 dark:text-neutral-200 dark:hover:bg-neutral-900';
-
-  // Close the <details> after a menu action fires so the popover dismisses.
-  const closeMenu = (e: { currentTarget: HTMLElement }) => {
-    e.currentTarget.closest('details')?.removeAttribute('open');
-  };
-
   return (
-    <header className="sticky top-0 z-20 flex items-center gap-2 border-b border-neutral-200 bg-white/90 px-4 py-3 backdrop-blur sm:gap-3 dark:border-neutral-800 dark:bg-neutral-950/90">
+    <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-neutral-200 bg-white/90 px-4 py-3 backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/90">
       <button
         type="button"
         onClick={onOpenToc}
         aria-label="Open table of contents"
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-900"
+        className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-900"
       >
         <span aria-hidden className="text-lg">
           ≡
@@ -340,14 +331,12 @@ function ReaderHeader({
       <div className="min-w-0 flex-1 truncate font-serif text-lg text-neutral-900 dark:text-neutral-50">
         {title}
       </div>
-
-      {/* Inline actions — hidden on mobile, visible from sm: (640px) up. */}
       <button
         type="button"
         onClick={() => void downloadPdf()}
         disabled={downloading}
         aria-label="Download course as PDF"
-        className={`hidden sm:flex ${inlineActionClass}`}
+        className="flex shrink-0 items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-3 py-1 text-xs text-neutral-700 transition hover:bg-neutral-50 disabled:cursor-progress disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
       >
         {downloading ? '…' : '⬇ PDF'}
       </button>
@@ -356,14 +345,14 @@ function ReaderHeader({
         onClick={() => void exportSlides()}
         disabled={exportingSlides}
         aria-label="Export course as PowerPoint slides"
-        className={`hidden sm:flex ${inlineActionClass}`}
+        className="flex shrink-0 items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-3 py-1 text-xs text-neutral-700 transition hover:bg-neutral-50 disabled:cursor-progress disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
       >
         {exportingSlides ? '…' : '⬇ Slides'}
       </button>
       <Link
         href={`/course/${courseId}/word-quest`}
         aria-label="Open Word Quest vocabulary game"
-        className={`hidden sm:flex ${inlineActionClass}`}
+        className="flex shrink-0 items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-3 py-1 text-xs text-neutral-700 transition hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
       >
         🎮 Word Quest
       </Link>
@@ -372,65 +361,10 @@ function ReaderHeader({
         onClick={onOpenAsClassroom}
         disabled={projecting}
         aria-label="Open as classroom slide deck"
-        className={`hidden sm:flex ${inlineActionClass}`}
+        className="flex shrink-0 items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-3 py-1 text-xs text-neutral-700 transition hover:bg-neutral-50 disabled:cursor-progress disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
       >
         {projecting ? '…' : '▶ Classroom'}
       </button>
-
-      {/* Mobile overflow menu — visible only below sm:. Native <details> avoids
-          a click-outside-to-close hook; menu items dismiss the popover on click. */}
-      <details className="relative shrink-0 sm:hidden">
-        <summary
-          aria-label="More actions"
-          className="flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded-md hover:bg-neutral-100 [&::-webkit-details-marker]:hidden dark:hover:bg-neutral-900"
-        >
-          <span aria-hidden className="text-lg leading-none">
-            ⋮
-          </span>
-        </summary>
-        <div className="absolute right-0 top-full mt-1 w-44 rounded-md border border-neutral-200 bg-white p-1 shadow-lg dark:border-neutral-800 dark:bg-neutral-950">
-          <button
-            type="button"
-            onClick={(e) => {
-              closeMenu(e);
-              void downloadPdf();
-            }}
-            disabled={downloading}
-            className={menuItemClass}
-          >
-            {downloading ? '…' : '⬇ PDF'}
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              closeMenu(e);
-              void exportSlides();
-            }}
-            disabled={exportingSlides}
-            className={menuItemClass}
-          >
-            {exportingSlides ? '…' : '⬇ Slides'}
-          </button>
-          <Link
-            href={`/course/${courseId}/word-quest`}
-            onClick={closeMenu}
-            className={menuItemClass}
-          >
-            🎮 Word Quest
-          </Link>
-          <button
-            type="button"
-            onClick={(e) => {
-              closeMenu(e);
-              onOpenAsClassroom();
-            }}
-            disabled={projecting}
-            className={menuItemClass}
-          >
-            {projecting ? '…' : '▶ Classroom'}
-          </button>
-        </div>
-      </details>
     </header>
   );
 }
@@ -439,18 +373,32 @@ interface SectionViewProps {
   index: number;
   section: CourseSection;
   citations: Record<string, CourseCitation>;
+  courseId: string;
   onAsk: (prompt: string) => void;
   registerRef: (el: HTMLElement | null) => void;
 }
 
-function SectionView({ index, section, citations, onAsk, registerRef }: SectionViewProps) {
+function SectionView({
+  index,
+  section,
+  citations,
+  courseId,
+  onAsk,
+  registerRef,
+}: SectionViewProps) {
   const status = section.status || 'pending';
   const blockList = useMemo(
     () =>
       section.blocks.map((block) => (
-        <BlockView key={block.id} block={block} citations={citations} />
+        <BlockView
+          key={block.id}
+          block={block}
+          citations={citations}
+          courseId={courseId}
+          sectionId={section.id}
+        />
       )),
-    [section.blocks, citations],
+    [section.blocks, citations, courseId, section.id],
   );
 
   return (
@@ -539,10 +487,27 @@ function SectionAudio({ section }: { section: CourseSection }) {
 function BlockView({
   block,
   citations,
+  courseId,
+  sectionId,
 }: {
   block: CourseBlock;
   citations: Record<string, CourseCitation>;
+  courseId: string;
+  sectionId: string;
 }) {
+  const onQuizAttempt = useCallback(
+    (args: { isCorrect: boolean; userAnswer: string }) => {
+      void recordCourseAttempt({
+        courseId,
+        sectionId,
+        blockId: block.id,
+        isCorrect: args.isCorrect,
+        userAnswer: args.userAnswer,
+      });
+    },
+    [block.id, courseId, sectionId],
+  );
+
   switch (block.type) {
     case 'prose':
       return <ProseBlockView block={block} citations={citations} />;
@@ -555,9 +520,9 @@ function BlockView({
     case 'illustration':
       return <IllustrationBlockView block={block} />;
     case 'fillBlankQuiz':
-      return <FillBlankQuizBlockView block={block} />;
+      return <FillBlankQuizBlockView block={block} onAttempt={onQuizAttempt} />;
     case 'multipleChoiceQuiz':
-      return <MultipleChoiceQuizBlockView block={block} />;
+      return <MultipleChoiceQuizBlockView block={block} onAttempt={onQuizAttempt} />;
     default:
       return null;
   }
