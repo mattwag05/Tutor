@@ -10,11 +10,7 @@ import {
   writeSectionAudio,
 } from '@/lib/server/course-storage';
 import { sectionToNarration } from '@/lib/course/section-text';
-import {
-  synthesizeSpeech,
-  type OpenAITTSVoice,
-  type OpenAITTSModel,
-} from '@/lib/server/tts/openai-tts';
+import { synthesizeCourseAudio } from '@/lib/server/tts/synthesize';
 
 const log = createLogger('CourseAudio');
 
@@ -23,8 +19,8 @@ export const maxDuration = 60;
 interface PostBody {
   courseId?: string;
   sectionId?: string;
-  voice?: OpenAITTSVoice;
-  model?: OpenAITTSModel;
+  voice?: string;
+  model?: string;
 }
 
 export async function POST(req: NextRequest) {
@@ -85,7 +81,7 @@ export async function POST(req: NextRequest) {
       if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
     }
 
-    const audio = await synthesizeSpeech(text, { voice, model });
+    const audio = await synthesizeCourseAudio(text, { voice, modelId: model });
     await writeSectionAudio(courseId, sectionId, audio);
     return apiSuccess({ audioUrl, bytes: audio.byteLength, cached: false });
   } catch (error) {
