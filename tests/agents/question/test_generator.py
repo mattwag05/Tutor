@@ -86,3 +86,94 @@ def test_generator_normalizes_choice_answer_from_option_text() -> None:
         "D": "Delta",
     }
     assert payload["correct_answer"] == "C"
+
+
+@pytest.mark.asyncio
+async def test_generator_passes_temperature_override_through_to_llm_stages() -> None:
+    """Locks in the DeepTutor-3k5 contract: a per-call temperature passed to
+    Generator.process must propagate to both ``_generate_payload`` (initial
+    draft) AND ``_validate_and_repair_payload`` (validation/repair). Without
+    this, spaced-review's high-temperature retry would diversify the draft
+    only to have any subsequent repair call fall back to the agents.yaml
+    default — defeating the divergence."""
+
+    captured: dict[str, float | None] = {}
+
+    class CaptureGenerator(Generator):
+        def __init__(self) -> None:
+            # Skip BaseAgent's full init (config loading); set just what
+            # process() touches before it hits our override stages.
+            self.kb_name = None
+            self.tool_flags = {}
+            self._tool_registry = None  # type: ignore[assignment]
+
+        def _build_available_tools_text(self) -> str:  # type: ignore[override]
+            return ""
+
+        async def _generate_payload(self, **kwargs):  # type: ignore[override]
+            captured["generate"] = kwargs.get("temperature")
+            return {
+                "question_type": "written",
+                "question": "ok",
+                "correct_answer": "ok",
+                "explanation": "ok",
+            }
+
+        async def _validate_and_repair_payload(self, **kwargs):  # type: ignore[override]
+            captured["validate"] = kwargs.get("temperature")
+            return kwargs["payload"], {"repaired": False, "schema_ok": True, "issues": []}
+
+    template = QuestionTemplate(
+        question_id="q_temp",
+        concentration="anything",
+        question_type="written",
+        difficulty="easy",
+    )
+    await CaptureGenerator().process(template=template, temperature=0.95)
+
+    assert captured["generate"] == 0.95, "override must reach _generate_payload"
+    assert captured["validate"] == 0.95, "override must reach _validate_and_repair_payload"
+
+
+@pytest.mark.asyncio
+async def test_generator_temperature_defaults_to_none_when_unspecified() -> None:
+    """When no override is passed, the value flowing through is None — which
+    BaseAgent.stream_llm interprets as 'use agents.yaml default'. Locks in
+    that this is an opt-in, not a behavior change for existing callers."""
+
+    captured: dict[str, object] = {"generate": "unset", "validate": "unset"}
+
+    class CaptureGenerator(Generator):
+        def __init__(self) -> None:
+            # Skip BaseAgent's full init (config loading); set just what
+            # process() touches before it hits our override stages.
+            self.kb_name = None
+            self.tool_flags = {}
+            self._tool_registry = None  # type: ignore[assignment]
+
+        def _build_available_tools_text(self) -> str:  # type: ignore[override]
+            return ""
+
+        async def _generate_payload(self, **kwargs):  # type: ignore[override]
+            captured["generate"] = kwargs.get("temperature")
+            return {
+                "question_type": "written",
+                "question": "ok",
+                "correct_answer": "ok",
+                "explanation": "ok",
+            }
+
+        async def _validate_and_repair_payload(self, **kwargs):  # type: ignore[override]
+            captured["validate"] = kwargs.get("temperature")
+            return kwargs["payload"], {"repaired": False, "schema_ok": True, "issues": []}
+
+    template = QuestionTemplate(
+        question_id="q_temp_none",
+        concentration="anything",
+        question_type="written",
+        difficulty="easy",
+    )
+    await CaptureGenerator().process(template=template)
+
+    assert captured["generate"] is None
+    assert captured["validate"] is None

@@ -31,6 +31,12 @@ _MAX_CONCURRENCY = 4
 _JACCARD_DUPLICATE_THRESHOLD = 0.85
 _TOKEN_RE = re.compile(r"\w+", re.UNICODE)
 
+# Temperature override used on the retry path when a variant flags as too
+# similar. Above the agents.yaml default (0.7) to encourage divergence on
+# regeneration. Generator.process accepts a per-call temperature override
+# (DeepTutor-3k5) so this stays scoped to the retry, not the main path.
+_RETRY_TEMPERATURE = 0.95
+
 
 def _tokenize(text: str) -> set[str]:
     return {t.lower() for t in _TOKEN_RE.findall(text)}
@@ -122,6 +128,7 @@ async def generate_variants(
         candidate: ReviewCandidate,
         template: QuestionTemplate,
         previous: list[str] | None,
+        temperature: float | None = None,
     ) -> QAPair | None:
         try:
             if process_override is not None:
@@ -132,6 +139,7 @@ async def generate_variants(
                 preference="",
                 history_context="",
                 previous_questions=previous,
+                temperature=temperature,
             )
         except Exception as exc:
             logger.warning("variant generation call failed: %s", exc)
@@ -145,19 +153,23 @@ async def generate_variants(
         async with semaphore:
             pair = await _call_once(candidate, template, previous)
             if pair and pair.question and _is_too_similar(pair.question, candidate.original_question):
-                # Regenerate once with the original variant added to the
-                # previous-questions slot so the Generator avoids it on the
-                # retry. (Higher-temperature retry is tracked separately —
-                # would require Generator.process to accept a per-call
-                # temperature override, out of scope for the guard itself.)
+                # Regenerate once with (a) the offending variant added to the
+                # previous_questions slot so the Generator avoids it
+                # explicitly, and (b) a higher temperature to encourage
+                # divergence in the sampling. Both levers together — prompt
+                # steer + sampling spread — beat either alone.
                 logger.info(
-                    "variant for %s too similar to original (jaccard above %.2f); regenerating once",
+                    "variant for %s too similar to original (jaccard above %.2f); "
+                    "regenerating once with temperature=%.2f",
                     candidate.question_id,
                     _JACCARD_DUPLICATE_THRESHOLD,
+                    _RETRY_TEMPERATURE,
                 )
                 retry_previous = list(previous or [])
                 retry_previous.append(pair.question)
-                retry = await _call_once(candidate, template, retry_previous)
+                retry = await _call_once(
+                    candidate, template, retry_previous, temperature=_RETRY_TEMPERATURE
+                )
                 if retry and retry.question and not _is_too_similar(
                     retry.question, candidate.original_question
                 ):
