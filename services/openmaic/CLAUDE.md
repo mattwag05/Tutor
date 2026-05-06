@@ -97,6 +97,8 @@ Do not run against Pironman; the container and compose entry no longer exist.
 
 ## Generation Conventions
 
+_Archive — for `web/` equivalents see project root `CLAUDE.md` § "Generation Pipeline (Phase B.1)" and gotcha #18 (web-search providers)._
+
 - **LLM calls**: prefer `callLLM` (non-stream) and `streamLLM` (stream) from `lib/ai/llm.ts` over raw `generateText`/`streamText` from `ai` — the wrappers inject per-call thinking config and retry/validate hooks.
 - **New prompts**: add the id to `lib/generation/prompts/types.ts` `PromptId` union AND `lib/generation/prompts/index.ts` `PROMPT_IDS`, then create `lib/generation/prompts/templates/<id>/{system,user}.md`. Loader resolves via `process.cwd() + 'lib/generation/prompts/templates/<id>/'`.
 - **JSON parsing from LLM**: use `parseJsonResponse` from `lib/generation/json-repair` — handles markdown fencing, trailing commas, etc. `response_format` is not supported on OpenRouter Anthropic models — include JSON schema instructions in the prompt instead.
@@ -105,6 +107,8 @@ Do not run against Pironman; the container and compose entry no longer exist.
 ---
 
 ## Frontend Conventions
+
+_Archive — for `web/` equivalents see project root `CLAUDE.md` gotcha #16 (i18n: web/ uses 2 locales `en`/`zh` flat dot-notation, NOT OpenMAIC's 4-locale nested shape) and gotcha #19 (`MarkdownRenderer` prop)._
 
 - **No `react-markdown` dep.** For structured-block content, use a per-paragraph tokenizer — see `components/course/blocks/ProseBlock.tsx` for the `matchAll()`-based pattern that supports `{{term:X}}`, `{{cite:Y}}`, `$...$` inline LaTeX, `**bold**`, `*italic*`.
 - **KaTeX**: `import katex from 'katex'`, `katex.renderToString(src, { displayMode, throwOnError: false, strict: 'ignore' })`, render via `dangerouslySetInnerHTML`. Same pattern as `components/slide-renderer/components/element/LatexElement/BaseLatexElement.tsx`. CSS is globally imported in `app/layout.tsx`.
@@ -115,6 +119,8 @@ Do not run against Pironman; the container and compose entry no longer exist.
 ---
 
 ## Claude Code Hook Gotchas
+
+_Archive — these workarounds applied when writing OpenMAIC source. Project-root work uses web/ patterns; the regex.exec / dSIH false positives may still apply if writing TypeScript anywhere else._
 
 The user's global PreToolUse security hook flags two false positives when writing TypeScript files via the `Write` tool:
 
