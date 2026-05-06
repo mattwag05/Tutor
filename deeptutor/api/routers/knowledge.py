@@ -296,16 +296,48 @@ def _validate_registered_provider(raw_provider: str | None) -> str:
     return DEFAULT_PROVIDER
 
 
+# Mtime-keyed cache for the (kb_names, default_kb) tuple. list_knowledge_bases()
+# does an entire config-file read + base-dir scan on every call, which is
+# wasteful on the /query hot path (one call per chunk under per-section grounding
+# loops). Stat is ~µs; cache hit avoids both the JSON parse and the disk scan.
+# Cache is per-(manager, mtime, kb_inode); mtime alone would miss out-of-tree
+# config swaps, so include the inode of the config file as a tie-breaker.
+_KB_RESOLVE_CACHE: dict[tuple[int, int, float], tuple[set[str], str | None]] = {}
+
+
+def _kb_resolve_cache_key(manager: KnowledgeBaseManager) -> tuple[int, int, float] | None:
+    config_file = getattr(manager, "config_file", None)
+    if config_file is None:
+        return None
+    try:
+        st = config_file.stat()
+    except OSError:
+        return None
+    return (id(manager), st.st_ino, st.st_mtime)
+
+
 def _resolve_registered_kb_name(manager: KnowledgeBaseManager, kb_name: str | None) -> str:
     """Resolve route-level default aliases to the configured default KB."""
     requested = str(kb_name or "").strip()
-    kb_names = manager.list_knowledge_bases()
-    if requested and requested in kb_names:
+
+    cache_key = _kb_resolve_cache_key(manager)
+    cached = _KB_RESOLVE_CACHE.get(cache_key) if cache_key is not None else None
+    if cached is None:
+        kb_names_set = set(manager.list_knowledge_bases())
+        default_kb = manager.get_default()
+        if cache_key is not None:
+            _KB_RESOLVE_CACHE[cache_key] = (kb_names_set, default_kb)
+            # Bound memory: only keep the latest entry per manager id.
+            for stale_key in [k for k in _KB_RESOLVE_CACHE if k[0] == cache_key[0] and k != cache_key]:
+                _KB_RESOLVE_CACHE.pop(stale_key, None)
+    else:
+        kb_names_set, default_kb = cached
+
+    if requested and requested in kb_names_set:
         return requested
 
     if requested.lower() in DEFAULT_KB_ALIASES:
-        default_kb = manager.get_default()
-        if default_kb and default_kb in kb_names:
+        if default_kb and default_kb in kb_names_set:
             return default_kb
         raise HTTPException(status_code=404, detail="No default knowledge base is configured")
 
