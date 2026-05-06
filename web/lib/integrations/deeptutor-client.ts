@@ -64,25 +64,23 @@ async function fetchWithTimeout(
   }
 }
 
-async function apiGet<T>(path: string, timeout?: number): Promise<T> {
-  const url = `${config.baseUrl}${path}`;
-  const response = await fetchWithTimeout(url, {}, timeout);
-
+function throwIfNotOk(response: Response): void {
   if (!response.ok) {
     throw new DeepTutorAPIError(
       `DeepTutor API error: ${response.status} ${response.statusText}`,
       response.status,
     );
   }
+}
 
+async function apiGet<T>(path: string, timeout?: number): Promise<T> {
+  const url = `${config.baseUrl}${path}`;
+  const response = await fetchWithTimeout(url, {}, timeout);
+  throwIfNotOk(response);
   return response.json() as Promise<T>;
 }
 
-async function apiPost<T>(
-  path: string,
-  body: unknown,
-  timeout?: number,
-): Promise<{ status: number; body: T }> {
+async function apiPost<T>(path: string, body: unknown, timeout?: number): Promise<T> {
   const url = `${config.baseUrl}${path}`;
   const response = await fetchWithTimeout(
     url,
@@ -95,17 +93,12 @@ async function apiPost<T>(
   );
 
   if (response.status === 204) {
-    return { status: 204, body: undefined as unknown as T };
+    return undefined as unknown as T;
   }
 
   const data = (await response.json()) as T;
-  if (!response.ok) {
-    throw new DeepTutorAPIError(
-      `DeepTutor API error: ${response.status} ${response.statusText}`,
-      response.status,
-    );
-  }
-  return { status: response.status, body: data };
+  throwIfNotOk(response);
+  return data;
 }
 
 // ==================== Health Check ====================
@@ -189,8 +182,7 @@ export async function recordQuizAttempt(
 ): Promise<QuizAttemptRecord | null> {
   if (!config.enabled) return null;
   try {
-    const { body } = await apiPost<QuizAttemptRecord>('/api/v1/quiz/attempts', payload);
-    return body;
+    return await apiPost<QuizAttemptRecord>('/api/v1/quiz/attempts', payload);
   } catch (error) {
     if (error instanceof DeepTutorUnavailableError) {
       log.warn(`Skipping quiz-attempt write — DeepTutor unavailable: ${error.message}`);
@@ -275,12 +267,11 @@ export async function queryKnowledgeBase(
   const topK = options?.topK ?? 8;
   let payload: KnowledgeQueryResponse;
   try {
-    const { body } = await apiPost<KnowledgeQueryResponse>(
+    payload = await apiPost<KnowledgeQueryResponse>(
       `/api/v1/knowledge/${encodeURIComponent(kbName)}/query`,
       { query, top_k: topK },
       options?.timeout,
     );
-    payload = body;
   } catch (error) {
     if (error instanceof DeepTutorAPIError && error.status === 409) {
       log.warn(`KB "${kbName}" needs reindex — returning empty RAG result`);
@@ -340,8 +331,30 @@ function hashString(s: string): string {
   return (h >>> 0).toString(36);
 }
 
-export function ragContextCacheKey(kbName: string, requirement: string): string {
-  return `${kbName}:${hashString(requirement)}`;
+// Cache key includes topK so a 4-passage call doesn't return a stale 8-passage
+// payload (or vice-versa). Without topK in the key, varying the retrieval
+// width between callers silently leaks cached content.
+export function ragContextCacheKey(
+  kbName: string,
+  requirement: string,
+  topK: number,
+): string {
+  return `${kbName}:${topK}:${hashString(requirement)}`;
+}
+
+function formatPassageLabel(
+  source: string | undefined,
+  page: unknown,
+  score: number | undefined,
+): string {
+  const labelBits: string[] = [];
+  if (source) labelBits.push(String(source));
+  if (page !== undefined && page !== null && page !== '') {
+    labelBits.push(`page ${String(page)}`);
+  }
+  const scoreLabel =
+    typeof score === 'number' ? ` · score ${score.toFixed(3)}` : '';
+  return labelBits.length > 0 ? ` (${labelBits.join(', ')}${scoreLabel})` : scoreLabel;
 }
 
 function getCachedRagContext(key: string): string | null | undefined {
@@ -380,8 +393,10 @@ export function clearRagContextCache(): void {
 export async function getRAGContextForGeneration(
   kbName: string,
   topic: string,
+  options?: { topK?: number },
 ): Promise<string | null> {
-  const cacheKey = ragContextCacheKey(kbName, topic);
+  const topK = options?.topK ?? 8;
+  const cacheKey = ragContextCacheKey(kbName, topic, topK);
   const cached = getCachedRagContext(cacheKey);
   if (cached !== undefined) {
     log.info(`RAG context cache hit for "${kbName}"`);
@@ -389,7 +404,7 @@ export async function getRAGContextForGeneration(
   }
 
   try {
-    const { answer, sources } = await queryKnowledgeBase(kbName, topic);
+    const { answer, sources } = await queryKnowledgeBase(kbName, topic, { topK });
 
     if (!answer && sources.length === 0) {
       log.info(`No KB metadata available for "${kbName}"`);
@@ -402,16 +417,8 @@ export async function getRAGContextForGeneration(
     if (sources.length > 0) {
       parts.push('## Retrieved Passages');
       sources.forEach((source, i) => {
-        const meta = (source.metadata ?? {}) as Record<string, unknown>;
-        const page = meta.page;
-        const labelBits: string[] = [];
-        if (source.source) labelBits.push(String(source.source));
-        if (page !== undefined && page !== null && page !== '') {
-          labelBits.push(`page ${String(page)}`);
-        }
-        const scoreLabel =
-          typeof source.score === 'number' ? ` · score ${source.score.toFixed(3)}` : '';
-        const label = labelBits.length > 0 ? ` (${labelBits.join(', ')}${scoreLabel})` : scoreLabel;
+        const page = (source.metadata ?? ({} as Record<string, unknown>)).page;
+        const label = formatPassageLabel(source.source, page, source.score);
         parts.push(`### Passage ${i + 1}${label}\n${source.content}`);
       });
     } else if (answer) {

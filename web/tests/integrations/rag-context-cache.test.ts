@@ -3,25 +3,31 @@ import { ragContextCacheKey, clearRagContextCache } from '@/lib/integrations/dee
 
 describe('ragContextCacheKey', () => {
   it('produces stable keys for the same input', () => {
-    const a = ragContextCacheKey('kb-1', 'Teach me linear algebra');
-    const b = ragContextCacheKey('kb-1', 'Teach me linear algebra');
+    const a = ragContextCacheKey('kb-1', 'Teach me linear algebra', 8);
+    const b = ragContextCacheKey('kb-1', 'Teach me linear algebra', 8);
     expect(a).toBe(b);
   });
 
   it('differentiates by kbName', () => {
-    const a = ragContextCacheKey('kb-1', 'topic');
-    const b = ragContextCacheKey('kb-2', 'topic');
+    const a = ragContextCacheKey('kb-1', 'topic', 8);
+    const b = ragContextCacheKey('kb-2', 'topic', 8);
     expect(a).not.toBe(b);
   });
 
   it('differentiates by requirement text', () => {
-    const a = ragContextCacheKey('kb-1', 'topic A');
-    const b = ragContextCacheKey('kb-1', 'topic B');
+    const a = ragContextCacheKey('kb-1', 'topic A', 8);
+    const b = ragContextCacheKey('kb-1', 'topic B', 8);
+    expect(a).not.toBe(b);
+  });
+
+  it('differentiates by topK so a width-4 query does not hit a width-8 entry', () => {
+    const a = ragContextCacheKey('kb-1', 'topic', 4);
+    const b = ragContextCacheKey('kb-1', 'topic', 8);
     expect(a).not.toBe(b);
   });
 
   it('starts the key with the kbName prefix', () => {
-    const key = ragContextCacheKey('my-kb', 'whatever');
+    const key = ragContextCacheKey('my-kb', 'whatever', 8);
     expect(key.startsWith('my-kb:')).toBe(true);
   });
 });
