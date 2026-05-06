@@ -187,22 +187,44 @@ class LlamaIndexPipeline:
             result["warning"] = warning
         return result
 
+    # Mtime-keyed cache for the warning string per (kb_name, current_model).
+    # Without this, every retrieval re-opens kb_config.json — under per-section
+    # grounding loops that's one JSON parse per chunk. Cache invalidates when
+    # the config file's mtime changes (UI Settings edits write the file).
+    # Class-level intentionally so all pipeline instances share invalidation.
+    _MISMATCH_WARN_CACHE: dict[tuple[str, str, str, float], str] = {}
+
     def _embedding_mismatch_warning(self, kb_name: str) -> str:
         try:
             cfg_path = Path(self.kb_base_dir) / "kb_config.json"
-            if not cfg_path.exists():
+            try:
+                st = cfg_path.stat()
+            except OSError:
                 return ""
+            current = get_embedding_config().model
+            cache_key = (str(cfg_path), kb_name, current, st.st_mtime)
+            cached = self._MISMATCH_WARN_CACHE.get(cache_key)
+            if cached is not None:
+                return cached
+
             with open(cfg_path, encoding="utf-8") as handle:
                 kb_entry = json.load(handle).get("knowledge_bases", {}).get(kb_name, {})
             if not kb_entry.get("embedding_mismatch"):
+                self._MISMATCH_WARN_CACHE[cache_key] = ""
                 return ""
             stored = kb_entry.get("embedding_model", "unknown")
-            current = get_embedding_config().model
             warning = (
                 f"Warning: KB '{kb_name}' was indexed with '{stored}' "
                 f"but current model is '{current}'. Re-index recommended."
             )
             self.logger.warning(warning)
+
+            # Bound memory: drop stale entries for this same (path, kb_name, model)
+            # tuple from prior mtimes when we insert a fresh one.
+            stale_prefix = (str(cfg_path), kb_name, current)
+            for stale_key in [k for k in self._MISMATCH_WARN_CACHE if k[:3] == stale_prefix and k != cache_key]:
+                self._MISMATCH_WARN_CACHE.pop(stale_key, None)
+            self._MISMATCH_WARN_CACHE[cache_key] = warning
             return warning
         except Exception:
             return ""

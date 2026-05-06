@@ -218,6 +218,10 @@ npm run audit          # Playwright UI audit (requires next start)
 
 36. **`bd close <id>` fails when blocked by open issues** — use `bd close <id> --force` to override dependency blocks when the blocking bead was shipped in the same PR batch.
 
+37. **`TestClient(app)` without a `with` block teardowns its anyio portal per request** (DeepTutor-r3k root cause, fixed in lze PR #22). Starlette's `TestClient` opens a fresh `BlockingPortal` (and event loop) for each request when used outside a context manager; the portal closes at request-end, cancelling any in-flight `asyncio.create_task` work. Routes that rely on `create_task` for post-response side effects (e.g. spaced-review's failure-path `_finalize("empty", [])` cache write) lose those writes deterministically on Python 3.11 — 3.12/3.13 drain pending tasks more aggressively before close, masking the bug. Fix: wrap fixture as `with TestClient(app) as client:` so a single portal is shared across all requests in the fixture's lifetime. Affects every test fixture in `tests/api/` that uses `create_task` paths.
+
+38. **GitHub Actions doesn't always re-trigger CI on subsequent pushes to a PR branch** — observed during PR #22 cleanup, multiple pushes of test-only changes after the initial run produced zero new workflow runs; even `gh pr close 22 && gh pr reopen 22` didn't re-fire. Forced re-trigger pattern: `git rebase origin/main` (creates new commit SHAs), then `git push --force-with-lease`. The synchronize event fires on rebase-induced SHA churn even when content is identical. The `gh pr merge` "not mergeable" error is a tell that the PR base is stale relative to the current main and a rebase will both fix the merge AND re-trigger CI.
+
 ---
 
 ## Course Builder
