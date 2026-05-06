@@ -5,7 +5,7 @@ AI tutoring platform — multi-agent RAG architecture, Python/FastAPI backend, N
 **Status:** 🔨 In Development (synced from upstream 2026-04-30 → v1.3.7; OpenMAIC retired B.4; Manifest router live C.1; Intent router + PWA live C.3/C.4 2026-05-05)
 **Repo:** https://github.com/mattwag05/DeepTutor.git
 **Upstream:** https://github.com/HKUDS/DeepTutor (main at 445e762)
-**Deployed:** https://deeptutor.tail6e035b.ts.net (Pironman — 100.126.176.86)
+**Deployed:** https://tutor.tail6e035b.ts.net (Pironman — 100.126.176.86, unified URL post-2026-05-06)
 
 ---
 
@@ -179,7 +179,7 @@ npm run audit          # Playwright UI audit (requires next start)
 
 11. **Tailscale sidecar** — `docker-compose.yml` includes `tailscale-deeptutor` sidecar (ScaleTail/coder pattern). `deeptutor` uses `network_mode: service:tailscale-deeptutor` — remove `ports:` and `networks:` directives as they conflict. Auth key in Vaultwarden: `get-secret "Tailscale Auth Key"`. Serve config: `tailscale/ts-serve.json`.
 
-12. **Pironman never adopted the tailscale sidecar pattern** — base `docker-compose.yml` defines a `tailscale-deeptutor` sidecar; Pironman's `docker-compose.pironman.yml` ignores it. The production reverse proxy is `caddy-tailscale` (`~/homelab/caddy/pironman/`) which registers `bind tailscale/{deeptutor, deeptutor-api, tutor}` against host loopback ports `3782 / 8001`. **OpenMAIC (port 3101) was retired 2026-05-05 (B.4)** — classroom + course routes now all proxy to 3782. The `tailscale-deeptutor` orphan container has no production role. For new tailnet hostnames, edit Caddyfile and `docker compose restart caddy`.
+12. **Pironman never adopted the tailscale sidecar pattern** — base `docker-compose.yml` defines a `tailscale-deeptutor` sidecar; Pironman's `docker-compose.pironman.yml` ignores it. The production reverse proxy is `caddy-tailscale` (`~/homelab/caddy/pironman/`) which registers `bind tailscale/tutor` against host loopback ports `3782 / 8001`. **OpenMAIC (port 3101) was retired 2026-05-05 (B.4); legacy `deeptutor.*` + `deeptutor-api.*` blocks were dropped 2026-05-06** — `tutor.*` is the only live hostname, classroom + course routes proxy to 3782. The `tailscale-deeptutor` orphan container has no production role. For new tailnet hostnames, edit Caddyfile and `docker compose restart caddy`.
 
 13. **TTS for course audio + podcasts** routes through the unified provider system in `web/lib/audio/tts-providers.ts` (8 backends: openai-tts, azure-tts, glm-tts, qwen-tts, voxcpm-tts, doubao-tts, elevenlabs-tts, minimax-tts; custom OpenAI-compatible endpoints via `custom-tts-*` IDs — covers local Kokoro-style servers). Server-side entry point: `synthesizeCourseAudio` from `web/lib/server/tts/synthesize.ts` (replaces the deleted legacy `openai-tts.ts` / `chunk.ts` shims, vsu 2026-05-05). Configure keys via Settings UI (lands in `data/user/settings/model_catalog.json`), `server-providers.yml`, or `*_API_KEY` env vars (e.g. `TTS_OPENAI_API_KEY` still works as one of the unified inputs — no longer the only path). PRD §B's dual-key gotcha (needing a separate OpenAI key for TTS because OpenRouter doesn't proxy TTS) is now obsolete: pick any TTS provider via `providerId` and configure it independently of the LLM. Routes: `web/app/api/generate/course-audio/route.ts`, `web/app/api/generate/course-podcast-{solo,conversational}/route.ts`.
 
@@ -353,6 +353,8 @@ origin    https://github.com/mattwag05/DeepTutor.git  (GitHub, canonical)
 upstream  https://github.com/HKUDS/DeepTutor.git      (HKUDS original)
 ```
 
+**Push policy:** direct push to `origin/main` is allowed — no PR required for fixes/docs. `/simplify` is the gate; once it passes, the push is authorized (don't re-ask). Stack a branch + PR only when the change benefits from review (e.g., risky refactors, multi-file phase work like B.2/B.3).
+
 **Branches:**
 - `main` — fork of HKUDS/DeepTutor (last upstream merge: v1.3.7 / 93891789, 2026-04-30) + all local customizations (B.1–B.5, C.1–C.4)
 - `backup-pre-upstream-sync` — snapshot of old codebase before upstream sync
@@ -412,8 +414,8 @@ The full stack runs on the Pironman (100.126.176.86) via Docker Compose, fronted
 
 **Live URLs** (served by `caddy-tailscale` against host loopback — see gotcha #12):
 - Unified: https://tutor.tail6e035b.ts.net (path-routed: `/` → 3782, `/api/v1/*` → 8001, `/classroom*` + `/course*` → 3782) — B.4 complete 2026-05-05
-- Frontend: https://deeptutor.tail6e035b.ts.net (→ 127.0.0.1:3782)
-- API: https://deeptutor-api.tail6e035b.ts.net (→ 127.0.0.1:8001)
+- ~~Frontend: https://deeptutor.tail6e035b.ts.net~~ — Retired 2026-05-06 (folded into tutor.*)
+- ~~API: https://deeptutor-api.tail6e035b.ts.net~~ — Retired 2026-05-06 (folded into tutor.*/api/v1/*)
 - ~~OpenMAIC: https://openmaic.tail6e035b.ts.net~~ — Retired 2026-05-05
 
 **Containers:** `deeptutor` only (caddy-tailscale runs separately under `~/homelab/caddy/pironman/`)
