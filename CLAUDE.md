@@ -9,6 +9,17 @@ AI tutoring platform — multi-agent RAG architecture, Python/FastAPI backend, N
 
 ---
 
+## Quick Index
+
+- **Daily flow:** Quick Start • Development • Troubleshooting • Task Tracking
+- **Architecture:** Backend (`deeptutor/`) • Frontend (`web/`) • Config (`config/`)
+- **Pipelines:** Generation Pipeline (B.1) • Manifest Router (C.1) • Intent Router (C.3) • PWA (C.4) • Course Builder • Quiz Attempts • Spaced Review
+- **Deploy:** Production Deployment (Pironman) • Upstream Sync • Remotes
+- **Gotchas:** 41 numbered entries — Ollama, Docker, gh CLI, vitest, beads, etc.
+- **History:** OpenMAIC retired 2026-05-05 (B.4) — `services/openmaic/CLAUDE.md` is archive-only
+
+---
+
 ## Quick Start
 
 ```bash
@@ -156,7 +167,7 @@ npm run audit          # Playwright UI audit (requires next start)
 
 5. **`npm audit` warnings** — 24 known vulnerabilities in frontend deps (moderate/high). Not blocking for local dev. Track via a bd task when addressing.
 
-6. **Sidebar refactored to directory** — Upstream refactored `Sidebar.tsx` into `sidebar/SidebarShell.tsx`, `WorkspaceSidebar.tsx`, and `UtilitySidebar.tsx`. Classroom nav routes to `/classroom` within web/ (same-origin, no `external` field). OpenMAIC external link retired in B.4.
+6. **Sidebar layout** — `web/components/sidebar/{SidebarShell,WorkspaceSidebar,UtilitySidebar}.tsx`. Classroom nav routes to `/classroom` within web/ (same-origin, no `external` field). New nav items go in `PRIMARY_NAV` / `SECONDARY_NAV` constants in `SidebarShell.tsx` (the old `ALL_NAV_ITEMS` / `DEFAULT_NAV_ORDER` indirection in `web/context/GlobalContext.tsx` was removed).
 
 7. **i18n system (backend)** — Upstream replaced the old per-file `.ts` translation approach with i18next + JSON locale files at `lib/i18n/locales/{en-US,zh-CN,ja-JP,ru-RU}.json`. All KB toolbar strings are under the `toolbar` namespace. **For `web/` UI strings, see gotcha #16 — only 2 locales, flat dot-notation keys.** (OpenMAIC i18n is moot — `services/openmaic/` is archived.)
 
@@ -218,6 +229,16 @@ npm run audit          # Playwright UI audit (requires next start)
 
 36. **`bd close <id>` fails when blocked by open issues** — use `bd close <id> --force` to override dependency blocks when the blocking bead was shipped in the same PR batch.
 
+37. **`Scene.stageId` IS the classroom (Stage) id** (`web/lib/types/stage.ts:46`). Threading classroom context to scene renderers (e.g. for quiz-attempt source_ids) doesn't need prop-drilling from the classroom page; read it off the scene object inside the renderer. See `web/components/stage/scene-renderer.tsx:23-30` for the pattern.
+
+38. **Pre-existing test failures on main (don't chase):** `tests/services/test_config_loader.py::test_load_config_with_main_uses_explicit_project_root` and 7 cases in `tests/api/test_tutorbot_channel_schema.py` fail without any local edits (verified 2026-05-05). Confirm via `git stash && .venv/bin/python -m pytest <path> && git stash pop` before assuming your change broke them.
+
+39. **`npx vitest run` (no path arg) reports ~13 "failures" that are not failures.** `tests/skill-slug.test.ts`, `tests/think-segments.test.ts`, `tests/version.test.ts`, etc. are helper files without `describe`/`it` blocks; vitest's `No test suite found in file` counts each as a failed test file. Real test failures show test names; "No test suite found" is benign. Filter with explicit path args (`npx vitest run tests/generation/ tests/intent/ tests/api/ ...`) to avoid the noise.
+
+40. **B.4 cleanup left orphaned API routes that silently 404.** When a classroom/course frontend POSTs to a relative `/api/...` path, the route may live only in archived `services/openmaic/app/api/` — there are no Next.js rewrites, and same-origin requests hit `web/` on port 3782. xi7 (2026-05-05) migrated `/api/quiz/attempts`; others may still be silent. Audit: `grep -rn "fetch.*'/api/" web/ | grep -v "/api/v1/"` then check each path exists in `web/app/api/`.
+
+41. **Vitest route-handler pattern.** `new NextRequest('http://localhost:3782/api/...?qs')` + direct `await GET(req)` works for App Router route handlers. Mock storage modules with `vi.mock('@/lib/server/...')`, then `const { GET } = await import('@/app/api/.../route')` AFTER the `vi.mock` calls so the route picks up the mocked deps. Reference: `web/tests/api/spaced-review-block.test.ts`.
+
 ---
 
 ## Course Builder
@@ -239,9 +260,9 @@ Classrooms can be projected to a course via the "📖 Course" button (calls `POS
 
 ---
 
-## Quiz Attempts (Phase B.6, 2026-05-04)
+## Quiz Attempts (Phase B.6, 2026-05-04; xi7 wiring 2026-05-05)
 
-Unified store at `deeptutor/services/quiz/sqlite_store.py` (DB: `data/user/quiz/attempts.db`, WAL). Generic write/read at `POST /api/v1/quiz/attempts` + `GET /api/v1/quiz/attempts?source=&is_correct=&older_than_ms=&limit=` (powers spaced-review picker, PRD §6.5). `BookEngine.record_quiz_attempt` dual-writes through this store; OpenMAIC posts via the `/api/quiz/attempts` Next.js proxy. Source tags: `book` | `classroom` | `course`. The book route's full path is `/api/v1/book/books/quiz-attempt` (router prefix `/api/v1/book` + handler path `/books/quiz-attempt` — doubled by design, not a typo).
+Unified store at `deeptutor/services/quiz/sqlite_store.py` (DB: `data/user/quiz/attempts.db`, WAL). Generic write/read at `POST /api/v1/quiz/attempts` + `GET /api/v1/quiz/attempts?source=&is_correct=&older_than_ms=&limit=` (powers spaced-review picker, PRD §6.5). `BookEngine.record_quiz_attempt` dual-writes through this store; classroom + course quiz UIs in `web/` post via the `/api/quiz/attempts` Next.js proxy at `web/app/api/quiz/attempts/route.ts`. Source tags: `book` | `classroom` | `course`. **Source-id format is uniformly 3 `::`-separated non-empty parts** (book: `{book_id}::{page_id}::{block_id}`; classroom: `{classroom_id}::{scene_id}::{question_id}`; course: `{course_id}::{section_id}::{block_id}`). Malformed source_ids are silently dropped by the picker. The book route's full path is `/api/v1/book/books/quiz-attempt` (router prefix `/api/v1/book` + handler path `/books/quiz-attempt` — doubled by design, not a typo).
 
 ---
 
