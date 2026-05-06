@@ -14,7 +14,7 @@ import {
 import { createLogger } from '@/lib/logger';
 import { sectionsToText } from '@/lib/course/sections-to-text';
 import { formatPersonalization } from '@/lib/generation/format-personalization';
-import { synthesizeLong } from '@/lib/server/tts/chunk';
+import { synthesizeCourseAudio } from '@/lib/server/tts/synthesize';
 
 const log = createLogger('CoursePodcastSolo');
 
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
     }
 
     log.info(`Synthesizing solo podcast TTS [chars=${script.length}]`);
-    const audio = await synthesizeLong(script, { voice: SOLO_VOICE });
+    const audio = await synthesizeCourseAudio(script, { voice: SOLO_VOICE });
     await writePodcastAudio(course.id, 'solo', audio);
 
     course.artifacts = course.artifacts || {};

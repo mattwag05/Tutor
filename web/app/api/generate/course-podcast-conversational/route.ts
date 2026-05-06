@@ -15,7 +15,7 @@ import {
 import { createLogger } from '@/lib/logger';
 import { sectionsToText } from '@/lib/course/sections-to-text';
 import { formatPersonalization } from '@/lib/generation/format-personalization';
-import { synthesizeLong } from '@/lib/server/tts/chunk';
+import { synthesizeCourseAudio } from '@/lib/server/tts/synthesize';
 
 const log = createLogger('CoursePodcastConversational');
 
@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
     log.info(`Synthesizing conversational podcast TTS [turns=${turns.length}]`);
     const buffers = await Promise.all(
       turns.map((t) =>
-        synthesizeLong(t.text, { voice: t.speaker === 'A' ? VOICE_A : VOICE_B }),
+        synthesizeCourseAudio(t.text, { voice: t.speaker === 'A' ? VOICE_A : VOICE_B }),
       ),
     );
     const audio = Buffer.concat(buffers);
