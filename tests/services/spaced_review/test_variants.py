@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
 from deeptutor.agents.question.models import QAPair, QuestionTemplate
@@ -164,3 +166,37 @@ async def test_concentration_falls_back_to_question_prefix() -> None:
 async def test_empty_input_returns_empty() -> None:
     variants = await generate_variants([])
     assert variants == []
+
+
+@pytest.mark.asyncio
+async def test_candidates_run_concurrently_bounded_by_semaphore() -> None:
+    """Locks in the parallelism contract: candidates fan out via asyncio.gather
+    and the Semaphore caps in-flight calls at _MAX_CONCURRENCY (4)."""
+    in_flight = 0
+    in_flight_peak = 0
+
+    async def slow(generator, template, previous):
+        nonlocal in_flight, in_flight_peak
+        in_flight += 1
+        in_flight_peak = max(in_flight_peak, in_flight)
+        await asyncio.sleep(0.01)
+        in_flight -= 1
+        return QAPair(
+            question_id=template.question_id,
+            question="ok",
+            correct_answer="ok",
+            explanation="ok",
+            question_type="written",
+        )
+
+    candidates = [_candidate(f"q{i}") for i in range(8)]
+    variants = await generate_variants(
+        candidates,
+        generator_factory=lambda: object(),
+        process_override=slow,
+    )
+
+    assert len(variants) == 8
+    # Sequential would have peak == 1; capped parallel hits the semaphore limit (4).
+    assert in_flight_peak > 1, "candidates should run concurrently"
+    assert in_flight_peak <= 4, "concurrency should be bounded by the semaphore"
