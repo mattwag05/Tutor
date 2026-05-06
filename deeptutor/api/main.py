@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 import logging
 
@@ -110,10 +111,32 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Failed to auto-start TutorBots: {e}")
 
+    # Spaced-review daily pre-warm at 04:00 UTC (DeepTutor-ybu). Cancelled
+    # on shutdown via the task handle below so a graceful Ctrl-C doesn't
+    # leave an orphan task running through teardown.
+    prewarm_task: asyncio.Task | None = None
+    try:
+        from deeptutor.services.spaced_review.prewarm import prewarm_loop
+
+        prewarm_task = asyncio.create_task(prewarm_loop(), name="spaced_review_prewarm")
+        logger.info("Spaced-review pre-warm loop scheduled (04:00 UTC daily)")
+    except Exception as e:
+        logger.warning(f"Failed to schedule spaced-review pre-warm: {e}")
+
     yield
 
     # Execute on shutdown
     logger.info("Application shutdown")
+
+    # Cancel pre-warm loop. The task may be sleeping for hours; cancel
+    # propagates immediately and the CancelledError raise inside the
+    # loop short-circuits cleanly.
+    if prewarm_task is not None and not prewarm_task.done():
+        prewarm_task.cancel()
+        try:
+            await prewarm_task
+        except (asyncio.CancelledError, Exception):
+            pass
 
     # Stop TutorBots
     try:
