@@ -224,6 +224,10 @@ npm run audit          # Playwright UI audit (requires next start)
 
 39. **Salvaging files from a stale feature branch can silently revert unrelated work on main.** When `git checkout origin/<feature> -- <file>` to cherry-pick, the branch may have been authored against an older state and undo work landed on main since. Always `git diff origin/main origin/<feature> -- <file>` per file first; if the diff has more than the intended scope, redo by editing main's version surgically. Burned 2026-05-06 on PR #19 xi7 — its `CourseReader.tsx` predated main's mobile-menu refactor and the salvage commit deleted the menu (caught by /simplify pre-push).
 
+40. **`gh api -X PATCH dependabot/alerts/<n>` `dismissed_comment` is capped at 280 chars** — exceeding it returns HTTP 422 `Invalid property /dismissed_comment: Only 280 characters are allowed; N were supplied`. Path is `repos/<owner>/<repo>/dependabot/alerts/<n>`; valid `dismissed_reason` values: `fix_started` / `inaccurate` / `no_bandwidth` / `not_used` / `tolerable_risk`. Dependabot path-exclusion is NOT configurable — `.github/dependabot.yml` only controls update PRs, not alerts; archived/unbuilt manifests will keep generating noise on every new advisory and require per-alert dismissal.
+
+41. **Vendored libs at `web/packages/<name>/` ship pre-built `dist/` artifacts — their `devDependencies` are dead weight in `web/`'s install tree.** `web/packages/pptxgenjs/package.json` was pruned of its gulp toolchain (`gulp`, `gulp-concat`, `gulp-delete-lines`, `gulp-ignore`, `gulp-insert`, `gulp-sourcemaps`, `gulp-uglify`) and `express` in PR #34, removing 270 transitive packages and clearing 3 dependabot alerts (lodash.template HIGH, postcss@7 ×2 medium). Verify the prune with: `cd web && npm install --legacy-peer-deps && npm ls <vulnerable-pkg>` (should show no result), `npx tsc --noEmit`, `npx vitest run tests/{generation,integrations,prompts,intent}/`, and a runtime smoke `node -e "require('<lib>')"`. Keep only the build chain actually invoked by the lib's `scripts.build` (rollup + typescript + eslint here).
+
 ---
 
 ## Course Builder
@@ -303,7 +307,11 @@ Progressive Web App support and narrow-viewport bottom navigation.
 
 ## Spaced Review (Phase B.6 follow-up, 2026-05-04)
 
-Daily micro-quiz variant system at `deeptutor/services/spaced_review/`. On first Notebook load per UTC day, `GET /api/v1/spaced-review/today` fires a background `asyncio.create_task` that queries wrong book attempts >24h old → joins with `BookEngine.load_page(book_id, page_id).block_by_id(block_id)` to get original question content → generates variants via `Generator(language="en").process()` → caches result in `data/user/spaced_review/cache.db` (WAL, 7-day eviction). Subsequent hits return the cached row immediately. Book block payload shape: `payload["questions"] = [{question_id, question, question_type, options, correct_answer, explanation, difficulty, concentration}]` — matched by `question_id`, falling back to first question. Panel: `web/components/notebook/TodaysReviewPanel.tsx`. Deferred: parallelizing generation (DeepTutor-lze), AsyncSQLiteStore base class (DeepTutor-dif), cron pre-warm.
+Daily micro-quiz variant system at `deeptutor/services/spaced_review/`. On first Notebook load per UTC day, `GET /api/v1/spaced-review/today` fires a background `asyncio.create_task` that queries due `review_state` rows → hydrates the original question content (book/classroom/course-aware, see below) → generates variants via `Generator(language="en").process()` → caches result in `data/user/spaced_review/cache.db` (WAL, 7-day eviction). Subsequent hits return the cached row immediately. Panel: `web/components/notebook/TodaysReviewPanel.tsx`.
+
+**Multi-source picker (DeepTutor-kgj, PR #33, 2026-05-06):** `pick_review_set` dispatches by `review_state.source`: `book` → `BookEngine.load_page(book_id, page_id).block_by_id(block_id)`; `classroom` / `course` → `web_lookup.fetch_block_content(source, source_id)` → `GET http://127.0.0.1:3782/api/spaced-review/block`. **Payload shapes differ — don't unify them blindly:** the book block stores `payload["questions"] = [{question_id, question, question_type, options, correct_answer, explanation, difficulty, concentration}]` (matched by `question_id`, falling back to the first question via `_resolve_question_payload`); the web `/api/spaced-review/block` route returns the resolved question dict **directly** (no `questions` wrapping). The picker treats web_lookup output as the already-resolved payload. `source_id` triple-format: `book::page::block` / `classroom::scene::question` / `course::section::block`.
+
+Deferred: parallelizing variant generation (DeepTutor-lze), AsyncSQLiteStore base class (DeepTutor-dif).
 
 ---
 
