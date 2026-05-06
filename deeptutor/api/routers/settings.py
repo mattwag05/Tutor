@@ -190,6 +190,7 @@ def _provider_choices() -> dict[str, list[dict[str, str]]]:
         {"value": "ollama", "label": "Ollama", "base_url": ""},
         {"value": "perplexity", "label": "Perplexity", "base_url": ""},
         {"value": "searxng", "label": "SearXNG", "base_url": ""},
+        {"value": "serper", "label": "Serper", "base_url": ""},
         {"value": "tavily", "label": "Tavily", "base_url": ""},
     ]
     return {"llm": llm, "embedding": embedding, "search": search}

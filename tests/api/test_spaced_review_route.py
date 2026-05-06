@@ -114,8 +114,10 @@ def test_full_lifecycle_to_ready(client, monkeypatch) -> None:
 
     # Synchronous poll: time.sleep releases the GIL so TestClient's internal
     # event loop thread can run the background task to completion.
+    # Budget: 10s (200 × 0.05s) — slow CI runners on Python 3.12/3.13 need
+    # more headroom than 3.11 for asyncio.create_task() to schedule.
     body: dict = {"status": "generating"}
-    for _ in range(40):
+    for _ in range(200):
         time.sleep(0.05)
         response = test_client.get("/api/v1/spaced-review/today")
         body = response.json()
@@ -142,7 +144,7 @@ def test_empty_when_no_candidates(client, monkeypatch) -> None:
     test_client.get("/api/v1/spaced-review/today")
 
     body: dict = {"status": "generating"}
-    for _ in range(40):
+    for _ in range(200):
         time.sleep(0.05)
         response = test_client.get("/api/v1/spaced-review/today")
         body = response.json()
@@ -170,7 +172,7 @@ def test_ready_response_is_cached(client, monkeypatch) -> None:
 
     test_client.get("/api/v1/spaced-review/today")
 
-    for _ in range(40):
+    for _ in range(200):
         time.sleep(0.05)
         if test_client.get("/api/v1/spaced-review/today").json()["status"] == "ready":
             break
@@ -195,7 +197,7 @@ def test_failure_during_generation_marks_empty(client, monkeypatch) -> None:
     # internal loop where the background task runs. asyncio.run(_poll()) creates
     # a separate event loop whose asyncio.sleep never yields to TestClient's loop.
     body: dict = {"status": "generating"}
-    for _ in range(40):
+    for _ in range(200):
         time.sleep(0.05)
         response = test_client.get("/api/v1/spaced-review/today")
         body = response.json()
