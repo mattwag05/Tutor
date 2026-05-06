@@ -9,6 +9,17 @@ AI tutoring platform — multi-agent RAG architecture, Python/FastAPI backend, N
 
 ---
 
+## Quick Index
+
+- **Setup:** Quick Start • Configuration • Architecture
+- **Development:** Python (`source .venv`) • Frontend (`cd web`) • Adding a New Agent Module
+- **Frontend phases:** Generation Pipeline (B.1) • Course Builder (B.5) • Quiz Attempts (B.6) • Spaced Review (B.6 + kgj) • Manifest Profile Router (C.1) • Intent Router (C.3) • PWA / Mobile (C.4)
+- **Production:** Deployment (Pironman) • OpenMAIC retirement (B.4)
+- **Operations:** Troubleshooting • Upstream Sync • Task Tracking • Remotes • Dropbox/iCloud Conflict Artifacts
+- **Gotchas (1–41):** see "Known Gotchas" — most-cited: #6 (sidebar refactor), #12 (caddy/tailscale on Pironman), #16 (web/ i18n: 2 locales flat), #20 (`/api/v1/quiz/attempts` vs notebook upsert), #28 (stacked-PR rebase), #32 (CI excludes web/), #33 (Buffer.slice for binary Response), #34 (Serwist setup), #40 (dependabot api caps), #41 (vendored-lib devDep prune).
+
+---
+
 ## Quick Start
 
 ```bash
