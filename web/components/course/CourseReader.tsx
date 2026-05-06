@@ -23,6 +23,7 @@ import { StudyGuideView } from './artifacts/StudyGuideView';
 import { FinalExamView } from './artifacts/FinalExamView';
 import { PodcastPlayer } from './artifacts/PodcastPlayer';
 import { CompletionPage } from '@/components/completion/CompletionPage';
+import { recordCourseAttempt } from '@/lib/quiz/api-client';
 
 interface Props {
   courseId: string;
@@ -173,6 +174,7 @@ export function CourseReader({ courseId }: Props) {
             index={i}
             section={section}
             citations={course.citations}
+            courseId={courseId}
             onAsk={onGoDeeper}
             registerRef={(el) => {
               sectionRefs.current[i] = el;
@@ -371,18 +373,32 @@ interface SectionViewProps {
   index: number;
   section: CourseSection;
   citations: Record<string, CourseCitation>;
+  courseId: string;
   onAsk: (prompt: string) => void;
   registerRef: (el: HTMLElement | null) => void;
 }
 
-function SectionView({ index, section, citations, onAsk, registerRef }: SectionViewProps) {
+function SectionView({
+  index,
+  section,
+  citations,
+  courseId,
+  onAsk,
+  registerRef,
+}: SectionViewProps) {
   const status = section.status || 'pending';
   const blockList = useMemo(
     () =>
       section.blocks.map((block) => (
-        <BlockView key={block.id} block={block} citations={citations} />
+        <BlockView
+          key={block.id}
+          block={block}
+          citations={citations}
+          courseId={courseId}
+          sectionId={section.id}
+        />
       )),
-    [section.blocks, citations],
+    [section.blocks, citations, courseId, section.id],
   );
 
   return (
@@ -471,10 +487,27 @@ function SectionAudio({ section }: { section: CourseSection }) {
 function BlockView({
   block,
   citations,
+  courseId,
+  sectionId,
 }: {
   block: CourseBlock;
   citations: Record<string, CourseCitation>;
+  courseId: string;
+  sectionId: string;
 }) {
+  const onQuizAttempt = useCallback(
+    (args: { isCorrect: boolean; userAnswer: string }) => {
+      void recordCourseAttempt({
+        courseId,
+        sectionId,
+        blockId: block.id,
+        isCorrect: args.isCorrect,
+        userAnswer: args.userAnswer,
+      });
+    },
+    [block.id, courseId, sectionId],
+  );
+
   switch (block.type) {
     case 'prose':
       return <ProseBlockView block={block} citations={citations} />;
@@ -487,9 +520,9 @@ function BlockView({
     case 'illustration':
       return <IllustrationBlockView block={block} />;
     case 'fillBlankQuiz':
-      return <FillBlankQuizBlockView block={block} />;
+      return <FillBlankQuizBlockView block={block} onAttempt={onQuizAttempt} />;
     case 'multipleChoiceQuiz':
-      return <MultipleChoiceQuizBlockView block={block} />;
+      return <MultipleChoiceQuizBlockView block={block} onAttempt={onQuizAttempt} />;
     default:
       return null;
   }

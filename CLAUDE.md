@@ -295,9 +295,18 @@ Progressive Web App support and narrow-viewport bottom navigation.
 
 ---
 
-## Spaced Review (Phase B.6 follow-up, 2026-05-04)
+## Spaced Review (Phase B.6 follow-up, 2026-05-04; xi7 multi-source 2026-05-05)
 
-Daily micro-quiz variant system at `deeptutor/services/spaced_review/`. On first Notebook load per UTC day, `GET /api/v1/spaced-review/today` fires a background `asyncio.create_task` that queries wrong book attempts >24h old → joins with `BookEngine.load_page(book_id, page_id).block_by_id(block_id)` to get original question content → generates variants via `Generator(language="en").process()` → caches result in `data/user/spaced_review/cache.db` (WAL, 7-day eviction). Subsequent hits return the cached row immediately. Book block payload shape: `payload["questions"] = [{question_id, question, question_type, options, correct_answer, explanation, difficulty, concentration}]` — matched by `question_id`, falling back to first question. Panel: `web/components/notebook/TodaysReviewPanel.tsx`. Deferred: parallelizing generation (DeepTutor-lze), AsyncSQLiteStore base class (DeepTutor-dif), cron pre-warm.
+Daily micro-quiz variant system at `deeptutor/services/spaced_review/`. On first Notebook load per UTC day, `GET /api/v1/spaced-review/today` fires a background `asyncio.create_task` that queries wrong attempts >24h old (across all sources) → joins with the original question payload → generates variants via `Generator(language="en").process()` → caches result in `data/user/spaced_review/cache.db` (WAL, 7-day eviction). Subsequent hits return the cached row immediately. Panel: `web/components/notebook/TodaysReviewPanel.tsx`. Deferred: parallelizing generation (DeepTutor-lze), AsyncSQLiteStore base class (DeepTutor-dif), cron pre-warm.
+
+**Multi-source content lookup (xi7, 2026-05-05).** The picker dispatches on `attempt.source`:
+- `book` → in-process `BookEngine.load_page(book_id, page_id).block_by_id(block_id)`. Source-id format: `{book_id}::{page_id}::{block_id}`.
+- `classroom` → HTTP GET to `web/`'s `/api/spaced-review/block` (via `deeptutor/services/spaced_review/web_lookup.py`, base URL `http://127.0.0.1:3782` overridable with `DEEPTUTOR_WEB_URL`). Source-id format: `{classroom_id}::{scene_id}::{question_id}`. Recorder: `recordSceneResults` in `web/lib/quiz/api-client.ts`, called from `QuizView` with `classroomId={scene.stageId}`.
+- `course` → same web lookup, source-id format `{course_id}::{section_id}::{block_id}`. Recorder: `recordCourseAttempt` in `web/lib/quiz/api-client.ts`, called from `CourseReader.tsx`'s `BlockView` via the `onAttempt` prop on `MultipleChoiceQuizBlockView` / `FillBlankQuizBlockView`.
+
+Picker silently drops candidates whose lookup returns `None` / 404 — same behavior as a missing book page. The web-side lookup route normalizes both classroom (`QuizQuestion`) and course (`MultipleChoiceQuizBlock` / `FillBlankQuizBlock`) shapes into the unified `{question, options, correct_answer, explanation, question_type, difficulty, concentration}` dict that `_resolve_question_payload` consumes.
+
+**Quiz attempts proxy.** `web/app/api/quiz/attempts/route.ts` (migrated from archived `services/openmaic/` during xi7) forwards `recordAttempt` POSTs to the FastAPI `/api/v1/quiz/attempts` endpoint and proxies GETs for `listQuizAttempts`.
 
 ---
 

@@ -227,3 +227,197 @@ async def test_empty_when_no_wrong_attempts(tmp_path: Path, monkeypatch) -> None
     monkeypatch.setattr(picker_mod, "get_quiz_store", lambda: store)
     monkeypatch.setattr(picker_mod, "get_book_engine", lambda: FakeBookEngine({}))
     assert await pick_review_set() == []
+
+
+# ---------------------------------------------------------------------------
+# Classroom + course sources (DeepTutor-xi7)
+# ---------------------------------------------------------------------------
+
+
+def _normalized_payload(question: str = "Original Q?", correct: str = "B") -> dict:
+    """Shape returned by web/'s /api/spaced-review/block route."""
+    return {
+        "question": question,
+        "options": {"A": "alpha", "B": "beta"},
+        "correct_answer": correct,
+        "explanation": "because",
+        "question_type": "multiple-choice",
+        "difficulty": "medium",
+        "concentration": "topic",
+    }
+
+
+@pytest.mark.asyncio
+async def test_classroom_attempt_resolved_via_web_lookup(
+    tmp_path: Path, monkeypatch
+) -> None:
+    from deeptutor.services.quiz.models import QuizAttemptCreate
+
+    store = SQLiteQuizStore(db_path=tmp_path / "quiz.db")
+    now_ms = int(time.time() * 1000)
+    await store.record_attempt(
+        QuizAttemptCreate(
+            source="classroom",
+            source_id="cls_a1::scn_2::q_0",
+            question_id="q_0",
+            user_answer="A",
+            is_correct=False,
+            ts_ms=now_ms - 48 * 3_600_000,
+        )
+    )
+
+    fetched: list[tuple[str, str]] = []
+
+    async def fake_fetch(source: str, source_id: str, **kwargs) -> dict | None:
+        fetched.append((source, source_id))
+        return _normalized_payload(question="What is beta?")
+
+    monkeypatch.setattr(picker_mod, "get_quiz_store", lambda: store)
+    monkeypatch.setattr(picker_mod, "get_book_engine", lambda: FakeBookEngine({}))
+    monkeypatch.setattr(picker_mod.web_lookup, "fetch_block_content", fake_fetch)
+
+    candidates = await pick_review_set()
+    assert len(candidates) == 1
+    cand = candidates[0]
+    assert cand.source == "classroom"
+    assert cand.book_id == "cls_a1"
+    assert cand.page_id == "scn_2"
+    assert cand.block_id == "q_0"
+    assert cand.original_question == "What is beta?"
+    assert cand.original_correct_answer == "B"
+    assert cand.original_options == {"A": "alpha", "B": "beta"}
+    # The picker queried the web lookup with the source_id verbatim.
+    assert fetched == [("classroom", "cls_a1::scn_2::q_0")]
+
+
+@pytest.mark.asyncio
+async def test_course_attempt_resolved_via_web_lookup(
+    tmp_path: Path, monkeypatch
+) -> None:
+    from deeptutor.services.quiz.models import QuizAttemptCreate
+
+    store = SQLiteQuizStore(db_path=tmp_path / "quiz.db")
+    now_ms = int(time.time() * 1000)
+    await store.record_attempt(
+        QuizAttemptCreate(
+            source="course",
+            source_id="crs_z9::sec_1::blk_4",
+            question_id="blk_4",
+            user_answer="C",
+            is_correct=False,
+            ts_ms=now_ms - 30 * 3_600_000,
+        )
+    )
+
+    async def fake_fetch(source: str, source_id: str, **kwargs) -> dict | None:
+        return _normalized_payload(question="Course Q?", correct="A")
+
+    monkeypatch.setattr(picker_mod, "get_quiz_store", lambda: store)
+    monkeypatch.setattr(picker_mod, "get_book_engine", lambda: FakeBookEngine({}))
+    monkeypatch.setattr(picker_mod.web_lookup, "fetch_block_content", fake_fetch)
+
+    candidates = await pick_review_set()
+    assert len(candidates) == 1
+    cand = candidates[0]
+    assert cand.source == "course"
+    assert cand.book_id == "crs_z9"
+    assert cand.page_id == "sec_1"
+    assert cand.block_id == "blk_4"
+    assert cand.original_correct_answer == "A"
+
+
+@pytest.mark.asyncio
+async def test_classroom_dropped_when_web_lookup_returns_none(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """If web/ returns 404 / network error, fetch_block_content yields None
+    and the picker silently drops the candidate."""
+    from deeptutor.services.quiz.models import QuizAttemptCreate
+
+    store = SQLiteQuizStore(db_path=tmp_path / "quiz.db")
+    now_ms = int(time.time() * 1000)
+    await store.record_attempt(
+        QuizAttemptCreate(
+            source="classroom",
+            source_id="cls::scn::q",
+            question_id="q",
+            user_answer="x",
+            is_correct=False,
+            ts_ms=now_ms - 48 * 3_600_000,
+        )
+    )
+
+    async def fake_fetch(source: str, source_id: str, **kwargs) -> dict | None:
+        return None
+
+    monkeypatch.setattr(picker_mod, "get_quiz_store", lambda: store)
+    monkeypatch.setattr(picker_mod, "get_book_engine", lambda: FakeBookEngine({}))
+    monkeypatch.setattr(picker_mod.web_lookup, "fetch_block_content", fake_fetch)
+
+    assert await pick_review_set() == []
+
+
+@pytest.mark.asyncio
+async def test_mixed_sources_ranked_together(tmp_path: Path, monkeypatch) -> None:
+    """Book + classroom + course attempts coexist in one picker call;
+    failure-count + age scoring applies across sources uniformly."""
+    from deeptutor.services.quiz.models import QuizAttemptCreate
+
+    store = SQLiteQuizStore(db_path=tmp_path / "quiz.db")
+    now_ms = int(time.time() * 1000)
+    h = 3_600_000
+
+    # Course: 1 wrong, 30h old.
+    await store.record_attempt(
+        QuizAttemptCreate(
+            source="course",
+            source_id="crs::sec::blk",
+            question_id="blk",
+            is_correct=False,
+            ts_ms=now_ms - 30 * h,
+        )
+    )
+    # Classroom: 2 wrong, 48h old (highest score → first).
+    for _ in range(2):
+        await store.record_attempt(
+            QuizAttemptCreate(
+                source="classroom",
+                source_id="cls::scn::q",
+                question_id="q",
+                is_correct=False,
+                ts_ms=now_ms - 48 * h,
+            )
+        )
+    # Book: 1 wrong, 48h old.
+    await store.record_attempt(
+        QuizAttemptCreate(
+            source="book",
+            source_id="bookX::page1::blkA",
+            question_id="qA",
+            is_correct=False,
+            ts_ms=now_ms - 48 * h,
+        )
+    )
+
+    async def fake_fetch(source: str, source_id: str, **kwargs) -> dict | None:
+        return _normalized_payload()
+
+    pages = {
+        ("bookX", "page1"): FakePage(
+            id="page1",
+            blocks=[FakeBlock(id="blkA", payload=_quiz_payload("qA"))],
+        )
+    }
+
+    monkeypatch.setattr(picker_mod, "get_quiz_store", lambda: store)
+    monkeypatch.setattr(picker_mod, "get_book_engine", lambda: FakeBookEngine(pages))
+    monkeypatch.setattr(picker_mod.web_lookup, "fetch_block_content", fake_fetch)
+
+    candidates = await pick_review_set()
+    sources = [c.source for c in candidates]
+    assert set(sources) == {"book", "classroom", "course"}
+    # Classroom failed twice → ranks first regardless of source.
+    assert candidates[0].source == "classroom"
+    assert candidates[0].failure_count == 2
+
+

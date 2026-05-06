@@ -109,14 +109,12 @@ async def generate_variants(
             continue
         if not pair.question:
             continue
-        candidate_source_id = (
-            f"{candidate.book_id}::{candidate.page_id}::{candidate.block_id}"
-        )
         variants.append(
             _qa_to_variant(
                 pair,
                 source_question_id=candidate.question_id,
-                source_id=candidate_source_id,
+                source_id=candidate.source_id
+                or f"{candidate.book_id}::{candidate.page_id}::{candidate.block_id}",
                 fallback_difficulty=candidate.original_difficulty,
             )
         )

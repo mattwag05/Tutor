@@ -40,6 +40,7 @@ type Phase = 'not_started' | 'answering' | 'grading' | 'reviewing';
 interface QuizViewProps {
   readonly questions: QuizQuestion[];
   readonly sceneId: string;
+  readonly classroomId?: string;
 }
 
 /** Call /api/quiz-grade for a single short-answer question. */
@@ -647,7 +648,7 @@ function ScoreBanner({
 
 // ─── Main Component ─────────────────────────────────────────────────────────
 
-export function QuizView({ questions, sceneId }: QuizViewProps) {
+export function QuizView({ questions, sceneId, classroomId }: QuizViewProps) {
   const { t, locale } = useI18n();
 
   // Rehydrate submitted state from localStorage on first mount. Runs once.
@@ -750,13 +751,11 @@ export function QuizView({ questions, sceneId }: QuizViewProps) {
       setPhase('reviewing');
       writeSubmittedResults(sceneId, ordered);
 
-      // Fire-and-forget dual-write to DeepTutor's unified quiz store so
-      // the future spaced-review picker (PRD §6.5) sees these attempts.
-      // Retries (Retry button → re-grade → resubmit) write a fresh row
-      // with a new ts_ms; rows are uuid-keyed so duplication is by
-      // design. QuizView is classroom-only today — see api-client.ts if
-      // course pages ever mount it.
+      // Fire-and-forget dual-write to DeepTutor's unified quiz store.
+      // Retries (Retry → re-grade → resubmit) write a fresh row with a
+      // new ts_ms; rows are uuid-keyed so duplication is by design.
       void recordSceneResults({
+        classroomId,
         sceneId,
         results: ordered.map((r) => ({
           questionId: r.questionId,
@@ -771,7 +770,7 @@ export function QuizView({ questions, sceneId }: QuizViewProps) {
     return () => {
       cancelled = true;
     };
-  }, [phase, questions, answers, locale, sceneId]);
+  }, [phase, questions, answers, locale, sceneId, classroomId]);
 
   const handleRetry = useCallback(() => {
     setPhase('not_started');

@@ -7,12 +7,27 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 ReviewStatus = Literal["generating", "ready", "empty"]
+ReviewSource = Literal["book", "classroom", "course"]
 
 
 class ReviewCandidate(BaseModel):
     """A wrong attempt picked for variant generation, joined with its
-    original block payload from BookEngine."""
+    original block payload.
 
+    ``source_id`` is the verbatim attempt source_id; ``book_id`` /
+    ``page_id`` / ``block_id`` are its three ``::``-split parts (the
+    original field names predate the multi-source rollout and stay for
+    backward compat with ``variants.py`` metadata). For non-book sources
+    they map to:
+
+    | source     | book_id      | page_id    | block_id     |
+    |------------|--------------|------------|--------------|
+    | classroom  | classroom_id | scene_id   | question_id  |
+    | course     | course_id    | section_id | block_id     |
+    """
+
+    source: ReviewSource = "book"
+    source_id: str = ""
     book_id: str
     page_id: str
     block_id: str
