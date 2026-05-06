@@ -33,8 +33,16 @@ def client(tmp_path: Path, monkeypatch):
 
     app = FastAPI()
     app.include_router(route_module.router, prefix="/api/v1/spaced-review")
+    # Use TestClient as a context manager so a single anyio blocking portal
+    # (and its event loop) is shared across all requests in the test. Without
+    # `with`, each request opens a fresh portal that closes at request-end,
+    # cancelling any `asyncio.create_task` background work mid-flight — which
+    # caused `test_failure_during_generation_marks_empty` to flake on Py 3.11
+    # because the route's exception-handler `await _finalize("empty", [])`
+    # never landed before the portal tore down.
     try:
-        yield TestClient(app), route_module
+        with TestClient(app) as test_client:
+            yield test_client, route_module
     finally:
         cache_module.reset_cache_store()
 

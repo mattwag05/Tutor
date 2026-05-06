@@ -5,6 +5,7 @@ duplicating the original."""
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Awaitable, Callable
 import uuid
@@ -14,6 +15,12 @@ from deeptutor.agents.question.models import QAPair, QuestionTemplate
 from deeptutor.services.spaced_review.models import ReviewCandidate, VariantQuestion
 
 logger = logging.getLogger(__name__)
+
+# Concurrency cap on simultaneous Generator.process() calls. Each call is one
+# LLM round-trip; OpenRouter / Anthropic enforce per-key rate limits, and
+# blowing past them returns 429s that surface as failed variants. 4 is the
+# tested ceiling that holds under Pi-class hardware on the default key.
+_MAX_CONCURRENCY = 4
 
 
 def _build_template(candidate: ReviewCandidate) -> QuestionTemplate:
@@ -82,42 +89,43 @@ async def generate_variants(
 
     factory = generator_factory or _default_generator_factory
     generator = factory()
+    semaphore = asyncio.Semaphore(_MAX_CONCURRENCY)
 
-    variants: list[VariantQuestion] = []
-    for candidate in candidates:
+    async def _generate_one(candidate: ReviewCandidate) -> VariantQuestion | None:
         template = _build_template(candidate)
         previous = (
             [candidate.original_question] if candidate.original_question else None
         )
-        try:
-            if process_override is not None:
-                pair = await process_override(generator, template, previous or [])
-            else:
-                pair = await generator.process(
-                    template=template,
-                    user_topic=candidate.original_concentration or "",
-                    preference="",
-                    history_context="",
-                    previous_questions=previous,
+        async with semaphore:
+            try:
+                if process_override is not None:
+                    pair = await process_override(generator, template, previous or [])
+                else:
+                    pair = await generator.process(
+                        template=template,
+                        user_topic=candidate.original_concentration or "",
+                        preference="",
+                        history_context="",
+                        previous_questions=previous,
+                    )
+            except Exception as exc:
+                logger.warning(
+                    "variant generation failed for %s: %s",
+                    candidate.question_id,
+                    exc,
                 )
-        except Exception as exc:
-            logger.warning(
-                "variant generation failed for %s: %s",
-                candidate.question_id,
-                exc,
-            )
-            continue
+                return None
         if not pair.question:
-            continue
+            return None
         candidate_source_id = (
             f"{candidate.book_id}::{candidate.page_id}::{candidate.block_id}"
         )
-        variants.append(
-            _qa_to_variant(
-                pair,
-                source_question_id=candidate.question_id,
-                source_id=candidate_source_id,
-                fallback_difficulty=candidate.original_difficulty,
-            )
+        return _qa_to_variant(
+            pair,
+            source_question_id=candidate.question_id,
+            source_id=candidate_source_id,
+            fallback_difficulty=candidate.original_difficulty,
         )
-    return variants
+
+    results = await asyncio.gather(*(_generate_one(c) for c in candidates))
+    return [v for v in results if v is not None]
