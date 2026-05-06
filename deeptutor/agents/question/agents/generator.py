@@ -50,9 +50,16 @@ class Generator(BaseAgent):
         preference: str = "",
         history_context: str = "",
         previous_questions: list[str] | None = None,
+        temperature: float | None = None,
     ) -> QAPair:
         """
         Generate one Q-A pair from a template in a single call.
+
+        ``temperature`` overrides the agent's configured temperature (from
+        agents.yaml) for this single call. Used by spaced-review variant
+        retry to encourage divergence when the first variant was too
+        similar to the original. ``None`` (default) preserves the
+        config-driven temperature.
         """
         available_tools = self._build_available_tools_text()
         knowledge_context = str(template.metadata.get("knowledge_context", "")).strip()
@@ -65,6 +72,7 @@ class Generator(BaseAgent):
             knowledge_context=knowledge_context,
             available_tools=available_tools,
             previous_questions=prev_q_text,
+            temperature=temperature,
         )
         payload, validation = await self._validate_and_repair_payload(
             template=template,
@@ -75,6 +83,7 @@ class Generator(BaseAgent):
             knowledge_context=knowledge_context,
             available_tools=available_tools,
             previous_questions=prev_q_text,
+            temperature=temperature,
         )
 
         return QAPair(
@@ -116,6 +125,7 @@ class Generator(BaseAgent):
         knowledge_context: str,
         available_tools: str,
         previous_questions: str = "",
+        temperature: float | None = None,
     ) -> dict[str, Any]:
         system_prompt = append_language_directive(
             self.get_prompt("system", ""),
@@ -151,6 +161,7 @@ class Generator(BaseAgent):
             user_prompt=user_prompt,
             system_prompt=system_prompt,
             response_format={"type": "json_object"},
+            temperature=temperature,
             stage="generator_build_qa",
             trace_meta=build_trace_metadata(
                 call_id=new_call_id(f"quiz-{template.question_id}"),
@@ -189,6 +200,7 @@ class Generator(BaseAgent):
         knowledge_context: str,
         available_tools: str,
         previous_questions: str = "",
+        temperature: float | None = None,
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         expected_type = self._normalize_question_type(template.question_type)
         normalized = self._normalize_payload_shape(expected_type, payload)
@@ -206,6 +218,7 @@ class Generator(BaseAgent):
                 knowledge_context=knowledge_context,
                 available_tools=available_tools,
                 previous_questions=previous_questions,
+                temperature=temperature,
             )
             if repaired_payload:
                 candidate = self._normalize_payload_shape(expected_type, repaired_payload)
@@ -234,6 +247,7 @@ class Generator(BaseAgent):
         knowledge_context: str,
         available_tools: str,
         previous_questions: str = "",
+        temperature: float | None = None,
     ) -> dict[str, Any]:
         expected_type = self._normalize_question_type(template.question_type)
         template_dict = self._strip_template_knowledge_context(template)
@@ -267,6 +281,7 @@ class Generator(BaseAgent):
                 self.language,
             ),
             response_format={"type": "json_object"},
+            temperature=temperature,
             stage="generator_repair_qa",
             trace_meta=build_trace_metadata(
                 call_id=new_call_id(f"quiz-repair-{template.question_id}"),
