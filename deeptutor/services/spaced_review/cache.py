@@ -12,7 +12,6 @@ seven days; older rows are dropped on every write. Status transitions:
 
 from __future__ import annotations
 
-import asyncio
 import json
 from pathlib import Path
 import sqlite3
@@ -23,6 +22,7 @@ from deeptutor.services.spaced_review.models import (
     SpacedReviewResponse,
     VariantQuestion,
 )
+from deeptutor.services.sqlite_base import AsyncSQLiteStore
 
 _KEEP_DAYS = 7
 
@@ -49,17 +49,14 @@ class ReviewCache:
         return SpacedReviewResponse(date=self.date, status=self.status, items=self.items)
 
 
-class SpacedReviewCacheStore:
-    """One row per UTC date. Single-flight via an asyncio lock so two
+class SpacedReviewCacheStore(AsyncSQLiteStore):
+    """One row per UTC date. Single-flight via the base class lock so two
     concurrent requests on day boundary cannot both mark ``generating``."""
 
     def __init__(self, db_path: Path | None = None) -> None:
         path_service = get_path_service()
         default_path = path_service.user_data_dir / "spaced_review" / "cache.db"
-        self.db_path = db_path or default_path
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._lock = asyncio.Lock()
-        self._initialize()
+        super().__init__(db_path or default_path)
 
     def _initialize(self) -> None:
         with sqlite3.connect(self.db_path) as conn:
@@ -76,16 +73,6 @@ class SpacedReviewCacheStore:
                 """
             )
             conn.commit()
-
-    def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA foreign_keys = ON")
-        return conn
-
-    async def _run(self, fn, *args, **kwargs):
-        async with self._lock:
-            return await asyncio.to_thread(fn, *args, **kwargs)
 
     @staticmethod
     def _row_to_cache(row: sqlite3.Row) -> ReviewCache:

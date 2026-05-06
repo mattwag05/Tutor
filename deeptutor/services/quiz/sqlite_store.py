@@ -7,7 +7,6 @@ backend follows the same pattern.
 
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
 import sqlite3
 import uuid
@@ -18,17 +17,15 @@ from deeptutor.services.quiz.models import (
     QuizAttemptCreate,
     QuizSource,
 )
+from deeptutor.services.sqlite_base import AsyncSQLiteStore
 
 
-class SQLiteQuizStore:
+class SQLiteQuizStore(AsyncSQLiteStore):
     """Persist QuizAttempt rows in a SQLite database."""
 
     def __init__(self, db_path: Path | None = None) -> None:
         path_service = get_path_service()
-        self.db_path = db_path or path_service.get_quiz_db()
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._lock = asyncio.Lock()
-        self._initialize()
+        super().__init__(db_path or path_service.get_quiz_db())
 
     def _initialize(self) -> None:
         with sqlite3.connect(self.db_path) as conn:
@@ -63,16 +60,6 @@ class SQLiteQuizStore:
                 """
             )
             conn.commit()
-
-    def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA foreign_keys = ON")
-        return conn
-
-    async def _run(self, fn, *args, **kwargs):
-        async with self._lock:
-            return await asyncio.to_thread(fn, *args, **kwargs)
 
     @staticmethod
     def _row_to_attempt(row: sqlite3.Row) -> QuizAttempt:

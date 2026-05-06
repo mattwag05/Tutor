@@ -4,7 +4,6 @@ SQLite-backed unified chat session store.
 
 from __future__ import annotations
 
-import asyncio
 from dataclasses import dataclass
 import json
 import os
@@ -15,6 +14,7 @@ from typing import Any
 import uuid
 
 from deeptutor.services.path_service import get_path_service
+from deeptutor.services.sqlite_base import AsyncSQLiteStore
 
 
 def _json_dumps(value: Any) -> str:
@@ -57,16 +57,25 @@ class TurnRecord:
         }
 
 
-class SQLiteSessionStore:
-    """Persist unified chat sessions and messages in a SQLite database."""
+class SQLiteSessionStore(AsyncSQLiteStore):
+    """Persist unified chat sessions and messages in a SQLite database.
+
+    Inherits the asyncio.Lock-around-asyncio.to_thread pattern from
+    AsyncSQLiteStore. The lock is load-bearing here: turn-event writes
+    must be observable in subscribe_turn streams in insert order, and
+    removing it breaks test_turn_runtime_replays_events_and_materializes_
+    messages (DeepTutor-1tx PR #23 was closed for this reason).
+    """
 
     def __init__(self, db_path: Path | None = None) -> None:
         path_service = get_path_service()
-        self.db_path = db_path or path_service.get_chat_history_db()
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        resolved = db_path or path_service.get_chat_history_db()
+        # Run legacy-db migration BEFORE super().__init__ so the file
+        # ends up at the expected path before _initialize opens it.
+        resolved.parent.mkdir(parents=True, exist_ok=True)
+        self.db_path = resolved
         self._migrate_legacy_db(path_service)
-        self._lock = asyncio.Lock()
-        self._initialize()
+        super().__init__(resolved)
 
     def _migrate_legacy_db(self, path_service) -> None:
         """Move the legacy ``data/chat_history.db`` into ``data/user/`` once."""
@@ -195,16 +204,6 @@ class SQLiteSessionStore:
             if "metadata_json" not in message_columns:
                 conn.execute("ALTER TABLE messages ADD COLUMN metadata_json TEXT DEFAULT '{}'")
             conn.commit()
-
-    async def _run(self, fn, *args):
-        async with self._lock:
-            return await asyncio.to_thread(fn, *args)
-
-    def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA foreign_keys = ON")
-        return conn
 
     def _create_session_sync(
         self, title: str | None = None, session_id: str | None = None
