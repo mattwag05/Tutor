@@ -1,8 +1,14 @@
 """SQLite-backed quiz attempt store.
 
-Mirrors the lock + ``asyncio.to_thread`` shape used by
-``deeptutor/services/session/sqlite_store.py`` so all SQLite work in the
-backend follows the same pattern.
+Holds two tables:
+
+- ``quiz_attempts``: every individual attempt (one row per submit)
+- ``review_state``: one row per (source, source_id, question_id) triple
+  carrying the Leitner box (1-5) and ``next_due_ms`` for spaced review.
+  Updated atomically with each ``record_attempt`` so the picker can
+  query "what's due now" without re-deriving from raw attempts.
+
+Inherits from :class:`AsyncSQLiteStore` for the lock + to_thread shape.
 """
 
 from __future__ import annotations
@@ -18,6 +24,18 @@ from deeptutor.services.quiz.models import (
     QuizSource,
 )
 from deeptutor.services.sqlite_base import AsyncSQLiteStore
+
+# Leitner box → days until next review. Box 1 is "missed recently, see
+# again tomorrow"; box 5 is "well-mastered, monthly refresh". Tuned for
+# study-flow semantics: a single wrong attempt drops you back to box 1
+# regardless of prior progress (the standard Leitner penalty).
+_BOX_INTERVAL_DAYS = {1: 1, 2: 3, 3: 7, 4: 14, 5: 30}
+_MS_PER_DAY = 24 * 60 * 60 * 1000
+
+
+def _next_due_for_box(box: int, now_ms: int) -> int:
+    days = _BOX_INTERVAL_DAYS.get(box, _BOX_INTERVAL_DAYS[1])
+    return now_ms + days * _MS_PER_DAY
 
 
 class SQLiteQuizStore(AsyncSQLiteStore):
@@ -57,6 +75,21 @@ class SQLiteQuizStore(AsyncSQLiteStore):
 
                 CREATE INDEX IF NOT EXISTS idx_qa_source_correct
                     ON quiz_attempts(source, is_correct, ts_ms DESC);
+
+                CREATE TABLE IF NOT EXISTS review_state (
+                    source TEXT NOT NULL,
+                    source_id TEXT NOT NULL,
+                    question_id TEXT NOT NULL,
+                    box INTEGER NOT NULL DEFAULT 1,
+                    next_due_ms INTEGER NOT NULL,
+                    last_attempt_ts_ms INTEGER NOT NULL,
+                    last_user_answer TEXT NOT NULL DEFAULT '',
+                    failure_count INTEGER NOT NULL DEFAULT 0,
+                    PRIMARY KEY (source, source_id, question_id)
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_review_due
+                    ON review_state(source, next_due_ms);
                 """
             )
             conn.commit()
@@ -103,8 +136,125 @@ class SQLiteQuizStore(AsyncSQLiteStore):
                     payload.ts_ms,
                 ),
             )
+            self._update_review_state(
+                conn,
+                source=payload.source,
+                source_id=payload.source_id,
+                question_id=payload.question_id,
+                is_correct=payload.is_correct,
+                ts_ms=payload.ts_ms,
+                user_answer=payload.user_answer,
+            )
             conn.commit()
         return QuizAttempt(id=attempt_id, **payload.model_dump())
+
+    @staticmethod
+    def _update_review_state(
+        conn: sqlite3.Connection,
+        *,
+        source: str,
+        source_id: str,
+        question_id: str,
+        is_correct: bool | None,
+        ts_ms: int,
+        user_answer: str,
+    ) -> None:
+        """Promote (correct), demote-to-1 (wrong), or no-op (ungraded).
+
+        Ungraded attempts (``is_correct is None``) leave the box alone
+        but still update last_attempt_ts_ms so the picker has the
+        latest answer for context. Insert-on-first-attempt happens
+        with box=1, next_due_ms = now + 1 day.
+        """
+        if is_correct is None:
+            # Just touch last_attempt; don't move the box. Inserts a
+            # box-1 row if one doesn't exist (so an ungraded first
+            # attempt still earns a review_state entry).
+            conn.execute(
+                """
+                INSERT INTO review_state
+                    (source, source_id, question_id, box, next_due_ms,
+                     last_attempt_ts_ms, last_user_answer, failure_count)
+                VALUES (?, ?, ?, 1, ?, ?, ?, 0)
+                ON CONFLICT(source, source_id, question_id) DO UPDATE SET
+                    last_attempt_ts_ms = excluded.last_attempt_ts_ms,
+                    last_user_answer = excluded.last_user_answer
+                """,
+                (source, source_id, question_id, _next_due_for_box(1, ts_ms),
+                 ts_ms, user_answer),
+            )
+            return
+
+        row = conn.execute(
+            "SELECT box, failure_count FROM review_state "
+            "WHERE source = ? AND source_id = ? AND question_id = ?",
+            (source, source_id, question_id),
+        ).fetchone()
+
+        prior_box = row["box"] if row else 1
+        prior_failures = row["failure_count"] if row else 0
+        if is_correct:
+            new_box = min(prior_box + 1, 5)
+            new_failures = prior_failures
+        else:
+            new_box = 1  # standard Leitner penalty: any wrong → box 1
+            new_failures = prior_failures + 1
+        next_due = _next_due_for_box(new_box, ts_ms)
+
+        conn.execute(
+            """
+            INSERT INTO review_state
+                (source, source_id, question_id, box, next_due_ms,
+                 last_attempt_ts_ms, last_user_answer, failure_count)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(source, source_id, question_id) DO UPDATE SET
+                box = excluded.box,
+                next_due_ms = excluded.next_due_ms,
+                last_attempt_ts_ms = excluded.last_attempt_ts_ms,
+                last_user_answer = excluded.last_user_answer,
+                failure_count = excluded.failure_count
+            """,
+            (source, source_id, question_id, new_box, next_due,
+             ts_ms, user_answer, new_failures),
+        )
+
+    def _list_due_review_sync(
+        self,
+        *,
+        source: QuizSource,
+        now_ms: int,
+        limit: int,
+    ) -> list[dict]:
+        """Rows in (source) where ``next_due_ms <= now_ms``, ordered by
+        most-overdue first. Picker uses this as the candidate set; the
+        old "wrong attempts >24h old" heuristic is replaced."""
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT source, source_id, question_id, box, next_due_ms,
+                       last_attempt_ts_ms, last_user_answer, failure_count
+                FROM review_state
+                WHERE source = ? AND next_due_ms <= ?
+                ORDER BY next_due_ms ASC
+                LIMIT ?
+                """,
+                (source, now_ms, limit),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    async def list_due_review(
+        self,
+        *,
+        source: QuizSource = "book",
+        now_ms: int,
+        limit: int = 50,
+    ) -> list[dict]:
+        return await self._run(
+            self._list_due_review_sync,
+            source=source,
+            now_ms=now_ms,
+            limit=limit,
+        )
 
     async def record_attempt(self, payload: QuizAttemptCreate) -> QuizAttempt:
         return await self._run(self._record_sync, payload)
