@@ -1,8 +1,10 @@
 """SQLite-backed quiz attempt store.
 
-Mirrors the lock + ``asyncio.to_thread`` shape used by
-``deeptutor/services/session/sqlite_store.py`` so all SQLite work in the
-backend follows the same pattern.
+DB calls run on a thread via ``asyncio.to_thread``. SQLite's own
+file-level locking (WAL + check_same_thread default) handles writer
+serialization across threads, so no application-level asyncio.Lock is
+needed — adding one would just serialize all in-flight DB ops to one
+at a time, defeating the point of ``to_thread`` under concurrent load.
 """
 
 from __future__ import annotations
@@ -27,7 +29,6 @@ class SQLiteQuizStore:
         path_service = get_path_service()
         self.db_path = db_path or path_service.get_quiz_db()
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._lock = asyncio.Lock()
         self._initialize()
 
     def _initialize(self) -> None:
@@ -71,8 +72,7 @@ class SQLiteQuizStore:
         return conn
 
     async def _run(self, fn, *args, **kwargs):
-        async with self._lock:
-            return await asyncio.to_thread(fn, *args, **kwargs)
+        return await asyncio.to_thread(fn, *args, **kwargs)
 
     @staticmethod
     def _row_to_attempt(row: sqlite3.Row) -> QuizAttempt:
