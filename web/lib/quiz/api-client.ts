@@ -46,6 +46,10 @@ export interface SceneResult {
 }
 
 export interface SceneResultsPayload {
+  /** Classroom (stage) id. Empty when called from the localStorage
+   * migration, which only has sceneId — those rows yield malformed
+   * source_ids that the picker silently drops. */
+  classroomId?: string;
   sceneId: string;
   results: SceneResult[];
   /** Override timestamp; defaults to Date.now(). Used by migration to preserve historical order. */
@@ -53,16 +57,13 @@ export interface SceneResultsPayload {
 }
 
 /**
- * QuizView (the only caller today) is mounted from classroom scenes —
- * `source: 'classroom'` is the right tag. If course pages ever render
- * QuizView, this needs a `source` parameter.
- *
- * Returns the count of successfully recorded attempts. Issues all POSTs
- * concurrently with `Promise.allSettled` so a 20-question quiz doesn't
- * stack up 20 sequential round-trips.
+ * Writes one quiz_attempts row per question with `source: 'classroom'`
+ * and `source_id` shaped as `{classroomId}::{sceneId}::{questionId}`.
+ * Issues POSTs concurrently with `Promise.allSettled`.
  */
 export async function recordSceneResults(payload: SceneResultsPayload): Promise<number> {
   const ts = payload.tsMs ?? Date.now();
+  const classroomId = payload.classroomId ?? '';
   const settled = await Promise.allSettled(
     payload.results.map((r) => {
       const userAnswer =
@@ -73,7 +74,7 @@ export async function recordSceneResults(payload: SceneResultsPayload): Promise<
             : String(r.userAnswer);
       return recordAttempt({
         source: 'classroom',
-        source_id: payload.sceneId,
+        source_id: `${classroomId}::${payload.sceneId}::${r.questionId}`,
         question_id: r.questionId,
         user_answer: userAnswer,
         is_correct: r.correct,
@@ -84,4 +85,29 @@ export async function recordSceneResults(payload: SceneResultsPayload): Promise<
     }),
   );
   return settled.filter((s) => s.status === 'fulfilled' && s.value !== null).length;
+}
+
+export interface CourseAttemptPayload {
+  courseId: string;
+  sectionId: string;
+  blockId: string;
+  isCorrect: boolean;
+  userAnswer?: string;
+  /** Override timestamp; defaults to Date.now(). */
+  tsMs?: number;
+}
+
+/** Record a single course quiz block attempt. */
+export async function recordCourseAttempt(
+  payload: CourseAttemptPayload,
+): Promise<QuizAttemptRecord | null> {
+  return recordAttempt({
+    source: 'course',
+    source_id: `${payload.courseId}::${payload.sectionId}::${payload.blockId}`,
+    question_id: payload.blockId,
+    user_answer: payload.userAnswer ?? '',
+    is_correct: payload.isCorrect,
+    earned: payload.isCorrect ? 1 : 0,
+    ts_ms: payload.tsMs ?? Date.now(),
+  });
 }
