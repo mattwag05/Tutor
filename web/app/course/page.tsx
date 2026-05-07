@@ -132,7 +132,7 @@ function CourseLandingPageInner() {
   const disabled = state.phase === 'streaming';
 
   return (
-    <main className="h-screen overflow-y-auto px-4 py-16 sm:px-6">
+    <main className="h-dvh overflow-y-auto px-4 py-16 sm:px-6">
       <div className="mx-auto flex max-w-2xl flex-col">
       {/* Mode switcher */}
       <div className="mb-8 flex justify-center">

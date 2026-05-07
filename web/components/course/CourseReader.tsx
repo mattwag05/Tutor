@@ -152,7 +152,7 @@ export function CourseReader({ courseId }: Props) {
   return (
     <div
       ref={scrollRootRef}
-      className="h-screen overflow-y-auto bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100"
+      className="h-dvh overflow-y-auto bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100"
     >
       <ReaderHeader
         courseId={courseId}

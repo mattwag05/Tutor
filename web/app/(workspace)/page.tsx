@@ -38,7 +38,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="flex h-screen flex-col items-center justify-start gap-6 overflow-y-auto px-4 pb-24 pt-10 sm:justify-center sm:gap-8 sm:pb-16 sm:pt-12 bg-[var(--background)]">
+    <div className="flex h-dvh flex-col items-center justify-start gap-6 overflow-y-auto px-4 pb-24 pt-10 sm:justify-center sm:gap-8 sm:pb-16 sm:pt-12 bg-[var(--background)]">
       <div className="text-center">
         <h1 className="text-2xl font-semibold text-[var(--foreground)] tracking-tight sm:text-3xl">
           What would you like to learn?

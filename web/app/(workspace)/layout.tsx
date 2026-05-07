@@ -8,7 +8,7 @@ export default function WorkspaceLayout({
 }>) {
   return (
     <UnifiedChatProvider>
-      <div className="flex h-screen overflow-hidden">
+      <div className="flex h-dvh overflow-hidden">
         <WorkspaceSidebar />
         <main
           className="flex-1 overflow-hidden bg-[var(--background)] sm:!pb-0"
