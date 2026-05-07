@@ -37,6 +37,7 @@ import time
 from typing import Any
 
 from deeptutor.core.stream_bus import StreamBus
+from deeptutor.services.quiz import QuizAttemptCreate, get_quiz_store
 
 from .agents.ideation_agent import IdeationAgent
 from .agents.source_explorer import SourceExplorer
@@ -61,8 +62,6 @@ from .models import (
     QuizAttempt,
     Spine,
 )
-from deeptutor.services.quiz import QuizAttemptCreate, get_quiz_store
-
 from .storage import BookStorage, get_book_storage
 from .streaming import (
     STAGE_COMPILATION,
