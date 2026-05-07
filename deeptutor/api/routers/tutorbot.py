@@ -176,7 +176,8 @@ async def create_and_start_bot(payload: CreateBotRequest):
     try:
         instance = await mgr.start_bot(payload.bot_id, config)
     except RuntimeError as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("start_bot failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to start bot")
     # Response is masked — secrets are only revealed via the explicit
     # GET /{bot_id}?include_secrets=true edit-form route.
     return instance.to_dict(mask_secrets=True)

@@ -119,7 +119,7 @@ async def execute_tool(tool_name: str, body: ToolExecuteRequest):
         }
     except Exception as exc:
         logger.exception("Tool execution failed: %s", tool_name)
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Plugin tool execution failed")
 
 
 def _sse(event: str, payload: dict[str, Any]) -> str:

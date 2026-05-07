@@ -620,7 +620,7 @@ async def get_rag_providers():
         return {"providers": providers}
     except Exception as e:
         logger.error(f"Error getting RAG providers: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Knowledge operation failed")
 
 
 @router.get("/supported-file-types", response_model=SupportedFileTypesInfo)
@@ -645,7 +645,7 @@ async def get_all_kb_configs():
         return service.get_all_configs()
     except Exception as e:
         logger.error(f"Error getting KB configs: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Knowledge operation failed")
 
 
 @router.get("/{kb_name}/config")
@@ -659,7 +659,7 @@ async def get_kb_config(kb_name: str):
         return {"kb_name": kb_name, "config": config}
     except Exception as e:
         logger.error(f"Error getting config for KB '{kb_name}': {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Knowledge operation failed")
 
 
 @router.put("/{kb_name}/config")
@@ -678,7 +678,7 @@ async def update_kb_config(kb_name: str, config: dict):
         raise
     except Exception as e:
         logger.error(f"Error updating config for KB '{kb_name}': {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Knowledge operation failed")
 
 
 @router.post("/configs/sync")
@@ -692,7 +692,7 @@ async def sync_configs_from_metadata():
         return {"status": "success", "message": "Configurations synced from metadata files"}
     except Exception as e:
         logger.error(f"Error syncing configs: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Knowledge operation failed")
 
 
 @router.get("/default")
@@ -704,7 +704,7 @@ async def get_default_kb():
         return {"default_kb": default_kb}
     except Exception as e:
         logger.error(f"Error getting default KB: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Knowledge operation failed")
 
 
 @router.put("/default/{kb_name}")
@@ -723,7 +723,7 @@ async def set_default_kb(kb_name: str):
         raise
     except Exception as e:
         logger.error(f"Error setting default KB: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Knowledge operation failed")
 
 
 @router.get("/list", response_model=list[KnowledgeBaseInfo])
@@ -813,7 +813,7 @@ async def get_knowledge_base_details(kb_name: str):
     except ValueError:
         raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_name}' not found")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Knowledge operation failed")
 
 
 @router.post("/{kb_name}/query", response_model=KnowledgeQueryResponse)
@@ -972,7 +972,7 @@ async def delete_knowledge_base(kb_name: str):
     except ValueError:
         raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_name}' not found")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Knowledge operation failed")
 
 
 @router.get("/tasks/{task_id}/stream")
@@ -1143,7 +1143,7 @@ async def create_knowledge_base(
     except Exception as e:
         logger.error(f"Failed to create KB: {e}")
         logger.debug(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Knowledge operation failed")
 
 
 async def run_reindex_task(kb_name: str, base_dir: str, task_id: str, signature_hash: str) -> None:
@@ -1381,7 +1381,7 @@ async def get_progress(kb_name: str):
 
         return progress
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Knowledge operation failed")
 
 
 @router.post("/{kb_name}/progress/clear")
@@ -1392,7 +1392,7 @@ async def clear_progress(kb_name: str):
         progress_tracker.clear()
         return {"status": "success", "message": f"Progress cleared for {kb_name}"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Knowledge operation failed")
 
 
 @router.websocket("/{kb_name}/progress/ws")
@@ -1551,7 +1551,7 @@ async def link_folder(kb_name: str, request: LinkFolderRequest):
             raise HTTPException(status_code=404, detail=error_msg)
         raise HTTPException(status_code=400, detail=error_msg)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Knowledge operation failed")
 
 
 @router.get("/{kb_name}/linked-folders", response_model=list[LinkedFolderInfo])
@@ -1564,7 +1564,7 @@ async def get_linked_folders(kb_name: str):
     except ValueError:
         raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_name}' not found")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Knowledge operation failed")
 
 
 @router.delete("/{kb_name}/linked-folders/{folder_id}")
@@ -1580,7 +1580,7 @@ async def unlink_folder(kb_name: str, folder_id: str):
     except ValueError:
         raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_name}' not found")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Knowledge operation failed")
 
 
 @router.post("/{kb_name}/sync-folder/{folder_id}")
@@ -1649,4 +1649,4 @@ async def sync_folder(kb_name: str, folder_id: str, background_tasks: Background
     except ValueError:
         raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_name}' not found")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Knowledge operation failed")

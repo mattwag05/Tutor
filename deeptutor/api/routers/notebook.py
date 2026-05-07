@@ -149,7 +149,7 @@ async def list_notebooks():
         notebooks = notebook_manager.list_notebooks()
         return {"notebooks": notebooks, "total": len(notebooks)}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Notebook operation failed")
 
 
 @router.get("/statistics")
@@ -164,7 +164,7 @@ async def get_statistics():
         stats = notebook_manager.get_statistics()
         return stats
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Notebook operation failed")
 
 
 @router.post("/create")
@@ -187,7 +187,7 @@ async def create_notebook(request: CreateNotebookRequest):
         )
         return {"success": True, "notebook": notebook}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Notebook operation failed")
 
 
 @router.get("/{notebook_id}")
@@ -209,7 +209,7 @@ async def get_notebook(notebook_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Notebook operation failed")
 
 
 @router.put("/{notebook_id}")
@@ -238,7 +238,7 @@ async def update_notebook(notebook_id: str, request: UpdateNotebookRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Notebook operation failed")
 
 
 @router.delete("/{notebook_id}")
@@ -260,7 +260,7 @@ async def delete_notebook(notebook_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Notebook operation failed")
 
 
 @router.post("/add_record")
@@ -293,7 +293,7 @@ async def add_record(request: AddRecordRequest):
             "added_to_notebooks": result["added_to_notebooks"],
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Notebook operation failed")
 
 
 @router.post("/add_record_with_summary")
@@ -326,7 +326,7 @@ async def remove_record(notebook_id: str, record_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Notebook operation failed")
 
 
 @router.put("/{notebook_id}/records/{record_id}")
@@ -349,7 +349,7 @@ async def update_record(notebook_id: str, record_id: str, request: UpdateRecordR
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Notebook operation failed")
 
 
 @router.get("/health")
