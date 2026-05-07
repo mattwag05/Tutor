@@ -251,7 +251,7 @@ class ModelCatalogService:
                 profile = {
                     "id": profile_id,
                     "name": "Default LLM Endpoint",
-                    "binding": "openai",
+                    "binding": "openrouter",
                     "base_url": "",
                     "api_key": "",
                     "api_version": "",
@@ -277,7 +277,7 @@ class ModelCatalogService:
                 profile = {
                     "id": profile_id,
                     "name": "Default Embedding Endpoint",
-                    "binding": "openai",
+                    "binding": "ollama",
                     "base_url": "",
                     "api_key": "",
                     "api_version": "",
@@ -310,7 +310,7 @@ class ModelCatalogService:
                 profile = {
                     "id": profile_id,
                     "name": "Default Search Provider",
-                    "provider": "brave",
+                    "provider": "duckduckgo",
                     "base_url": "",
                     "api_key": "",
                     "api_version": "",
