@@ -29,7 +29,7 @@ async def create_attempt(payload: QuizAttemptCreate) -> QuizAttempt:
         return await store.record_attempt(payload)
     except Exception as exc:  # noqa: BLE001
         logger.error("create_attempt failed: %s", exc, exc_info=True)
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="Failed to record attempt") from exc
 
 
 @router.get("/attempts", response_model=list[QuizAttempt])
