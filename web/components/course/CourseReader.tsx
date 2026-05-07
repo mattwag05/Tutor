@@ -45,6 +45,7 @@ export function CourseReader({ courseId }: Props) {
   const [projecting, setProjecting] = useState(false);
   const projectingRef = useRef(false);
   const sectionRefs = useRef<Array<HTMLElement | null>>([]);
+  const scrollRootRef = useRef<HTMLDivElement | null>(null);
 
   const openAsClassroom = useCallback(async () => {
     if (projectingRef.current) return;
@@ -97,7 +98,7 @@ export function CourseReader({ courseId }: Props) {
           }
         }
       },
-      { threshold: 0.4 },
+      { root: scrollRootRef.current, threshold: 0.4 },
     );
     sectionRefs.current.forEach((el) => el && observer.observe(el));
     return () => observer.disconnect();
@@ -149,7 +150,10 @@ export function CourseReader({ courseId }: Props) {
   const nextSection = course.sections[activeIndex + 1];
 
   return (
-    <div className="h-screen overflow-y-auto bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
+    <div
+      ref={scrollRootRef}
+      className="h-screen overflow-y-auto bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100"
+    >
       <ReaderHeader
         courseId={courseId}
         title={course.title}
