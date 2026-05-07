@@ -1,7 +1,7 @@
 /* eslint-disable i18n/no-literal-ui-text */
 "use client";
 
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Brain,
   CheckCircle2,
@@ -278,19 +278,6 @@ function activeModelDetail(
 ): string {
   if (service === "search") return profile?.provider || t("No provider");
   return model?.model || model?.name || t("No model selected");
-}
-
-function servicePendingApply(
-  catalog: Catalog,
-  draft: Catalog,
-  service: ServiceName,
-): boolean {
-  if (service === "manifest") return false; // manifest has its own dirty tracking
-  const svc = service as CatalogServiceName;
-  return (
-    JSON.stringify(catalog.services[svc]) !==
-    JSON.stringify(draft.services[svc])
-  );
 }
 
 function statusDotClass(configured: boolean, hasError: boolean): string {
@@ -741,9 +728,12 @@ function SettingsPageContent() {
   const [agentTiers, setAgentTiers] = useState<AgentTiers>({});
   const [agentTiersDraft, setAgentTiersDraft] = useState<AgentTiers>({});
   const [savingManifest, setSavingManifest] = useState(false);
-  const manifestDirty =
-    JSON.stringify(manifestProfiles) !== JSON.stringify(manifestDraft) ||
-    JSON.stringify(agentTiers) !== JSON.stringify(agentTiersDraft);
+  const manifestDirty = useMemo(
+    () =>
+      JSON.stringify(manifestProfiles) !== JSON.stringify(manifestDraft) ||
+      JSON.stringify(agentTiers) !== JSON.stringify(agentTiersDraft),
+    [manifestProfiles, manifestDraft, agentTiers, agentTiersDraft],
+  );
 
   // -- Data loading -------------------------------------------------------
 
@@ -826,7 +816,20 @@ function SettingsPageContent() {
 
   const activeProfile = activeService === "manifest" ? null : getActiveProfile(draft, activeService as CatalogServiceName);
   const activeModel = activeService === "manifest" ? null : getActiveModel(draft, activeService as CatalogServiceName);
-  const hasUnsavedChanges = JSON.stringify(catalog) !== JSON.stringify(draft);
+  // Service-keyed dirty map so the overview row can look up per-service
+  // pending state without re-stringifying the whole catalog per service.
+  const servicesPendingApply = useMemo(() => {
+    const out: Record<string, boolean> = {};
+    const services = Object.keys(catalog.services) as CatalogServiceName[];
+    for (const svc of services) {
+      out[svc] = JSON.stringify(catalog.services[svc]) !== JSON.stringify(draft.services[svc]);
+    }
+    return out;
+  }, [catalog, draft]);
+  const hasUnsavedChanges = useMemo(
+    () => JSON.stringify(catalog) !== JSON.stringify(draft),
+    [catalog, draft],
+  );
   const searchProviderRaw =
     activeService === "search"
       ? (activeProfile?.provider || "").trim().toLowerCase()
@@ -1450,7 +1453,7 @@ function SettingsPageContent() {
                 : service === "search"
                   ? Boolean(profile?.provider || status?.search.provider)
                   : Boolean(model?.model || runtimeModel);
-            const pendingApply = service === "manifest" ? manifestDirty : servicePendingApply(catalog, draft, service);
+            const pendingApply = service === "manifest" ? manifestDirty : (servicesPendingApply[service] ?? false);
             const detail =
               service === "manifest"
                 ? (manifestProfiles["tutor-balanced"]?.model || t("Not configured"))
