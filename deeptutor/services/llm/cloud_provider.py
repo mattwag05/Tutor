@@ -282,7 +282,7 @@ async def _openai_complete(
     messages = kwargs.pop("messages", None)
     content = None
 
-    effective_base = base_url or "https://api.openai.com/v1"
+    effective_base = base_url or "https://openrouter.ai/api/v1"
     url = build_chat_url(effective_base, api_version, binding)
 
     # Build headers using unified utility
@@ -448,7 +448,7 @@ async def _openai_stream(
         kwargs.pop("response_format", None)
 
     # Build URL using unified utility
-    effective_base = base_url or "https://api.openai.com/v1"
+    effective_base = base_url or "https://openrouter.ai/api/v1"
     url = build_chat_url(effective_base, api_version, binding)
 
     # Build headers using unified utility
