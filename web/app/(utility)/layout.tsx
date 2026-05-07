@@ -8,7 +8,10 @@ export default function UtilityLayout({
   return (
     <div className="flex h-screen overflow-hidden">
       <UtilitySidebar />
-      <main className="flex-1 overflow-hidden bg-[var(--background)] pb-14 sm:pb-0">
+      <main
+        className="flex-1 overflow-hidden bg-[var(--background)] sm:!pb-0"
+        style={{ paddingBottom: "calc(3.5rem + env(safe-area-inset-bottom))" }}
+      >
         {children}
       </main>
     </div>

@@ -114,7 +114,10 @@ export function SidebarShell({
 
   const mobileNav = (
     <>
-    <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-14 items-stretch border-t border-[var(--border)] bg-[var(--secondary)] sm:hidden">
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-50 flex h-14 items-stretch border-t border-[var(--border)] bg-[var(--secondary)] sm:hidden"
+      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+    >
       {BOTTOM_NAV.map((item) => {
         const active = pathname.startsWith(item.href);
         return (
