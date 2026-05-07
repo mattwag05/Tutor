@@ -99,7 +99,7 @@ export default function KbSettingsSection({
           type="button"
           onClick={() => void onDelete()}
           className="inline-flex items-center gap-1.5 rounded-md border border-red-300 bg-red-50 px-2.5 py-1 text-[12px] font-medium text-red-700 transition-colors hover:bg-red-100 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300 dark:hover:bg-red-950/50"
-        >
+          aria-label="Delete">
           <Trash2 className="h-3 w-3" />
           {t("Delete knowledge base")}
         </button>

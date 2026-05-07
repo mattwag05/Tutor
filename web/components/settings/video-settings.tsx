@@ -323,7 +323,7 @@ export function VideoSettings({ selectedProviderId }: VideoSettingsProps) {
                 value={modelForm.id}
                 onChange={(e) => setModelForm((prev) => ({ ...prev, id: e.target.value }))}
                 placeholder="e.g. my-custom-model-v1"
-                className="h-8 font-mono text-sm"
+                className="h-8 font-mono text-base sm:text-sm"
               />
             </div>
             <div className="space-y-2">
@@ -332,7 +332,7 @@ export function VideoSettings({ selectedProviderId }: VideoSettingsProps) {
                 value={modelForm.name}
                 onChange={(e) => setModelForm((prev) => ({ ...prev, name: e.target.value }))}
                 placeholder="e.g. My Custom Model"
-                className="h-8 text-sm"
+                className="h-8 text-base sm:text-sm"
               />
             </div>
             <div className="flex justify-end gap-2">

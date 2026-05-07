@@ -158,7 +158,7 @@ export default function PageReader({
               <button
                 onClick={onRecompile}
                 className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--card)] px-2.5 py-1 text-xs font-medium text-[var(--muted-foreground)] hover:border-[var(--primary)]/40 hover:text-[var(--primary)]"
-              >
+                aria-label="Refresh">
                 <RefreshCcw className="h-3.5 w-3.5" /> {t("Force regenerate")}
               </button>
             )}
@@ -209,7 +209,7 @@ export default function PageReader({
                     <button
                       onClick={onRecompile}
                       className="inline-flex items-center gap-1 rounded-md border border-current px-2 py-1 text-xs font-medium hover:bg-white/40 dark:hover:bg-white/10"
-                    >
+                      aria-label="Refresh">
                       <RefreshCcw className="h-3.5 w-3.5" />
                       {t("Regenerate page")}
                     </button>

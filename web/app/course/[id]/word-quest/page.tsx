@@ -15,7 +15,7 @@ export default function WordQuestPage({ params }: Params) {
 
   if (!course || course.id !== id) {
     return (
-      <div className="flex h-screen flex-col items-center justify-center gap-4 overflow-y-auto">
+      <div className="flex h-dvh flex-col items-center justify-center gap-4 overflow-y-auto">
         <p className="text-neutral-500">Course not loaded.</p>
         <Link href={`/course/${id}`} className="text-blue-600 hover:underline">
           Open course reader first
@@ -25,7 +25,7 @@ export default function WordQuestPage({ params }: Params) {
   }
 
   return (
-    <div className="h-screen overflow-y-auto bg-white dark:bg-neutral-950">
+    <div className="h-dvh overflow-y-auto bg-white dark:bg-neutral-950">
       <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-neutral-200 bg-white/90 px-4 py-3 backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/90">
         <Link
           href={`/course/${id}`}

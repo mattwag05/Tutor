@@ -28,7 +28,7 @@ function ChartJsRenderer({ config }: { config: string }) {
           chartRef.current = null;
         }
 
-        // eslint-disable-next-line no-new-func
+         
         const parsedConfig = new Function(
           `"use strict"; return (${config});`,
         )();

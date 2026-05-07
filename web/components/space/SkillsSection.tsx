@@ -344,7 +344,7 @@ export default function SkillsSection() {
           <button
             onClick={openCreate}
             className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--primary)] px-3.5 py-1.5 text-[12.5px] font-medium text-[var(--primary-foreground)] shadow-sm transition-opacity hover:opacity-90"
-          >
+            aria-label="Add">
             <Plus size={13} strokeWidth={2} />
             {t("New skill")}
           </button>
@@ -459,7 +459,7 @@ export default function SkillsSection() {
                 onClick={() => void handleCreateTag()}
                 disabled={!newTagDraft.trim()}
                 className="inline-flex items-center gap-1 rounded-lg bg-[var(--foreground)] px-3 py-1.5 text-[12px] font-medium text-[var(--background)] transition-opacity hover:opacity-90 disabled:opacity-30"
-              >
+                aria-label="Add">
                 <Plus size={12} strokeWidth={2.2} />
                 {t("Add")}
               </button>
@@ -522,7 +522,7 @@ export default function SkillsSection() {
           <button
             onClick={openCreate}
             className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-[var(--primary)] px-3.5 py-1.5 text-[12.5px] font-medium text-[var(--primary-foreground)] shadow-sm transition-opacity hover:opacity-90"
-          >
+            aria-label="Add">
             <Plus size={13} strokeWidth={2} />
             {t("Create your first skill")}
           </button>
@@ -726,7 +726,7 @@ export default function SkillsSection() {
                     onClick={() => void handleCreateEditorTag()}
                     disabled={!editorTagDraft.trim()}
                     className="inline-flex items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--muted)]/40 px-2.5 py-1.5 text-[12px] font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--muted)] disabled:opacity-40"
-                  >
+                    aria-label="Add">
                     <Plus size={12} strokeWidth={2.2} />
                     {t("Add")}
                   </button>

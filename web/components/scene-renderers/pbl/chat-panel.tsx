@@ -124,7 +124,7 @@ export function ChatPanel({
             placeholder={t('pbl.chat.placeholder')}
             disabled={isLoading}
             rows={1}
-            className="flex-1 resize-none rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"
+            className="flex-1 resize-none rounded-lg border bg-background px-3 py-2 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"
           />
           <SpeechButton
             size="md"
@@ -140,6 +140,7 @@ export function ChatPanel({
           <button
             onClick={handleSubmit}
             disabled={!input.trim() || isLoading}
+            aria-label="Send message"
             className="shrink-0 h-8 w-8 rounded-lg flex items-center justify-center transition-colors bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
             <ArrowUp className="w-4 h-4" />

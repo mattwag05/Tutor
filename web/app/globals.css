@@ -128,6 +128,10 @@
     @apply border-[color:var(--border)];
     scrollbar-width: thin;
     scrollbar-color: var(--border) transparent;
+    /* iOS taps default to a translucent gray rectangle. Keep
+       -webkit-touch-callout alone so long-press save-image / copy-link still
+       work. */
+    -webkit-tap-highlight-color: transparent;
   }
 
   html,
@@ -138,6 +142,9 @@
 
   html {
     -webkit-font-smoothing: antialiased;
+    /* Prevent iOS Safari from inflating body text on landscape rotation. */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
 
   html[data-scroll-behavior="smooth"] {
@@ -513,6 +520,26 @@
 
 .prose .footnotes ol {
   @apply ml-4;
+}
+
+/* Long unbroken tokens (URLs, hashes, snake_case_identifiers) inside body
+   markdown otherwise force horizontal scroll on narrow viewports. Code
+   blocks keep their own overflow-x-auto so we deliberately scope to the
+   prose-flow elements only. */
+.md-renderer p,
+.md-renderer li,
+.md-renderer a,
+.md-renderer blockquote,
+.md-renderer h1,
+.md-renderer h2,
+.md-renderer h3,
+.md-renderer h4,
+.md-renderer h5,
+.md-renderer h6,
+.md-renderer td,
+.md-renderer th {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 /* ─── md-renderer: scope overrides only inside our component ─── */

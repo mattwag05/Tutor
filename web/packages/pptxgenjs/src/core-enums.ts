@@ -478,7 +478,7 @@ export enum SHAPE_TYPE {
 	RIGHT_BRACKET = 'rightBracket',
 	RIGHT_TRIANGLE = 'rtTriangle',
 	ROUNDED_RECTANGLE = 'roundRect',
-	// eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
+	 
 	ROUNDED_RECTANGULAR_CALLOUT = 'wedgeRoundRectCallout',
 	ROUND_1_RECTANGLE = 'round1Rect',
 	ROUND_2_DIAG_RECTANGLE = 'round2DiagRect',

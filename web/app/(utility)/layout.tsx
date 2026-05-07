@@ -6,7 +6,7 @@ export default function UtilityLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-dvh overflow-hidden">
       <UtilitySidebar />
       <main
         className="flex-1 overflow-hidden bg-[var(--background)] sm:!pb-0"

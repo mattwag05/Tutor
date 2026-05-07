@@ -235,7 +235,7 @@ export default function TodaysReviewPanel() {
                         </div>
                       ) : (
                         <textarea
-                          className="mt-2 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-[13px] text-[var(--foreground)] outline-none focus:border-[var(--primary)]"
+                          className="mt-2 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-[16px] text-[var(--foreground)] outline-none focus:border-[var(--primary)] sm:text-[13px]"
                           rows={3}
                           value={state.text ?? ""}
                           disabled={submitted}

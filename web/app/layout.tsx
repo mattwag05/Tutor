@@ -23,6 +23,12 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  // Resize the layout viewport (not just the visual viewport) when the on-
+  // screen keyboard opens so fixed-bottom elements (chat composer,
+  // AdvanceBar, mobile nav) rise above the keyboard instead of sitting
+  // behind it. Progressive enhancement: ignored by browsers that don't
+  // support it.
+  interactiveWidget: "resizes-content",
 };
 
 export const metadata: Metadata = {
@@ -55,7 +61,14 @@ export default function RootLayout({
       <body className="font-sans bg-[var(--background)] text-[var(--foreground)]">
         <AppShellProvider>
           <I18nClientBridge>{children}</I18nClientBridge>
-          <Toaster position="bottom-right" />
+          <Toaster
+            position="bottom-right"
+            mobileOffset={{
+              bottom: "calc(3.5rem + env(safe-area-inset-bottom) + 0.5rem)",
+              right: "0.5rem",
+              left: "0.5rem",
+            }}
+          />
         </AppShellProvider>
       </body>
     </html>

@@ -198,14 +198,14 @@ export default function BookLibrary({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t("Search books")}
-              className="h-8 w-56 rounded-md border border-[var(--border)] bg-[var(--secondary)]/30 pl-7 pr-2.5 text-xs text-[var(--foreground)] placeholder:text-[var(--muted-foreground)]/60 focus:border-[var(--primary)]/40 focus:outline-none"
+              className="h-8 w-56 rounded-md border border-[var(--border)] bg-[var(--secondary)]/30 pl-7 pr-2.5 text-base sm:text-xs text-[var(--foreground)] placeholder:text-[var(--muted-foreground)]/60 focus:border-[var(--primary)]/40 focus:outline-none"
             />
           </div>
           <button
             type="button"
             onClick={onNewBook}
             className="inline-flex items-center gap-1.5 rounded-md bg-[var(--primary)] px-3 py-1.5 text-xs font-medium text-[var(--primary-foreground)] transition-opacity hover:opacity-90"
-          >
+            aria-label="Add">
             <Plus size={13} />
             {t("New book")}
           </button>
@@ -474,7 +474,7 @@ function EmptyState({ onNewBook }: { onNewBook: () => void }) {
         type="button"
         onClick={onNewBook}
         className="inline-flex items-center gap-1.5 rounded-md bg-[var(--primary)] px-3 py-1.5 text-sm font-medium text-[var(--primary-foreground)] transition-opacity hover:opacity-90"
-      >
+        aria-label="Add">
         <Plus size={14} />
         {t("New book")}
       </button>

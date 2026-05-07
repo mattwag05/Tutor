@@ -92,7 +92,7 @@ export function ASRSettings({ selectedProviderId }: ASRSettingsProps) {
           setTestMessage(t('settings.asrNotSupported'));
           return;
         }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Vendor-prefixed API without standard typings
+         
         const recognition = new (SpeechRecognitionCtor as new () => any)();
         recognition.lang = asrLanguage || 'zh-CN';
         recognition.onresult = (event: {
@@ -229,7 +229,7 @@ export function ASRSettings({ selectedProviderId }: ASRSettingsProps) {
                       apiKey: e.target.value,
                     })
                   }
-                  className="font-mono text-sm pr-10"
+                  className="font-mono text-base sm:text-sm pr-10"
                 />
                 <button
                   type="button"
@@ -259,7 +259,7 @@ export function ASRSettings({ selectedProviderId }: ASRSettingsProps) {
                     baseUrl: e.target.value,
                   })
                 }
-                className="text-sm"
+                className="text-base sm:text-sm"
               />
             </div>
           </div>
@@ -441,7 +441,7 @@ export function ASRSettings({ selectedProviderId }: ASRSettingsProps) {
                                 modelId: newModelId,
                               });
                             }}
-                            className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                            className="h-7 w-7 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
                           >
                             <XCircle className="h-3.5 w-3.5" />
                           </Button>
@@ -534,14 +534,14 @@ function AddModelRow({
         value={modelId}
         onChange={(e) => setModelId(e.target.value)}
         onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-        className="text-sm font-mono"
+        className="text-base sm:text-sm font-mono"
         placeholder={t('settings.modelIdPlaceholder')}
       />
       <Input
         value={modelName}
         onChange={(e) => setModelName(e.target.value)}
         onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-        className="text-sm"
+        className="text-base sm:text-sm"
         placeholder={t('settings.modelNamePlaceholder')}
       />
       <Button

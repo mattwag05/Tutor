@@ -1069,7 +1069,7 @@ function BotsTab({
         <button
           onClick={() => setShowCreate(true)}
           className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)]/50 px-3 py-1.5 text-[12px] font-medium text-[var(--muted-foreground)] transition-colors hover:border-[var(--border)] hover:text-[var(--foreground)]"
-        >
+          aria-label="Add">
           <Plus className="h-3 w-3" />
           {t("New Bot")}
         </button>
@@ -1290,7 +1290,7 @@ function BotsTab({
                     <button
                       onClick={() => stopBot(bot.bot_id)}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)]/50 px-3 py-1.5 text-[12px] font-medium text-red-400 transition-colors hover:border-red-400/50"
-                    >
+                      aria-label="Stop">
                       <Square className="h-3 w-3" />
                       {t("Stop")}
                     </button>
@@ -1299,7 +1299,7 @@ function BotsTab({
                   <button
                     onClick={() => startBot(bot.bot_id)}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)]/50 px-3 py-1.5 text-[12px] font-medium text-[var(--muted-foreground)] transition-colors hover:border-[var(--border)] hover:text-[var(--foreground)]"
-                  >
+                    aria-label="Play">
                     <Play className="h-3 w-3" />
                     {t("Start")}
                   </button>
@@ -1307,7 +1307,7 @@ function BotsTab({
                 <button
                   onClick={() => destroyBot(bot.bot_id, bot.name)}
                   className="inline-flex items-center justify-center rounded-lg border border-[var(--border)]/50 p-1.5 text-[var(--muted-foreground)]/50 transition-colors hover:border-red-400/50 hover:text-red-400"
-                >
+                  aria-label="Delete">
                   <Trash2 className="h-3 w-3" />
                 </button>
               </div>
@@ -2009,7 +2009,7 @@ function SoulsTab({
         <button
           onClick={startCreate}
           className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)]/50 px-3 py-1.5 text-[12px] font-medium text-[var(--muted-foreground)] transition-colors hover:border-[var(--border)] hover:text-[var(--foreground)]"
-        >
+          aria-label="Add">
           <Plus className="h-3 w-3" />
           {t("New Soul")}
         </button>
@@ -2177,17 +2177,17 @@ function SoulsTab({
                     {soul.content.replace(/^#.*\n+/g, "").slice(0, 200)}
                   </p>
                 </div>
-                <div className="flex shrink-0 items-center gap-1 ml-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex shrink-0 items-center gap-1 ml-4 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                   <button
                     onClick={() => startEdit(soul)}
                     className="inline-flex items-center justify-center rounded-lg border border-[var(--border)]/50 p-1.5 text-[var(--muted-foreground)] transition-colors hover:border-[var(--border)] hover:text-[var(--foreground)]"
-                  >
+                    aria-label="Edit">
                     <Pencil className="h-3 w-3" />
                   </button>
                   <button
                     onClick={() => deleteSoul(soul)}
                     className="inline-flex items-center justify-center rounded-lg border border-[var(--border)]/50 p-1.5 text-[var(--muted-foreground)] transition-colors hover:border-red-400/50 hover:text-red-400"
-                  >
+                    aria-label="Delete">
                     <Trash2 className="h-3 w-3" />
                   </button>
                 </div>

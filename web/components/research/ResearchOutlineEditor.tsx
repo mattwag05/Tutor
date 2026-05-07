@@ -139,8 +139,8 @@ export default function ResearchOutlineEditor({
               <button
                 type="button"
                 onClick={() => removeItem(index)}
-                className="mt-1 shrink-0 rounded p-0.5 text-[var(--muted-foreground)]/20 opacity-0 transition-all hover:bg-red-500/10 hover:text-red-500/60 group-hover:opacity-100"
-              >
+                className="mt-1 shrink-0 rounded p-0.5 text-[var(--muted-foreground)]/20 opacity-100 sm:opacity-0 transition-all hover:bg-red-500/10 hover:text-red-500/60 sm:group-hover:opacity-100"
+                aria-label="Delete">
                 <Trash2 size={12} />
               </button>
             )}
@@ -154,7 +154,7 @@ export default function ResearchOutlineEditor({
             type="button"
             onClick={addItem}
             className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-[var(--muted-foreground)]/50 transition-colors hover:bg-[var(--muted-foreground)]/5 hover:text-[var(--muted-foreground)]/70"
-          >
+            aria-label="Add">
             <Plus size={12} />
             {t("Add sub-topic")}
           </button>
@@ -163,7 +163,7 @@ export default function ResearchOutlineEditor({
             onClick={handleConfirm}
             disabled={items.every((i) => !i.title.trim())}
             className="flex items-center gap-1.5 rounded-lg bg-[var(--primary)] px-3 py-1.5 text-[11px] font-medium text-[var(--primary-foreground)] transition-all hover:opacity-90 disabled:opacity-40"
-          >
+            aria-label="Play">
             <Play size={11} />
             {t("Start Research")}
           </button>

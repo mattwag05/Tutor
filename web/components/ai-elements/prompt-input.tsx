@@ -310,7 +310,7 @@ export function PromptInputAttachment({ data, className, ...props }: PromptInput
             </div>
             <Button
               aria-label="Remove attachment"
-              className="absolute inset-0 size-5 cursor-pointer rounded p-0 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 [&>svg]:size-2.5"
+              className="absolute inset-0 size-5 cursor-pointer rounded p-0 opacity-100 pointer-events-auto sm:opacity-0 sm:pointer-events-none transition-opacity sm:group-hover:pointer-events-auto sm:group-hover:opacity-100 [&>svg]:size-2.5"
               onClick={(e) => {
                 e.stopPropagation();
                 attachments.remove(data.id);
@@ -1020,9 +1020,9 @@ interface SpeechRecognitionErrorEvent extends Event {
 
 declare global {
   interface Window {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     SpeechRecognition: any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     webkitSpeechRecognition: any;
   }
 }

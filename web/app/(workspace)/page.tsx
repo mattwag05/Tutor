@@ -38,7 +38,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="flex h-screen flex-col items-center justify-start gap-6 overflow-y-auto px-4 pb-24 pt-10 sm:justify-center sm:gap-8 sm:pb-16 sm:pt-12 bg-[var(--background)]">
+    <div className="flex h-dvh flex-col items-center justify-start gap-6 overflow-y-auto px-4 pb-24 pt-10 sm:justify-center sm:gap-8 sm:pb-16 sm:pt-12 bg-[var(--background)]">
       <div className="text-center">
         <h1 className="text-2xl font-semibold text-[var(--foreground)] tracking-tight sm:text-3xl">
           What would you like to learn?
@@ -55,7 +55,7 @@ export default function HomePage() {
           onKeyDown={handleKey}
           placeholder="Type a topic (e.g. 'photosynthesis') or paste a paragraph…"
           rows={4}
-          className="w-full resize-none rounded-xl border border-[var(--border)] bg-[var(--card)] px-4 py-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 transition"
+          className="w-full resize-none rounded-xl border border-[var(--border)] bg-[var(--card)] px-4 py-3 text-base text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 transition sm:text-sm"
         />
 
         <Button

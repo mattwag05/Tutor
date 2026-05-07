@@ -253,7 +253,7 @@ export default function SessionList({
                       {session.title || "Untitled chat"}
                     </span>
                   )}
-                  <div className="flex shrink-0 items-center gap-px opacity-0 transition-opacity group-hover:opacity-100">
+                  <div className="flex shrink-0 items-center gap-px opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
                     {isEditing ? (
                       <button
                         onClick={(event) => {
@@ -371,7 +371,7 @@ export default function SessionList({
                         </div>
                       )}
                     </div>
-                    <div className="flex shrink-0 items-center gap-0.5 pt-px opacity-0 transition-opacity group-hover:opacity-100">
+                    <div className="flex shrink-0 items-center gap-0.5 pt-px opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
                       {isEditing ? (
                         <button
                           onClick={(event) => {

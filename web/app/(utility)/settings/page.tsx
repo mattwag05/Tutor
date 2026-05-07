@@ -440,8 +440,10 @@ function defaultCatalog(): Catalog {
   };
 }
 
+// 16px on mobile dodges iOS Safari's focus auto-zoom (triggered when an
+// input's font-size is <16px); narrows back to 14px at sm+ for density.
 const fieldControlClass =
-  "w-full rounded-lg border border-[var(--border)] px-3 py-2 text-[14px] text-[var(--foreground)] outline-none transition-colors focus:border-[var(--ring)]";
+  "w-full rounded-lg border border-[var(--border)] px-3 py-2 text-[16px] sm:text-[14px] text-[var(--foreground)] outline-none transition-colors focus:border-[var(--ring)]";
 
 const inputClass = `${fieldControlClass} bg-transparent placeholder:text-[var(--muted-foreground)]/40`;
 
@@ -1759,7 +1761,7 @@ function SettingsPageContent() {
                   <button
                     onClick={addProfile}
                     className="inline-flex items-center gap-1 rounded-lg border border-[var(--border)]/50 px-2.5 py-1 text-[12px] text-[var(--muted-foreground)] transition-colors hover:border-[var(--border)] hover:text-[var(--foreground)]"
-                  >
+                    aria-label="Add">
                     <Plus className="h-3 w-3" />
                     {t("Profile")}
                   </button>
@@ -1767,7 +1769,7 @@ function SettingsPageContent() {
                     <button
                       onClick={addModel}
                       className="inline-flex items-center gap-1 rounded-lg border border-[var(--border)]/50 px-2.5 py-1 text-[12px] text-[var(--muted-foreground)] transition-colors hover:border-[var(--border)] hover:text-[var(--foreground)]"
-                    >
+                      aria-label="Add">
                       <Plus className="h-3 w-3" />
                       {t("Model")}
                     </button>
@@ -1950,7 +1952,7 @@ function SettingsPageContent() {
                   onClick={removeActiveProfile}
                   disabled={!activeProfile}
                   className="flex w-full items-center gap-1.5 rounded-lg px-3 py-2 text-[11px] text-[var(--muted-foreground)]/40 transition-colors hover:text-red-500 disabled:opacity-30"
-                >
+                  aria-label="Delete">
                   <Trash2 className="h-3 w-3" />
                   {t("Delete profile")}
                 </button>
@@ -2167,7 +2169,7 @@ function SettingsPageContent() {
                         onClick={removeActiveModel}
                         disabled={!activeModel}
                         className="inline-flex items-center gap-1 text-[11px] text-[var(--muted-foreground)]/40 transition-colors hover:text-red-500 disabled:opacity-30"
-                      >
+                        aria-label="Delete">
                         <Trash2 className="h-3 w-3" />
                         {t("Delete")}
                       </button>

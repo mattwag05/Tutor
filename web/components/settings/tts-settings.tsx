@@ -275,7 +275,7 @@ export function TTSSettings({ selectedProviderId }: TTSSettingsProps) {
                       baseUrl: e.target.value,
                     })
                   }
-                  className="h-8 min-w-0 rounded-md font-mono text-sm shadow-none"
+                  className="h-8 min-w-0 rounded-md font-mono text-base sm:text-sm shadow-none"
                 />
               </div>
 
@@ -297,7 +297,7 @@ export function TTSSettings({ selectedProviderId }: TTSSettingsProps) {
                         modelId: e.target.value,
                       })
                     }
-                    className="h-8 min-w-0 rounded-md font-mono text-sm shadow-none"
+                    className="h-8 min-w-0 rounded-md font-mono text-base sm:text-sm shadow-none"
                   />
                 </div>
               )}
@@ -344,7 +344,7 @@ export function TTSSettings({ selectedProviderId }: TTSSettingsProps) {
                         }
                         value={doubaoAppId}
                         onChange={(e) => setDoubaoCompoundKey(e.target.value, doubaoAccessKey)}
-                        className="font-mono text-sm pr-10"
+                        className="font-mono text-base sm:text-sm pr-10"
                       />
                       <button
                         type="button"
@@ -372,7 +372,7 @@ export function TTSSettings({ selectedProviderId }: TTSSettingsProps) {
                         }
                         value={doubaoAccessKey}
                         onChange={(e) => setDoubaoCompoundKey(doubaoAppId, e.target.value)}
-                        className="font-mono text-sm pr-10"
+                        className="font-mono text-base sm:text-sm pr-10"
                       />
                       <button
                         type="button"
@@ -406,7 +406,7 @@ export function TTSSettings({ selectedProviderId }: TTSSettingsProps) {
                           apiKey: e.target.value,
                         })
                       }
-                      className="font-mono text-sm pr-10"
+                      className="font-mono text-base sm:text-sm pr-10"
                     />
                     <button
                       type="button"
@@ -437,7 +437,7 @@ export function TTSSettings({ selectedProviderId }: TTSSettingsProps) {
                       baseUrl: e.target.value,
                     })
                   }
-                  className="text-sm"
+                  className="text-base sm:text-sm"
                 />
               </div>
             </div>
@@ -572,7 +572,7 @@ export function TTSSettings({ selectedProviderId }: TTSSettingsProps) {
                         customVoices: voices,
                       });
                     }}
-                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                    className="h-7 w-7 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
                   >
                     <XCircle className="h-3.5 w-3.5" />
                   </Button>
@@ -998,13 +998,13 @@ function VoxCPMVoiceManager() {
                   value={promptName}
                   onChange={(e) => setPromptName(e.target.value)}
                   placeholder={t('settings.voxcpmVoiceNamePlaceholder')}
-                  className="h-10 rounded-md text-sm"
+                  className="h-10 rounded-md text-base sm:text-sm"
                 />
                 <Textarea
                   value={voicePrompt}
                   onChange={(e) => setVoicePrompt(e.target.value)}
                   placeholder={t('settings.voxcpmPromptPlaceholder')}
-                  className="min-h-28 resize-none rounded-md text-sm"
+                  className="min-h-28 resize-none rounded-md text-base sm:text-sm"
                 />
                 <div className="flex justify-end">
                   <Button
@@ -1029,7 +1029,7 @@ function VoxCPMVoiceManager() {
                     value={cloneName}
                     onChange={(e) => setCloneName(e.target.value)}
                     placeholder={t('settings.voxcpmCloneVoiceNamePlaceholder')}
-                    className="h-10 rounded-md text-sm"
+                    className="h-10 rounded-md text-base sm:text-sm"
                   />
                   <label className="inline-flex h-10 min-w-0 cursor-pointer items-center justify-center gap-2 rounded-md border border-input bg-background px-3 text-sm hover:bg-accent hover:text-accent-foreground">
                     <Upload className="h-3.5 w-3.5 shrink-0" />
@@ -1075,13 +1075,13 @@ function VoxCPMVoiceManager() {
                   value={clonePromptText}
                   onChange={(e) => setClonePromptText(e.target.value)}
                   placeholder={t('settings.voxcpmReferenceTextPlaceholder')}
-                  className="min-h-20 resize-none rounded-md text-sm"
+                  className="min-h-20 resize-none rounded-md text-base sm:text-sm"
                 />
                 <Input
                   value={cloneVoicePrompt}
                   onChange={(e) => setCloneVoicePrompt(e.target.value)}
                   placeholder={t('settings.voxcpmVoiceDescriptionPlaceholder')}
-                  className="h-10 rounded-md text-sm"
+                  className="h-10 rounded-md text-base sm:text-sm"
                 />
                 <div className="flex justify-end">
                   <Button
@@ -1239,14 +1239,14 @@ function AddVoiceRow({
         value={voiceId}
         onChange={(e) => setVoiceId(e.target.value)}
         onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-        className="text-sm font-mono"
+        className="text-base sm:text-sm font-mono"
         placeholder={t('settings.voiceIdPlaceholder')}
       />
       <Input
         value={voiceName}
         onChange={(e) => setVoiceName(e.target.value)}
         onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-        className="text-sm"
+        className="text-base sm:text-sm"
         placeholder={t('settings.voiceNamePlaceholder')}
       />
       <Button

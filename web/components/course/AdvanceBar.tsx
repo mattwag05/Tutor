@@ -24,7 +24,7 @@ export function AdvanceBar({ nextTitle, onAdvance }: Props) {
         <button
           type="button"
           onClick={onAdvance}
-          className="shrink-0 rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-white"
+          className="flex h-11 shrink-0 touch-manipulation items-center justify-center rounded-lg bg-neutral-900 px-4 text-sm font-medium text-white transition hover:bg-neutral-800 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-white"
         >
           Advance
         </button>

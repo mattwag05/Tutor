@@ -173,7 +173,7 @@ export function Header({ currentSceneTitle }: HeaderProps) {
                 window.location.href = '/settings';
               }}
               className="p-2 rounded-full text-gray-400 dark:text-gray-500 hover:bg-white dark:hover:bg-gray-700 hover:text-gray-800 dark:hover:text-gray-200 hover:shadow-sm transition-all group"
-            >
+              aria-label="Settings">
               <Settings className="w-4 h-4 group-hover:rotate-90 transition-transform duration-500" />
             </button>
           </div>

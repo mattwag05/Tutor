@@ -560,7 +560,7 @@ export default function BookChatPanel({
                 void send();
               }
             }}
-            className="max-h-32 min-h-8 flex-1 resize-none bg-transparent px-1 py-1.5 text-sm text-[var(--foreground)] outline-none placeholder:text-[var(--muted-foreground)]"
+            className="max-h-32 min-h-8 flex-1 resize-none bg-transparent px-1 py-1.5 text-base sm:text-sm text-[var(--foreground)] outline-none placeholder:text-[var(--muted-foreground)]"
           />
           <button
             type="submit"

@@ -255,7 +255,7 @@ export default function BotChatPage() {
         <button
           onClick={() => router.push("/agents")}
           className="rounded-lg p-1.5 text-[var(--muted-foreground)] transition-colors hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
-        >
+          aria-label="Back">
           <ArrowLeft className="h-4 w-4" />
         </button>
         <Bot className="h-4 w-4 text-[var(--muted-foreground)]" />
@@ -377,6 +377,7 @@ export default function BotChatPage() {
           <button
             onClick={handleManualSend}
             disabled={streaming}
+            aria-label="Send message"
             className="flex h-[42px] w-[42px] items-center justify-center rounded-xl bg-[var(--primary)] text-[var(--primary-foreground)] transition-opacity hover:opacity-90 disabled:opacity-30"
           >
             <Send className="h-4 w-4" />

@@ -12,11 +12,11 @@ import json
 import time
 from typing import Any, Dict, List, Literal, Optional
 
-import yaml
 from dotenv import set_key, unset_key
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+import yaml
 
 from deeptutor.services.config import get_config_test_runner, get_model_catalog_service
 from deeptutor.services.embedding.client import reset_embedding_client

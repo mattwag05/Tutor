@@ -480,7 +480,7 @@ export default function BookCreator({
                 placeholder={t(
                   "e.g. Build intuition for transformer attention with derivations and exercises.",
                 )}
-                className="mt-1.5 w-full resize-none rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--foreground)] outline-none focus:border-[var(--primary)]/50"
+                className="mt-1.5 w-full resize-none rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-base sm:text-sm text-[var(--foreground)] outline-none focus:border-[var(--primary)]/50"
               />
             </label>
 
@@ -503,7 +503,7 @@ export default function BookCreator({
                     else void refreshSessions();
                   }}
                   className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
-                >
+                  aria-label="Refresh">
                   <RefreshCw className="h-3 w-3" />
                   {t("Refresh")}
                 </button>
@@ -1089,7 +1089,7 @@ function ProposalForm({
         <input
           value={proposal.title}
           onChange={(e) => update({ title: e.target.value })}
-          className="mt-1 w-full rounded-md border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-sm text-[var(--foreground)]"
+          className="mt-1 w-full rounded-md border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-base sm:text-sm text-[var(--foreground)]"
         />
       </label>
       <label className="block sm:col-span-2">
@@ -1100,7 +1100,7 @@ function ProposalForm({
           value={proposal.description}
           onChange={(e) => update({ description: e.target.value })}
           rows={3}
-          className="mt-1 w-full resize-none rounded-md border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-sm text-[var(--foreground)]"
+          className="mt-1 w-full resize-none rounded-md border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-base sm:text-sm text-[var(--foreground)]"
         />
       </label>
       <label className="block">
@@ -1110,7 +1110,7 @@ function ProposalForm({
         <input
           value={proposal.scope}
           onChange={(e) => update({ scope: e.target.value })}
-          className="mt-1 w-full rounded-md border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-sm text-[var(--foreground)]"
+          className="mt-1 w-full rounded-md border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-base sm:text-sm text-[var(--foreground)]"
         />
       </label>
       <label className="block">
@@ -1120,7 +1120,7 @@ function ProposalForm({
         <input
           value={proposal.target_level}
           onChange={(e) => update({ target_level: e.target.value })}
-          className="mt-1 w-full rounded-md border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-sm text-[var(--foreground)]"
+          className="mt-1 w-full rounded-md border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-base sm:text-sm text-[var(--foreground)]"
         />
       </label>
       <label className="block">
@@ -1135,7 +1135,7 @@ function ProposalForm({
           onChange={(e) =>
             update({ estimated_chapters: Number(e.target.value) || 0 })
           }
-          className="mt-1 w-full rounded-md border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-sm text-[var(--foreground)]"
+          className="mt-1 w-full rounded-md border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-base sm:text-sm text-[var(--foreground)]"
         />
       </label>
       <div className="block sm:col-span-2">

@@ -140,7 +140,7 @@ export function AccessCodeModal({ open, onSuccess }: AccessCodeModalProps) {
                       if (error) setError('');
                     }}
                     className={`
-                      w-full rounded-xl border bg-background/60 px-4 py-3 pr-12 text-sm
+                      w-full rounded-xl border bg-background/60 px-4 py-3 pr-12 text-base sm:text-sm
                       outline-none transition-all duration-200
                       placeholder:text-muted-foreground/50
                       focus:border-primary/40 focus:ring-2 focus:ring-primary/10
