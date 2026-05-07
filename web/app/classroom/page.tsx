@@ -8,7 +8,7 @@ export default function ClassroomLandingPage() {
   const router = useRouter();
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-6 px-4 bg-[var(--background)]">
+    <main className="flex h-screen flex-col items-center justify-center gap-6 overflow-y-auto px-4 bg-[var(--background)]">
       <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--secondary)]">
         <Presentation className="h-8 w-8 text-[var(--muted-foreground)]" />
       </div>

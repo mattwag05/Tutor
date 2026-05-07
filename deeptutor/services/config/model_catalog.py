@@ -151,8 +151,8 @@ class ModelCatalogService:
                     {
                         "id": profile_id,
                         "name": "Default LLM Endpoint",
-                        "binding": summary.llm["binding"] or "openai",
-                        "base_url": summary.llm["host"],
+                        "binding": summary.llm["binding"] or "openrouter",
+                        "base_url": summary.llm["host"] or "https://openrouter.ai/api/v1",
                         "api_key": summary.llm["api_key"],
                         "api_version": summary.llm["api_version"],
                         "extra_headers": {},

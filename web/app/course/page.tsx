@@ -132,7 +132,8 @@ function CourseLandingPageInner() {
   const disabled = state.phase === 'streaming';
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col px-4 py-16 sm:px-6">
+    <main className="h-screen overflow-y-auto px-4 py-16 sm:px-6">
+      <div className="mx-auto flex max-w-2xl flex-col">
       {/* Mode switcher */}
       <div className="mb-8 flex justify-center">
         <div
@@ -294,6 +295,7 @@ function CourseLandingPageInner() {
       {state.phase !== 'streaming' && (
         <CourseHistoryGrid courses={courses} loading={coursesLoading} />
       )}
+      </div>
     </main>
   );
 }
