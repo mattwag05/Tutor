@@ -60,7 +60,14 @@ class ModelCatalogService:
                 loaded = json.load(handle) or {}
             catalog = _default_catalog()
             catalog.update({k: v for k, v in loaded.items() if k != "services"})
-            catalog["services"].update(loaded.get("services", {}))
+            loaded_services = loaded.get("services", {})
+            catalog["services"].update(loaded_services)
+            # An older catalog may not yet have the full set of service shells
+            # (e.g. tts/asr/image/video added post-bootstrap). Force a re-save
+            # so the disk shape matches the current schema.
+            schema_migrated = any(
+                svc not in loaded_services for svc in (*_PROFILED_SERVICES, "search")
+            )
             hydrated = self._hydrate_missing_services_from_env(catalog)
             # Only overlay .env values onto the active profile while the
             # catalog is still in its pristine, freshly-seeded state
@@ -77,7 +84,7 @@ class ModelCatalogService:
             if self._is_catalog_pristine(catalog):
                 synced = self._sync_active_services_from_env(catalog)
             normalized = self._normalize(catalog)
-            if hydrated or synced or normalized:
+            if hydrated or synced or normalized or schema_migrated:
                 self.save(catalog)
             return catalog
 
@@ -439,12 +446,8 @@ class ModelCatalogService:
         services = catalog.setdefault("services", {})
         changed = False
         for svc in _PROFILED_SERVICES:
-            if svc not in services:
-                services[svc] = _service_shell()
-                changed = True
-        if "search" not in services:
-            services["search"] = _search_shell()
-            changed = True
+            services.setdefault(svc, _service_shell())
+        services.setdefault("search", _search_shell())
         for service_name in (*_PROFILED_SERVICES, "search"):
             service = services[service_name]
             profiles = service.setdefault("profiles", [])
