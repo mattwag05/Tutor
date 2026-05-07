@@ -515,6 +515,26 @@
   @apply ml-4;
 }
 
+/* Long unbroken tokens (URLs, hashes, snake_case_identifiers) inside body
+   markdown otherwise force horizontal scroll on narrow viewports. Code
+   blocks keep their own overflow-x-auto so we deliberately scope to the
+   prose-flow elements only. */
+.md-renderer p,
+.md-renderer li,
+.md-renderer a,
+.md-renderer blockquote,
+.md-renderer h1,
+.md-renderer h2,
+.md-renderer h3,
+.md-renderer h4,
+.md-renderer h5,
+.md-renderer h6,
+.md-renderer td,
+.md-renderer th {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 /* ─── md-renderer: scope overrides only inside our component ─── */
 .md-renderer .contains-task-list {
   @apply list-none ml-0 pl-0;
