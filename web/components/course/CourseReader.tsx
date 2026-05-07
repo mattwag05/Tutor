@@ -324,7 +324,7 @@ function ReaderHeader({
   const inlineActionClass =
     'flex shrink-0 items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-3 py-1 text-xs text-neutral-700 transition hover:bg-neutral-50 disabled:cursor-progress disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800';
   const menuItemClass =
-    'flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-neutral-700 transition hover:bg-neutral-100 disabled:cursor-progress disabled:opacity-60 dark:text-neutral-200 dark:hover:bg-neutral-900';
+    'flex min-h-[44px] w-full touch-manipulation items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-neutral-700 transition hover:bg-neutral-100 disabled:cursor-progress disabled:opacity-60 dark:text-neutral-200 dark:hover:bg-neutral-900';
 
   // Close the <details> after a menu action fires so the popover dismisses.
   const closeMenu = (e: { currentTarget: HTMLElement }) => {
@@ -337,7 +337,7 @@ function ReaderHeader({
         type="button"
         onClick={onOpenToc}
         aria-label="Open table of contents"
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-900"
+        className="flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-md hover:bg-neutral-100 sm:h-8 sm:w-8 dark:hover:bg-neutral-900"
       >
         <span aria-hidden className="text-lg">
           ≡
@@ -388,7 +388,7 @@ function ReaderHeader({
       <details className="relative shrink-0 sm:hidden">
         <summary
           aria-label="More actions"
-          className="flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded-md hover:bg-neutral-100 [&::-webkit-details-marker]:hidden dark:hover:bg-neutral-900"
+          className="flex h-11 w-11 cursor-pointer touch-manipulation list-none items-center justify-center rounded-md hover:bg-neutral-100 [&::-webkit-details-marker]:hidden dark:hover:bg-neutral-900"
         >
           <span aria-hidden className="text-lg leading-none">
             ⋮
