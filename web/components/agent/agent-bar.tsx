@@ -253,7 +253,7 @@ function AgentVoicePill({
               autoFocus
               aria-label={t('agentBar.searchVoice')}
               placeholder={t('agentBar.searchVoice')}
-              className="h-8 w-full rounded-md border border-input bg-background pl-8 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
+              className="h-8 w-full rounded-md border border-input bg-background pl-8 pr-3 text-base sm:text-sm outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
             />
           </div>
         </div>
@@ -523,7 +523,7 @@ function TeacherVoicePill({
               autoFocus
               aria-label={t('agentBar.searchVoice')}
               placeholder={t('agentBar.searchVoice')}
-              className="h-8 w-full rounded-md border border-input bg-background pl-8 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
+              className="h-8 w-full rounded-md border border-input bg-background pl-8 pr-3 text-base sm:text-sm outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
             />
           </div>
         </div>

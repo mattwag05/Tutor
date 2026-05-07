@@ -144,7 +144,7 @@ export function GeneralSettings() {
                     {t('settings.clearCacheConfirmInput')}
                   </Label>
                   <Input
-                    className="mt-1.5 h-9 text-sm"
+                    className="mt-1.5 h-9 text-base sm:text-sm"
                     placeholder={confirmPhrase}
                     value={confirmInput}
                     onChange={(e) => setConfirmInput(e.target.value)}

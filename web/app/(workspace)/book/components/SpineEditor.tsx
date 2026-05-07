@@ -213,7 +213,7 @@ export default function SpineEditor({
                       updateChapter(idx, { summary: e.target.value })
                     }
                     placeholder={t("Optional one-line description")}
-                    className="mt-1 w-full rounded-md border border-[var(--border)] bg-[var(--background)] px-2 py-1.5 text-sm text-[var(--foreground)]"
+                    className="mt-1 w-full rounded-md border border-[var(--border)] bg-[var(--background)] px-2 py-1.5 text-base sm:text-sm text-[var(--foreground)]"
                   />
                 </label>
               </div>
@@ -231,7 +231,7 @@ export default function SpineEditor({
                     })
                   }
                   rows={3}
-                  className="mt-1 w-full resize-none rounded-md border border-[var(--border)] bg-[var(--background)] px-2 py-1.5 text-sm text-[var(--foreground)]"
+                  className="mt-1 w-full resize-none rounded-md border border-[var(--border)] bg-[var(--background)] px-2 py-1.5 text-base sm:text-sm text-[var(--foreground)]"
                 />
               </label>
             </div>

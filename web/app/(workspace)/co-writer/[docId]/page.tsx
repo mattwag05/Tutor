@@ -2272,7 +2272,7 @@ export default function CoWriterPage() {
                 value={instruction}
                 onChange={(e) => setInstruction(e.target.value)}
                 rows={4}
-                className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--foreground)] outline-none focus:border-[var(--primary)]"
+                className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-base sm:text-sm text-[var(--foreground)] outline-none focus:border-[var(--primary)]"
                 placeholder={t("Describe how you want the text edited...")}
               />
 

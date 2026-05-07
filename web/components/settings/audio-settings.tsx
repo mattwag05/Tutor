@@ -501,7 +501,7 @@ export function AudioSettings({ onSave }: AudioSettingsProps = {}) {
                             apiKey: e.target.value,
                           })
                         }
-                        className="font-mono text-sm pr-10"
+                        className="font-mono text-base sm:text-sm pr-10"
                       />
                       <button
                         type="button"
@@ -528,7 +528,7 @@ export function AudioSettings({ onSave }: AudioSettingsProps = {}) {
                         baseUrl: e.target.value,
                       })
                     }
-                    className="text-sm"
+                    className="text-base sm:text-sm"
                   />
                 </div>
               </div>
@@ -642,7 +642,7 @@ export function AudioSettings({ onSave }: AudioSettingsProps = {}) {
                           apiKey: e.target.value,
                         })
                       }
-                      className="font-mono text-sm pr-10"
+                      className="font-mono text-base sm:text-sm pr-10"
                     />
                     <button
                       type="button"
@@ -669,7 +669,7 @@ export function AudioSettings({ onSave }: AudioSettingsProps = {}) {
                         baseUrl: e.target.value,
                       })
                     }
-                    className="text-sm"
+                    className="text-base sm:text-sm"
                   />
                 </div>
               </div>

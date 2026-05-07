@@ -229,7 +229,7 @@ export function ASRSettings({ selectedProviderId }: ASRSettingsProps) {
                       apiKey: e.target.value,
                     })
                   }
-                  className="font-mono text-sm pr-10"
+                  className="font-mono text-base sm:text-sm pr-10"
                 />
                 <button
                   type="button"
@@ -259,7 +259,7 @@ export function ASRSettings({ selectedProviderId }: ASRSettingsProps) {
                     baseUrl: e.target.value,
                   })
                 }
-                className="text-sm"
+                className="text-base sm:text-sm"
               />
             </div>
           </div>
@@ -534,14 +534,14 @@ function AddModelRow({
         value={modelId}
         onChange={(e) => setModelId(e.target.value)}
         onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-        className="text-sm font-mono"
+        className="text-base sm:text-sm font-mono"
         placeholder={t('settings.modelIdPlaceholder')}
       />
       <Input
         value={modelName}
         onChange={(e) => setModelName(e.target.value)}
         onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-        className="text-sm"
+        className="text-base sm:text-sm"
         placeholder={t('settings.modelNamePlaceholder')}
       />
       <Button

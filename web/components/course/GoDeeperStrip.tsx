@@ -53,7 +53,7 @@ export function GoDeeperStrip({ prompts, onAsk, disabled }: Props) {
           onChange={(e) => setText(e.target.value)}
           placeholder="Go deeper on…"
           disabled={disabled}
-          className="flex-1 bg-transparent text-sm outline-none placeholder:text-neutral-400 disabled:opacity-60"
+          className="flex-1 bg-transparent text-base sm:text-sm outline-none placeholder:text-neutral-400 disabled:opacity-60"
         />
         <button
           type="submit"

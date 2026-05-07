@@ -128,7 +128,7 @@ export function PDFSettings({ selectedProviderId }: PDFSettingsProps) {
                       onChange={(e) =>
                         setPDFProviderConfig(selectedProviderId, { apiKey: e.target.value })
                       }
-                      className="font-mono text-sm pr-10"
+                      className="font-mono text-base sm:text-sm pr-10"
                     />
                     <button
                       type="button"
@@ -181,7 +181,7 @@ export function PDFSettings({ selectedProviderId }: PDFSettingsProps) {
                     onChange={(e) =>
                       setPDFProviderConfig(selectedProviderId, { baseUrl: e.target.value })
                     }
-                    className="text-sm"
+                    className="text-base sm:text-sm"
                   />
                   {/* Test button for self-hosted (next to base URL) */}
                   {isSelfHosted && (
@@ -232,7 +232,7 @@ export function PDFSettings({ selectedProviderId }: PDFSettingsProps) {
                     onChange={(e) =>
                       setPDFProviderConfig(selectedProviderId, { apiKey: e.target.value })
                     }
-                    className="font-mono text-sm pr-10"
+                    className="font-mono text-base sm:text-sm pr-10"
                   />
                   <button
                     type="button"

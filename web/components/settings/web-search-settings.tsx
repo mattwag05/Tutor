@@ -69,7 +69,7 @@ export function WebSearchSettings({ selectedProviderId }: WebSearchSettingsProps
                       apiKey: e.target.value,
                     })
                   }
-                  className="font-mono text-sm pr-10"
+                  className="font-mono text-base sm:text-sm pr-10"
                 />
                 <button
                   type="button"
@@ -97,7 +97,7 @@ export function WebSearchSettings({ selectedProviderId }: WebSearchSettingsProps
                     baseUrl: e.target.value,
                   })
                 }
-                className="text-sm"
+                className="text-base sm:text-sm"
               />
             </div>
           </div>
