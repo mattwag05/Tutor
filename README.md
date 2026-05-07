@@ -1,4 +1,4 @@
-> **Fork notice:** This is the [mattwag05/DeepTutor](https://github.com/mattwag05/DeepTutor) fork. It tracks [HKUDS/DeepTutor](https://github.com/HKUDS/DeepTutor) and layers on a Course Builder (topic prompt → streamed outline → block-typed article reader), a Manifest tier-based LLM router (`tutor-cheap / tutor-balanced / tutor-premium`), a home-page intent classifier, and a PWA with offline spaced-review. OpenMAIC (`services/openmaic/`) is retained as an archive — all classroom and course UIs now live in `web/`. Production: https://deeptutor.tail6e035b.ts.net (Pironman). See [CLAUDE.md](CLAUDE.md) for fork-specific details.
+> **Fork notice:** This is the [mattwag05/DeepTutor](https://github.com/mattwag05/DeepTutor) fork. It tracks [HKUDS/DeepTutor](https://github.com/HKUDS/DeepTutor) and layers on a Course Builder (topic prompt → streamed outline → block-typed article reader), a Manifest tier-based LLM router (`tutor-cheap / tutor-balanced / tutor-premium`), a home-page intent classifier, a PWA with offline spaced-review, and a UI-editable catalog covering every provider modality (LLM, embedding, search, TTS, ASR, image, video) plus per-feature toggles. OpenMAIC (`services/openmaic/`) is retained as an archive — all classroom and course UIs now live in `web/`. Production: https://tutor.tail6e035b.ts.net (Pironman). See [CLAUDE.md](CLAUDE.md) for fork-specific details.
 
 ---
 
@@ -31,6 +31,8 @@
 > 🤝 **We welcome any kinds of contributing!** See our [Contributing Guide](CONTRIBUTING.md) for branching strategy, coding standards, and how to get started.
 
 ### 📦 Releases
+
+> **[2026.5.6]** [v1.5.0](https://github.com/mattwag05/DeepTutor/releases/tag/v1.5.0) *(fork)* — Settings UI now covers every provider modality (TTS, ASR, image, video alongside LLM/embedding/search) plus a feature-flag toggle for course illustrations. Catalog edits land in the bind-mounted `data/user/settings/` volume so changes survive container rebuilds. Bundles two related path-bug fixes: `course-storage` and `classroom-storage` now anchor on the `dataDir()` helper so on-disk classroom and course content actually persists.
 
 > **[2026.5.5]** [v1.4.0](https://github.com/mattwag05/DeepTutor/releases/tag/v1.4.0) *(fork)* — Manifest tier-based LLM router (`tutor-cheap / tutor-balanced / tutor-premium`), home-page intent classifier, PWA manifest + service worker with offline spaced-review, and mobile bottom nav.
 
