@@ -439,8 +439,12 @@ class ModelCatalogService:
         services = catalog.setdefault("services", {})
         changed = False
         for svc in _PROFILED_SERVICES:
-            services.setdefault(svc, _service_shell())
-        services.setdefault("search", _search_shell())
+            if svc not in services:
+                services[svc] = _service_shell()
+                changed = True
+        if "search" not in services:
+            services["search"] = _search_shell()
+            changed = True
         for service_name in (*_PROFILED_SERVICES, "search"):
             service = services[service_name]
             profiles = service.setdefault("profiles", [])
