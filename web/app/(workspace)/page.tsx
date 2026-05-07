@@ -55,7 +55,7 @@ export default function HomePage() {
           onKeyDown={handleKey}
           placeholder="Type a topic (e.g. 'photosynthesis') or paste a paragraph…"
           rows={4}
-          className="w-full resize-none rounded-xl border border-[var(--border)] bg-[var(--card)] px-4 py-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 transition"
+          className="w-full resize-none rounded-xl border border-[var(--border)] bg-[var(--card)] px-4 py-3 text-base text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 transition sm:text-sm"
         />
 
         <Button

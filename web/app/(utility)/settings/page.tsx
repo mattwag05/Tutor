@@ -440,8 +440,10 @@ function defaultCatalog(): Catalog {
   };
 }
 
+// 16px on mobile dodges iOS Safari's focus auto-zoom (triggered when an
+// input's font-size is <16px); narrows back to 14px at sm+ for density.
 const fieldControlClass =
-  "w-full rounded-lg border border-[var(--border)] px-3 py-2 text-[14px] text-[var(--foreground)] outline-none transition-colors focus:border-[var(--ring)]";
+  "w-full rounded-lg border border-[var(--border)] px-3 py-2 text-[16px] sm:text-[14px] text-[var(--foreground)] outline-none transition-colors focus:border-[var(--ring)]";
 
 const inputClass = `${fieldControlClass} bg-transparent placeholder:text-[var(--muted-foreground)]/40`;
 
