@@ -633,7 +633,7 @@ export default memo(function ChatComposer({
           )}
 
           <div className="border-t border-[var(--border)]/35 px-3 py-2">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 sm:flex-nowrap sm:gap-y-0">
               <button
                 ref={capBtnRef}
                 onClick={() => onSetCapMenuOpen((v) => !v)}
