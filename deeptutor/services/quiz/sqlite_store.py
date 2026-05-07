@@ -43,7 +43,11 @@ class SQLiteQuizStore(AsyncSQLiteStore):
 
     def __init__(self, db_path: Path | None = None) -> None:
         path_service = get_path_service()
-        super().__init__(db_path or path_service.get_quiz_db())
+        # Each quiz attempt write is independent (no read-after-write ordering
+        # across attempts); SQLite's WAL handles concurrency. The serialize
+        # lock from the base class is unnecessary here. (Session store still
+        # serializes — see DeepTutor-1tx note in sqlite_base.py.)
+        super().__init__(db_path or path_service.get_quiz_db(), serialize=False)
 
     def _initialize(self) -> None:
         with sqlite3.connect(self.db_path) as conn:
