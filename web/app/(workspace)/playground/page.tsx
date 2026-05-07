@@ -1850,8 +1850,8 @@ export default function PlaygroundPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--background)]">
-      <div className="mx-auto max-w-5xl px-6 py-8">
+    <div className="h-full overflow-y-auto bg-[var(--background)]">
+      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
         <div className="mb-6">
           <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)]">
             {t("Playground")}

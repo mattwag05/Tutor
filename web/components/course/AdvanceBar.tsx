@@ -8,7 +8,10 @@ interface Props {
 export function AdvanceBar({ nextTitle, onAdvance }: Props) {
   if (!nextTitle) return null;
   return (
-    <div className="pointer-events-none fixed bottom-0 left-0 right-0 z-30 px-4 pb-4">
+    <div
+      className="pointer-events-none fixed bottom-0 left-0 right-0 z-30 px-4"
+      style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}
+    >
       <div className="pointer-events-auto mx-auto flex max-w-2xl items-center justify-between gap-4 rounded-xl border border-neutral-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/95">
         <div className="flex min-w-0 flex-col">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
