@@ -1274,8 +1274,8 @@ function SettingsPageContent() {
     <div className="h-full overflow-y-auto [scrollbar-gutter:stable]">
       <div className="mx-auto max-w-[960px] px-4 py-6 sm:px-6 sm:py-8">
         {/* ── Header ── */}
-        <div className="mb-6 flex items-start justify-between">
-          <div>
+        <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
             <h1 className="text-[24px] font-semibold tracking-tight text-[var(--foreground)]">
               {t("Settings")}
             </h1>
@@ -1291,7 +1291,7 @@ function SettingsPageContent() {
               </p>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
             <button
               onClick={runTour}
               className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)]/50 px-3 py-1.5 text-[12px] font-medium text-[var(--muted-foreground)] transition-colors hover:border-[var(--border)] hover:text-[var(--foreground)]"
