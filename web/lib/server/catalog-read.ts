@@ -37,16 +37,22 @@ function parse(raw: string): RawCatalog | null {
   }
 }
 
-// Sync reader: catalog edits land via PUT /api/v1/settings/catalog and need to
-// take effect on the next request without a restart, so we re-read on each
-// call rather than caching. The file is small (single-digit KB) and the
-// callers are themselves dispatching network calls that dwarf the sync I/O.
-export function readCatalogSync(): RawCatalog | null {
+// Generic sync reader for any data/user/settings/*.json file. Edits land via
+// the corresponding PUT route and need to take effect on the next request
+// without a restart, so we re-read on each call rather than caching. Files
+// are small (single-digit KB) and the callers are themselves dispatching
+// network calls that dwarf the sync I/O.
+export function readSettingsFileSync<T>(filename: string): T | null {
   try {
-    return parse(fs.readFileSync(CATALOG_PATH, 'utf-8'));
+    const raw = fs.readFileSync(settingsPath(filename), 'utf-8');
+    return JSON.parse(raw) as T;
   } catch {
     return null;
   }
+}
+
+export function readCatalogSync(): RawCatalog | null {
+  return readSettingsFileSync<RawCatalog>('model_catalog.json');
 }
 
 export async function readCatalog(): Promise<RawCatalog | null> {

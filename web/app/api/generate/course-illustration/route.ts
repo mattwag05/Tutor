@@ -5,15 +5,15 @@ import { readCourse, isValidCourseId, courseImagePath } from '@/lib/server/cours
 import { generateImage } from '@/lib/media/image-providers';
 import { resolveImageApiKey, resolveImageBaseUrl } from '@/lib/server/provider-config';
 import { apiError, apiSuccess, API_ERROR_CODES } from '@/lib/server/api-response';
+import { getFeatureFlags } from '@/lib/server/feature-flags';
 import type { ImageProviderId } from '@/lib/media/types';
 
 export const maxDuration = 60;
 
-const ENABLED = process.env.ENABLE_COURSE_ILLUSTRATIONS === 'true';
 const DEFAULT_PROVIDER: ImageProviderId = 'openai-image';
 
 export async function POST(req: NextRequest) {
-  if (!ENABLED) {
+  if (!getFeatureFlags().course_illustrations) {
     return apiError(API_ERROR_CODES.INTERNAL_ERROR, 503, 'Course illustrations are not enabled');
   }
 

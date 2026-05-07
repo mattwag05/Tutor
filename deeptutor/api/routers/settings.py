@@ -45,11 +45,18 @@ DEFAULT_SIDEBAR_NAV_ORDER = {
     "learnResearch": ["/question", "/solver", "/research", "/co_writer"],
 }
 
+DEFAULT_FEATURE_FLAGS = {
+    # Course illustrations cost 1 image generation per block — gate keeps the
+    # Image catalog optional for users who don't need it.
+    "course_illustrations": False,
+}
+
 DEFAULT_UI_SETTINGS = {
     "theme": "light",
     "language": "en",
     "sidebar_description": "✨ Data Intelligence Lab @ HKU",
     "sidebar_nav_order": DEFAULT_SIDEBAR_NAV_ORDER,
+    "features": DEFAULT_FEATURE_FLAGS,
 }
 
 
@@ -58,11 +65,16 @@ class SidebarNavOrder(BaseModel):
     learnResearch: List[str]
 
 
+class FeatureFlags(BaseModel):
+    course_illustrations: bool = False
+
+
 class UISettings(BaseModel):
     theme: Literal["light", "dark", "glass", "snow"] = "light"
     language: Literal["zh", "en"] = "en"
     sidebar_description: Optional[str] = None
     sidebar_nav_order: Optional[SidebarNavOrder] = None
+    features: Optional[FeatureFlags] = None
 
 
 class ThemeUpdate(BaseModel):

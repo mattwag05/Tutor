@@ -37,6 +37,10 @@ import {
   type ManifestTier,
 } from "@/lib/ai/manifest/profiles";
 import type { ProfiledService } from "@/lib/types/profiled-services";
+import {
+  DEFAULT_FEATURE_FLAGS,
+  type FeatureFlags,
+} from "@/lib/types/feature-flags";
 
 // "manifest" is the Manifest-tier LLM surface; "llm" catalog still exists in
 // the backend but is no longer surfaced as a first-class tab (C.2).
@@ -132,6 +136,7 @@ type Catalog = {
 type UiSettings = {
   theme: "light" | "dark" | "glass" | "snow";
   language: "en" | "zh";
+  features?: FeatureFlags;
 };
 
 type ProviderOption = {
@@ -694,6 +699,7 @@ function SettingsPageContent() {
   const { t } = useTranslation();
 
   const [status, setStatus] = useState<SystemStatus | null>(null);
+  const [features, setFeatures] = useState<FeatureFlags>(DEFAULT_FEATURE_FLAGS);
   const [theme, setTheme] = useState<"light" | "dark" | "glass" | "snow">(
     "light",
   );
@@ -757,6 +763,7 @@ function SettingsPageContent() {
       setDraft(cloneCatalog(settingsPayload.catalog));
       setTheme(settingsPayload.ui.theme);
       setLanguage(settingsPayload.ui.language);
+      setFeatures({ ...DEFAULT_FEATURE_FLAGS, ...(settingsPayload.ui.features || {}) });
       if (settingsPayload.providers) setProviders(settingsPayload.providers);
 
       const statusPayload = (await statusResponse.json()) as SystemStatus;
@@ -858,14 +865,11 @@ function SettingsPageContent() {
 
   // -- UI preference helpers ----------------------------------------------
 
-  const persistUi = async (
-    nextTheme: "light" | "dark" | "glass" | "snow",
-    nextLanguage: "en" | "zh",
-  ) => {
+  const persistUi = async (patch: Partial<UiSettings>) => {
     await fetch(apiUrl("/api/v1/settings/ui"), {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ theme: nextTheme, language: nextLanguage }),
+      body: JSON.stringify(patch),
     });
   };
 
@@ -874,13 +878,22 @@ function SettingsPageContent() {
   ) => {
     setTheme(nextTheme);
     applyThemePreference(nextTheme);
-    await persistUi(nextTheme, language);
+    await persistUi({ theme: nextTheme });
   };
 
   const updateLanguage = async (nextLanguage: "en" | "zh") => {
     setLanguage(nextLanguage);
     writeStoredLanguage(nextLanguage);
-    await persistUi(theme, nextLanguage);
+    await persistUi({ language: nextLanguage });
+  };
+
+  const updateFeature = async <K extends keyof FeatureFlags>(
+    key: K,
+    value: FeatureFlags[K],
+  ) => {
+    const nextFeatures = { ...features, [key]: value };
+    setFeatures(nextFeatures);
+    await persistUi({ features: nextFeatures });
   };
 
   // -- Catalog mutations --------------------------------------------------
@@ -1355,6 +1368,21 @@ function SettingsPageContent() {
                 </button>
               ))}
             </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-[12px] text-[var(--muted-foreground)]">
+              {t("Features")}
+            </span>
+            <label className="inline-flex cursor-pointer select-none items-center gap-1.5 rounded-lg bg-[var(--muted)] px-2.5 py-1 text-[12px] text-[var(--foreground)]">
+              <input
+                type="checkbox"
+                className="h-3 w-3 cursor-pointer accent-[var(--foreground)]"
+                checked={features.course_illustrations}
+                onChange={(e) => updateFeature("course_illustrations", e.target.checked)}
+              />
+              <span>{t("Course illustrations")}</span>
+            </label>
           </div>
         </div>
 
