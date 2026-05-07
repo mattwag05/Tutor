@@ -179,13 +179,22 @@ def _patch_runtime(
     )
 
 
-def test_embedding_provider_choices_use_full_endpoint_urls() -> None:
-    embedding = {item["value"]: item for item in settings_router._provider_choices()["embedding"]}
+def test_provider_choices_match_slim_allowlist() -> None:
+    """The picker is restricted to OpenRouter+Ollama+exceptions.
 
-    assert embedding["openrouter"]["base_url"] == "https://openrouter.ai/api/v1/embeddings"
-    assert embedding["ollama"]["base_url"] == "http://localhost:11434/api/embed"
-    assert embedding["openai"]["base_url"] == "https://api.openai.com/v1/embeddings"
-    assert "custom_openai_sdk" not in embedding
+    Archived bindings still work at runtime if their profile is restored from
+    archived_catalog.json (via ``deeptutor admin restore-profile``); they are
+    just hidden from the dropdown so the UI never re-adds them silently.
+    """
+    choices = settings_router._provider_choices()
+
+    assert {item["value"] for item in choices["llm"]} == {"openrouter", "ollama"}
+    assert {item["value"] for item in choices["embedding"]} == {"ollama"}
+    assert {item["value"] for item in choices["search"]} == {"duckduckgo", "tavily"}
+    assert {item["value"] for item in choices["tts"]} == {"openrouter-tts", "openai-tts"}
+    assert {item["value"] for item in choices["asr"]} == {"openrouter-asr", "browser-native"}
+    assert {item["value"] for item in choices["image"]} == {"openrouter-image", "comfyui"}
+    assert choices["video"] == []  # video service disabled — see services_video_enabled flag
 
 
 @pytest.mark.asyncio

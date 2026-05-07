@@ -44,6 +44,10 @@ export function ImageSettings({ selectedProviderId }: ImageSettingsProps) {
   const [editingModelIndex, setEditingModelIndex] = useState<number | null>(null);
   const [modelForm, setModelForm] = useState({ id: '', name: '' });
 
+  // ComfyUI manual model refresh
+  const [comfyRefreshing, setComfyRefreshing] = useState(false);
+  const [comfyRefreshMessage, setComfyRefreshMessage] = useState('');
+
   // Reset test state when provider changes (derived state pattern)
   const [prevSelectedProviderId, setPrevSelectedProviderId] = useState(selectedProviderId);
   if (selectedProviderId !== prevSelectedProviderId) {
@@ -138,6 +142,32 @@ export function ImageSettings({ selectedProviderId }: ImageSettingsProps) {
       customModels: newCustomModels,
     });
   };
+
+  const handleComfyRefresh = useCallback(async () => {
+    setComfyRefreshing(true);
+    setComfyRefreshMessage('');
+    try {
+      const resp = await fetch('/api/comfyui/models', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ baseUrl: currentConfig?.baseUrl || '' }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        setComfyRefreshMessage(data.error || `HTTP ${resp.status}`);
+        return;
+      }
+      const models: string[] = data.models || [];
+      setImageProviderConfig('comfyui', {
+        customModels: models.map((id) => ({ id, name: id })),
+      });
+      setComfyRefreshMessage(`Loaded ${models.length} checkpoint(s).`);
+    } catch (err) {
+      setComfyRefreshMessage(err instanceof Error ? err.message : String(err));
+    } finally {
+      setComfyRefreshing(false);
+    }
+  }, [currentConfig?.baseUrl, setImageProviderConfig]);
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -249,11 +279,27 @@ export function ImageSettings({ selectedProviderId }: ImageSettingsProps) {
       <div className="space-y-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <Label className="text-base">{t('settings.models')}</Label>
-          <Button variant="outline" size="sm" onClick={handleOpenAddModel} className="gap-1.5">
-            <Plus className="h-3.5 w-3.5" />
-            {t('settings.addNewModel')}
-          </Button>
+          <div className="flex items-center gap-2">
+            {selectedProviderId === 'comfyui' && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={comfyRefreshing}
+                onClick={handleComfyRefresh}
+                className="gap-1.5"
+              >
+                {comfyRefreshing ? 'Refreshing…' : 'Refresh from ComfyUI'}
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={handleOpenAddModel} className="gap-1.5">
+              <Plus className="h-3.5 w-3.5" />
+              {t('settings.addNewModel')}
+            </Button>
+          </div>
         </div>
+        {comfyRefreshMessage && selectedProviderId === 'comfyui' && (
+          <p className="text-xs text-muted-foreground">{comfyRefreshMessage}</p>
+        )}
 
         <div className="space-y-1.5">
           {/* Built-in models */}

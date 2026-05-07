@@ -294,7 +294,7 @@ type SystemStatus = {
   search: { status: string; provider?: string; error?: string };
 };
 
-const SERVICES = [
+const ALL_SERVICES = [
   "manifest",
   "embedding",
   "search",
@@ -303,6 +303,10 @@ const SERVICES = [
   "image",
   "video",
 ] as const;
+// Wrapped in a function to keep the existing `SERVICES` reference stable for
+// type-derivations below; actual rendering uses `visibleServices` (filtered by
+// the services_video_enabled feature flag).
+const SERVICES = ALL_SERVICES;
 
 // "Modality" services follow the embedding-style "profiles + models" shape.
 // Derived from PROFILED_SERVICES (the canonical server list) minus "llm",
@@ -1643,7 +1647,7 @@ function SettingsPageContent() {
             </div>
           </div>
 
-          {SERVICES.map((service, i) => {
+          {SERVICES.filter((s) => s !== "video" || features.services_video_enabled).map((service, i) => {
             const profile = service === "manifest" ? null : getActiveProfile(draft, service as CatalogServiceName);
             const model = service === "manifest" ? null : getActiveModel(draft, service as CatalogServiceName);
             const serviceStatus =
@@ -1725,7 +1729,7 @@ function SettingsPageContent() {
         <div className="mb-8">
           <div className="mb-5 flex items-center justify-between">
             <div className="flex items-center gap-1">
-              {SERVICES.map((service) => (
+              {SERVICES.filter((s) => s !== "video" || features.services_video_enabled).map((service) => (
                 <button
                   key={service}
                   data-tour={`tour-${service}`}

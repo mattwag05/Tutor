@@ -77,7 +77,8 @@ export type ImageProviderId =
   | 'nano-banana'
   | 'minimax-image'
   | 'grok-image'
-  | 'openrouter-image';
+  | 'openrouter-image'
+  | 'comfyui';
 // Add new image providers below (uncomment and modify):
 // | 'dall-e'
 // | 'midjourney'

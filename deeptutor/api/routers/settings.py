@@ -49,6 +49,10 @@ DEFAULT_FEATURE_FLAGS = {
     # Course illustrations cost 1 image generation per block — gate keeps the
     # Image catalog optional for users who don't need it.
     "course_illustrations": False,
+    # Video service has no OpenRouter or Ollama-backed binding; default-off
+    # hides the Video tab from Settings. Flip via interface.json after
+    # restoring a video provider from archived_catalog.json.
+    "services_video_enabled": False,
 }
 
 DEFAULT_UI_SETTINGS = {
@@ -67,6 +71,7 @@ class SidebarNavOrder(BaseModel):
 
 class FeatureFlags(BaseModel):
     course_illustrations: bool = False
+    services_video_enabled: bool = False
 
 
 class UISettings(BaseModel):
@@ -160,85 +165,43 @@ def _write_access_code_to_openmaic_env(access_code: str) -> list[str]:
 
 
 def _provider_choices() -> dict[str, list[dict[str, str]]]:
-    """Build dropdown options for provider selection, keyed by service type."""
-    from deeptutor.services.config.provider_runtime import EMBEDDING_PROVIDERS
-    from deeptutor.services.provider_registry import PROVIDERS
+    """Build dropdown options for provider selection, keyed by service type.
 
-    llm = sorted(
-        [
-            {
-                "value": s.name,
-                "label": (
-                    "Custom (OpenAI API)"
-                    if s.name == "custom"
-                    else "Custom (Anthropic API)"
-                    if s.name == "custom_anthropic"
-                    else s.label
-                ),
-                "base_url": s.default_api_base,
-            }
-            for s in PROVIDERS
-        ],
-        key=lambda p: p["label"].lower(),
-    )
-    embedding = sorted(
-        [
-            {
-                "value": name,
-                "label": spec.label,
-                "base_url": spec.default_api_base,
-                "default_dim": str(spec.default_dim) if spec.default_dim else "",
-            }
-            for name, spec in EMBEDDING_PROVIDERS.items()
-            if name != "custom_openai_sdk"
-        ],
-        key=lambda p: p["label"].lower(),
-    )
+    Slimmed to OpenRouter + Ollama + documented exceptions (Tavily, Kokoro on M5,
+    ComfyUI on M5, browser-native ASR). Archived bindings stay implemented in
+    code but are hidden from the picker; restore via
+    ``python -m deeptutor.cli admin restore-profile <id>`` to bring profiles back
+    from ``data/user/settings/archived_catalog.json``.
+    """
+    llm = [
+        {"value": "openrouter", "label": "OpenRouter", "base_url": "https://openrouter.ai/api/v1"},
+        {"value": "ollama", "label": "Ollama (local)", "base_url": "http://host.docker.internal:11434"},
+    ]
+    embedding = [
+        {
+            "value": "ollama",
+            "label": "Ollama",
+            "base_url": "http://host.docker.internal:11434",
+            "default_dim": "768",
+        },
+    ]
     search = [
-        {"value": "bocha", "label": "Bocha", "base_url": ""},
-        {"value": "brave", "label": "Brave", "base_url": ""},
-        {"value": "duckduckgo", "label": "DuckDuckGo", "base_url": ""},
-        {"value": "jina", "label": "Jina", "base_url": ""},
-        {"value": "ollama", "label": "Ollama", "base_url": ""},
-        {"value": "perplexity", "label": "Perplexity", "base_url": ""},
-        {"value": "searxng", "label": "SearXNG", "base_url": ""},
-        {"value": "serper", "label": "Serper", "base_url": ""},
+        {"value": "duckduckgo", "label": "DuckDuckGo (no key)", "base_url": ""},
         {"value": "tavily", "label": "Tavily", "base_url": ""},
     ]
     tts = [
-        {"value": "openai-tts", "label": "OpenAI TTS", "base_url": "https://api.openai.com/v1"},
-        {"value": "azure-tts", "label": "Azure TTS", "base_url": ""},
-        {"value": "elevenlabs-tts", "label": "ElevenLabs", "base_url": "https://api.elevenlabs.io/v1"},
-        {"value": "glm-tts", "label": "GLM TTS", "base_url": ""},
-        {"value": "qwen-tts", "label": "Qwen TTS", "base_url": ""},
-        {"value": "doubao-tts", "label": "Doubao TTS", "base_url": ""},
-        {"value": "minimax-tts", "label": "MiniMax TTS", "base_url": ""},
         {"value": "openrouter-tts", "label": "OpenRouter TTS", "base_url": "https://openrouter.ai/api/v1"},
-        {"value": "voxcpm-tts", "label": "VoxCPM (local)", "base_url": ""},
+        {"value": "openai-tts", "label": "OpenAI-compatible (Kokoro / OpenAI / etc)", "base_url": ""},
     ]
     asr = [
-        {"value": "openai-whisper", "label": "OpenAI Whisper", "base_url": "https://api.openai.com/v1"},
-        {"value": "qwen-asr", "label": "Qwen ASR", "base_url": ""},
         {"value": "openrouter-asr", "label": "OpenRouter ASR", "base_url": "https://openrouter.ai/api/v1"},
         {"value": "browser-native", "label": "Browser Web Speech (no key)", "base_url": ""},
     ]
     image = [
-        {"value": "openai-image", "label": "OpenAI Images", "base_url": "https://api.openai.com/v1"},
-        {"value": "grok-image", "label": "xAI Grok Image", "base_url": ""},
-        {"value": "minimax-image", "label": "MiniMax Image", "base_url": ""},
-        {"value": "nano-banana", "label": "Nano Banana", "base_url": ""},
         {"value": "openrouter-image", "label": "OpenRouter Image", "base_url": "https://openrouter.ai/api/v1"},
-        {"value": "qwen-image", "label": "Qwen Image", "base_url": ""},
-        {"value": "seedream", "label": "Seedream", "base_url": ""},
+        {"value": "comfyui", "label": "ComfyUI (local HTTP)", "base_url": ""},
     ]
-    video = [
-        {"value": "kling", "label": "Kling", "base_url": ""},
-        {"value": "minimax-video", "label": "MiniMax Video", "base_url": ""},
-        {"value": "seedance", "label": "Seedance", "base_url": ""},
-        {"value": "sora", "label": "Sora", "base_url": ""},
-        {"value": "veo", "label": "Veo", "base_url": ""},
-        {"value": "grok-video", "label": "xAI Grok Video", "base_url": ""},
-    ]
+    video: list[dict[str, str]] = []  # Service disabled — see services.video.enabled flag
     return {
         "llm": llm,
         "embedding": embedding,

@@ -176,12 +176,21 @@ def test_bocha_registered_in_provider_registry() -> None:
     assert instance.supports_answer is False
 
 
-def test_bocha_listed_in_settings_choices() -> None:
+def test_bocha_archived_from_picker_but_runtime_intact() -> None:
+    """Bocha is archived from the Settings picker.
+
+    The runtime adapter still exists so a user can restore the binding via
+    ``deeptutor admin restore-profile`` without redeploying. This test
+    documents that intent — flipping the assertion would silently re-expose
+    every archived provider in the UI.
+    """
     from deeptutor.api.routers.settings import _provider_choices
+    from deeptutor.services.config.provider_runtime import SUPPORTED_SEARCH_PROVIDERS
 
     choices = _provider_choices()
     search_values = [p["value"] for p in choices["search"]]
-    assert "bocha" in search_values
+    assert "bocha" not in search_values  # hidden from UI
+    assert "bocha" in SUPPORTED_SEARCH_PROVIDERS  # adapter remains wired
 
 
 def test_bocha_in_runtime_supported_set() -> None:

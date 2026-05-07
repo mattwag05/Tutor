@@ -172,6 +172,7 @@ const IMAGE_PROVIDER_NAMES: Record<ImageProviderId, string> = {
   'minimax-image': 'providerMiniMaxImage',
   'grok-image': 'providerGrokImage',
   'openrouter-image': 'providerOpenRouterImage',
+  comfyui: 'ComfyUI (local)',
 };
 
 const IMAGE_PROVIDER_ICONS: Record<ImageProviderId, string> = {
@@ -182,6 +183,7 @@ const IMAGE_PROVIDER_ICONS: Record<ImageProviderId, string> = {
   'minimax-image': '/logos/minimax.svg',
   'grok-image': '/logos/grok.svg',
   'openrouter-image': '/logos/openrouter.svg',
+  comfyui: '/logos/comfyui.svg',
 };
 
 const VIDEO_PROVIDER_NAMES: Record<VideoProviderId, string> = {

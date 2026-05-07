@@ -25,6 +25,7 @@ import {
   generateWithOpenRouterImage,
   testOpenRouterImageConnectivity,
 } from './adapters/openrouter-image-adapter';
+import { generateWithComfyUI, testComfyUIConnectivity } from './adapters/comfyui-adapter';
 
 export const IMAGE_PROVIDERS: Record<ImageProviderId, ImageProviderConfig> = {
   seedream: {
@@ -142,6 +143,16 @@ export const IMAGE_PROVIDERS: Record<ImageProviderId, ImageProviderConfig> = {
     ],
     supportedAspectRatios: ['16:9', '4:3', '1:1', '9:16'],
   },
+  comfyui: {
+    id: 'comfyui',
+    name: 'ComfyUI (local)',
+    requiresApiKey: false,
+    defaultBaseUrl: 'http://127.0.0.1:8000',
+    // Populated dynamically via Refresh-models button → fetchComfyUIModels.
+    // Default ckpt name lets the adapter run if the user hasn't refreshed yet.
+    models: [{ id: 'flux1-dev.safetensors', name: 'flux1-dev (default)' }],
+    supportedAspectRatios: ['16:9', '4:3', '1:1', '9:16'],
+  },
 };
 
 export async function testImageConnectivity(
@@ -162,6 +173,8 @@ export async function testImageConnectivity(
       return testGrokImageConnectivity(config);
     case 'openrouter-image':
       return testOpenRouterImageConnectivity(config);
+    case 'comfyui':
+      return testComfyUIConnectivity(config);
     default:
       return {
         success: false,
@@ -189,6 +202,8 @@ export async function generateImage(
       return generateWithGrokImage(config, options);
     case 'openrouter-image':
       return generateWithOpenRouterImage(config, options);
+    case 'comfyui':
+      return generateWithComfyUI(config, options);
     default:
       throw new Error(`Unsupported image provider: ${config.providerId}`);
   }

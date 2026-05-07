@@ -181,7 +181,7 @@ class ModelCatalogService:
                     {
                         "id": profile_id,
                         "name": "Default Embedding Endpoint",
-                        "binding": summary.embedding["binding"] or "openai",
+                        "binding": summary.embedding["binding"] or "ollama",
                         "base_url": summary.embedding["host"],
                         "api_key": summary.embedding["api_key"],
                         "api_version": summary.embedding["api_version"],
@@ -214,7 +214,7 @@ class ModelCatalogService:
                     {
                         "id": profile_id,
                         "name": "Default Search Provider",
-                        "provider": summary.search["provider"] or "brave",
+                        "provider": summary.search["provider"] or "duckduckgo",
                         "base_url": summary.search["base_url"],
                         "api_key": summary.search["api_key"],
                         "api_version": "",

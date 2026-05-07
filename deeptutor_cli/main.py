@@ -8,6 +8,7 @@ from deeptutor.logging import configure_logging
 from deeptutor.runtime.mode import RunMode, set_mode
 from deeptutor.services.setup import get_backend_port
 
+from .admin_cmd import register as register_admin
 from .book import register as register_book
 from .bot import register as register_bot
 from .chat import register as register_chat
@@ -40,7 +41,9 @@ session_app = typer.Typer(help="Manage shared sessions.")
 notebook_app = typer.Typer(help="Manage notebooks and imported markdown records.")
 provider_app = typer.Typer(help="Manage provider OAuth login.")
 book_app = typer.Typer(help="Manage interactive Books (BookEngine).")
+admin_app = typer.Typer(help="Slim-down catalog admin: list/restore archived profiles.")
 
+app.add_typer(admin_app, name="admin")
 app.add_typer(bot_app, name="bot")
 app.add_typer(chat_app, name="chat")
 app.add_typer(kb_app, name="kb")
@@ -52,6 +55,7 @@ app.add_typer(notebook_app, name="notebook")
 app.add_typer(provider_app, name="provider")
 app.add_typer(book_app, name="book")
 
+register_admin(admin_app)
 register_bot(bot_app)
 register_chat(chat_app)
 register_kb(kb_app)

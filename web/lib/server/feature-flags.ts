@@ -27,5 +27,7 @@ export function getFeatureFlags(): FeatureFlags {
       saved.course_illustrations ??
       envCourseIllustrations ??
       DEFAULT_FEATURE_FLAGS.course_illustrations,
+    services_video_enabled:
+      saved.services_video_enabled ?? DEFAULT_FEATURE_FLAGS.services_video_enabled,
   };
 }

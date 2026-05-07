@@ -130,12 +130,21 @@ def test_ollama_registered_in_provider_registry() -> None:
     assert instance.supports_answer is False
 
 
-def test_ollama_listed_in_settings_choices() -> None:
+def test_ollama_archived_from_picker_but_runtime_intact() -> None:
+    """Ollama-as-search-provider is archived from the picker.
+
+    Tutor uses Ollama for embedding (unchanged) and OpenRouter for LLM, but
+    web-search defaults to DuckDuckGo or Tavily. The Ollama search adapter
+    stays wired so a user can restore the binding via the admin CLI without
+    redeploying.
+    """
     from deeptutor.api.routers.settings import _provider_choices
+    from deeptutor.services.config.provider_runtime import SUPPORTED_SEARCH_PROVIDERS
 
     choices = _provider_choices()
     search_values = [p["value"] for p in choices["search"]]
-    assert "ollama" in search_values
+    assert "ollama" not in search_values  # hidden from UI
+    assert "ollama" in SUPPORTED_SEARCH_PROVIDERS  # adapter remains wired
 
 
 def test_ollama_in_runtime_supported_set() -> None:
