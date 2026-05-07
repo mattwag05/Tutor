@@ -40,7 +40,7 @@ const PRIMARY_NAV: NavEntry[] = [
   { href: "/chat", label: "Chat", icon: MessageSquare },
   { href: "/agents", label: "TutorBot", icon: Bot },
   { href: "/knowledge", label: "Library", icon: Library },
-  { href: "/read", label: "Read", icon: BookOpen },
+  { href: "/book", label: "Read", icon: BookOpen },
   { href: "/course", label: "Course Builder", icon: GraduationCap },
   { href: "/classroom", label: "Classroom", icon: Presentation },
   { href: "/memory", label: "Memory", icon: Brain },
@@ -54,7 +54,7 @@ const SECONDARY_NAV: NavEntry[] = [
 
 const BOTTOM_NAV: NavEntry[] = [
   { href: "/chat", label: "Chat", icon: MessageSquare },
-  { href: "/read", label: "Read", icon: BookOpen },
+  { href: "/book", label: "Read", icon: BookOpen },
   { href: "/knowledge", label: "Library", icon: Library },
   { href: "/notebook", label: "Quiz", icon: NotebookIcon },
 ];
