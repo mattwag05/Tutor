@@ -18,10 +18,14 @@ from .context_window_detection import detect_context_window
 from .env_store import get_env_store
 from .model_catalog import get_model_catalog_service
 from .provider_runtime import (
+    _to_headers,
     resolve_embedding_runtime_config,
     resolve_llm_runtime_config,
     resolve_search_runtime_config,
 )
+
+ELEVENLABS_TTS_BINDINGS = {"elevenlabs-tts", "elevenlabs"}
+ELEVENLABS_DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"  # Rachel (public preset)
 
 
 def _redact(value: str) -> str:
@@ -128,6 +132,8 @@ class ConfigTestRunner:
                     asyncio.run(self._test_embedding(run, model or {}, catalog))
                 elif service == "search":
                     self._test_search(run, catalog)
+                elif service == "tts":
+                    asyncio.run(self._test_tts(run, profile or {}, model or {}))
                 else:
                     raise ValueError(f"Unsupported service: {service}")
             if not run.cancelled and run.status == "running":
@@ -435,6 +441,88 @@ class ConfigTestRunner:
                 "warning",
                 f"Could not save detected embedding dimension: {exc}",
             )
+
+    async def _test_tts(
+        self, run: TestRun, profile: dict[str, Any], model: dict[str, Any]
+    ) -> None:
+        import httpx
+
+        if not profile:
+            raise ValueError("No active TTS profile configured.")
+        if not model:
+            raise ValueError("No active TTS model selected for this profile.")
+
+        binding = str(profile.get("binding") or profile.get("provider") or "").strip().lower()
+        base_url = str(profile.get("base_url") or "").rstrip("/")
+        api_key = str(profile.get("api_key") or "").strip()
+        model_id = str(model.get("model") or model.get("id") or "").strip()
+        extra_headers = _to_headers(profile.get("extra_headers"))
+
+        if not base_url:
+            raise ValueError("TTS profile is missing base_url.")
+        if not api_key:
+            raise ValueError("TTS profile is missing api_key.")
+        if not model_id:
+            raise ValueError("TTS profile has no model id selected.")
+
+        run.emit(
+            "info",
+            f"Resolved TTS provider `{binding or 'unknown'}` with model `{model_id}`.",
+        )
+        run.emit("info", f"Request target: {base_url}")
+
+        probe_text = "DeepTutor TTS smoke test."
+        voice = (
+            str(model.get("voice") or "").strip()
+            or str(profile.get("default_voice") or "").strip()
+        )
+
+        url: str
+        headers: dict[str, str]
+        payload: dict[str, Any]
+        if binding in ELEVENLABS_TTS_BINDINGS:
+            voice_id = voice or ELEVENLABS_DEFAULT_VOICE_ID
+            url = f"{base_url}/text-to-speech/{voice_id}"
+            headers = {
+                "xi-api-key": api_key,
+                "accept": "audio/mpeg",
+                "content-type": "application/json",
+                **extra_headers,
+            }
+            payload = {"text": probe_text, "model_id": model_id}
+            run.emit("info", f"POST {url} (ElevenLabs, voice={voice_id})")
+        else:
+            voice_id = voice or "alloy"
+            url = f"{base_url}/audio/speech"
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+                **extra_headers,
+            }
+            payload = {"model": model_id, "input": probe_text, "voice": voice_id}
+            run.emit("info", f"POST {url} (OpenAI-compatible, voice={voice_id})")
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(url, headers=headers, json=payload)
+
+        if response.status_code >= 400:
+            body_preview = (response.text or "")[:400]
+            raise ValueError(
+                f"TTS provider returned HTTP {response.status_code}: {body_preview}"
+            )
+
+        audio_bytes = response.content
+        if not audio_bytes:
+            raise ValueError("TTS provider returned empty response body.")
+
+        content_type = response.headers.get("content-type", "")
+        run.emit(
+            "response",
+            f"TTS audio received ({len(audio_bytes)} bytes, "
+            f"{content_type or 'unknown content-type'}).",
+            bytes_received=len(audio_bytes),
+            content_type=content_type,
+        )
 
     def _test_search(self, run: TestRun, catalog: dict[str, Any]) -> None:
         from deeptutor.services.search import web_search

@@ -98,7 +98,35 @@ type CatalogModel = {
   context_window?: string;
   context_window_source?: string;
   context_window_detected_at?: string;
+  // TTS voice ID. Provider-specific (e.g. ElevenLabs uses 20-char IDs like
+  // `21m00Tcm4TlvDq8ikWAM`; OpenAI uses preset names like `alloy`).
+  voice?: string;
 };
+
+const ELEVENLABS_MODELS: { value: string; label: string }[] = [
+  { value: "eleven_v3", label: "Eleven v3 (alpha)" },
+  { value: "eleven_multilingual_v2", label: "Eleven Multilingual v2" },
+  { value: "eleven_flash_v2_5", label: "Eleven Flash v2.5" },
+  { value: "eleven_flash_v2", label: "Eleven Flash v2" },
+  { value: "eleven_turbo_v2_5", label: "Eleven Turbo v2.5" },
+  { value: "eleven_turbo_v2", label: "Eleven Turbo v2" },
+  { value: "eleven_monolingual_v1", label: "Eleven Monolingual v1" },
+  { value: "eleven_multilingual_v1", label: "Eleven Multilingual v1" },
+];
+
+const ELEVENLABS_VOICES: { value: string; label: string }[] = [
+  { value: "21m00Tcm4TlvDq8ikWAM", label: "Rachel (calm female)" },
+  { value: "AZnzlk1XvdvUeBnXmlld", label: "Domi (strong female)" },
+  { value: "EXAVITQu4vr4xnSDxMaL", label: "Bella (soft female)" },
+  { value: "MF3mGyEYCl7XYWbV9V6O", label: "Elli (young female)" },
+  { value: "ErXwobaYiN019PkySvjV", label: "Antoni (well-rounded male)" },
+  { value: "TxGEqnHWrfWFTfGW9XjX", label: "Josh (deep male)" },
+  { value: "VR6AewLTigWG4xSOukaG", label: "Arnold (crisp male)" },
+  { value: "pNInz6obpgDQGcFmaJgB", label: "Adam (deep male)" },
+  { value: "yoZ06aMxZJJ28mfd3POQ", label: "Sam (raspy male)" },
+];
+
+const ELEVENLABS_CUSTOM_SENTINEL = "__custom__";
 
 type CatalogProfile = {
   id: string;
@@ -519,6 +547,80 @@ function sourceBadge(
     return { label: t("Source: detected from API probe"), tone: "ok" };
   }
   return null;
+}
+
+function ElevenLabsPresetField({
+  value,
+  options,
+  placeholder,
+  inputClass,
+  selectClass,
+  selectOptionClass,
+  onChange,
+  t,
+}: {
+  value: string;
+  options: { value: string; label: string }[];
+  placeholder: string;
+  inputClass: string;
+  selectClass: string;
+  selectOptionClass: string;
+  onChange: (value: string) => void;
+  t: (key: string) => string;
+}) {
+  const isPreset = options.some((opt) => opt.value === value);
+  const [customMode, setCustomMode] = useState<boolean>(
+    value !== "" && !isPreset,
+  );
+  const showCustomInput = customMode || (value !== "" && !isPreset);
+
+  return (
+    <div className="space-y-1.5">
+      <div className="relative">
+        <select
+          className={selectClass}
+          value={showCustomInput ? ELEVENLABS_CUSTOM_SENTINEL : value}
+          onChange={(e) => {
+            const next = e.target.value;
+            if (next === ELEVENLABS_CUSTOM_SENTINEL) {
+              setCustomMode(true);
+              return;
+            }
+            setCustomMode(false);
+            onChange(next);
+          }}
+        >
+          <option className={selectOptionClass} value="">
+            {t("Select…")}
+          </option>
+          {options.map((opt) => (
+            <option
+              className={selectOptionClass}
+              key={opt.value}
+              value={opt.value}
+            >
+              {opt.label}
+            </option>
+          ))}
+          <option
+            className={selectOptionClass}
+            value={ELEVENLABS_CUSTOM_SENTINEL}
+          >
+            {t("Custom…")}
+          </option>
+        </select>
+        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--muted-foreground)]" />
+      </div>
+      {showCustomInput && (
+        <input
+          className={inputClass}
+          value={value}
+          placeholder={placeholder}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      )}
+    </div>
+  );
 }
 
 function DimensionField({
@@ -2010,15 +2112,56 @@ function SettingsPageContent() {
                           <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
                             {t("Model ID")}
                           </div>
-                          <input
-                            className={inputClass}
-                            value={activeModel.model}
-                            onChange={(e) =>
-                              updateModelField("model", e.target.value)
-                            }
-                            placeholder="gpt-4o"
-                          />
+                          {activeService === "tts" &&
+                          activeProfile?.binding === "elevenlabs-tts" ? (
+                            <ElevenLabsPresetField
+                              value={activeModel.model}
+                              options={ELEVENLABS_MODELS}
+                              placeholder="eleven_flash_v2_5"
+                              inputClass={inputClass}
+                              selectClass={selectClass}
+                              selectOptionClass={selectOptionClass}
+                              onChange={(value) =>
+                                updateModelField("model", value)
+                              }
+                              t={t}
+                            />
+                          ) : (
+                            <input
+                              className={inputClass}
+                              value={activeModel.model}
+                              onChange={(e) =>
+                                updateModelField("model", e.target.value)
+                              }
+                              placeholder="gpt-4o"
+                            />
+                          )}
                         </div>
+                        {activeService === "tts" &&
+                          activeProfile?.binding === "elevenlabs-tts" && (
+                            <div>
+                              <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
+                                {t("Voice ID")}
+                              </div>
+                              <ElevenLabsPresetField
+                                value={activeModel.voice ?? ""}
+                                options={ELEVENLABS_VOICES}
+                                placeholder="21m00Tcm4TlvDq8ikWAM"
+                                inputClass={inputClass}
+                                selectClass={selectClass}
+                                selectOptionClass={selectOptionClass}
+                                onChange={(value) =>
+                                  updateModelField("voice", value)
+                                }
+                                t={t}
+                              />
+                              <p className="mt-1.5 text-[11px] text-[var(--muted-foreground)]">
+                                {t(
+                                  "Pick a preset voice or enter a custom voice ID from your ElevenLabs library.",
+                                )}
+                              </p>
+                            </div>
+                          )}
                         {false /* context window: LLM-only, managed by Manifest tier editor in C.2 */ && (
                           <>
                             <div>
