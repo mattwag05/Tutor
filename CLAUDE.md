@@ -360,6 +360,8 @@ Deferred: parallelizing variant generation (DeepTutor-lze), AsyncSQLiteStore bas
 
 The working tree periodically accumulates `* 2.{py,ts,tsx,md,...}` duplicate **files** AND `* 2` duplicate **directories** from iCloud sync. In `web/`, the dupes are mostly directories (e.g. `lib/server/tts 2`, `app/(workspace)/agents 2`, `lib/prompts/templates 2`) — 20+ at last count. Directory dupes silently shadow real content and can confuse `tsc`. Verify they're byte-identical to their non-`2` counterparts (`diff -rq`), then bulk-move to `~/.Trash/deeptutor-dupes-<date>/` BEFORE any `git merge` or `git pull` — they otherwise pollute merge commits. Python faster than shell for the bulk move: loop `git status --porcelain`, filter `' 2\b'`, `shutil.move`.
 
+As of 2026-05-07 the patterns `* 2`, `* 2.ts`, `* 2.tsx`, etc. are gitignored, so `git add -A` won't accidentally commit a stale dupe. The cleanup advice above still applies — `tsc` and the dev server pick them up from disk regardless of `.gitignore`.
+
 ---
 
 ## Upstream Sync Procedure
