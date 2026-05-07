@@ -32,9 +32,9 @@ export function PBLWorkspace({
   });
 
   return (
-    <div className="flex h-full w-full">
-      {/* Left: Issueboard (~35%) */}
-      <div className="w-[35%] min-w-[280px] border-r overflow-hidden flex flex-col">
+    <div className="flex h-full w-full flex-col md:flex-row">
+      {/* Issueboard: top half on mobile, left ~35% at md:+ */}
+      <div className="flex h-[45%] w-full flex-col overflow-hidden border-b md:h-full md:w-[35%] md:min-w-[280px] md:border-b-0 md:border-r">
         {/* Back button bar */}
         <div className="px-3 pt-2 flex items-center gap-1.5">
           {!showConfirm ? (
@@ -77,7 +77,7 @@ export function PBLWorkspace({
         </div>
       </div>
 
-      {/* Right: Chat (~65%) */}
+      {/* Chat: bottom half on mobile, right ~65% at md:+ */}
       <div className="flex-1 overflow-hidden">
         <ChatPanel
           messages={messages}
