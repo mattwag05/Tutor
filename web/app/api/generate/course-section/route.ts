@@ -117,11 +117,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Ensure every block has an id
-    const blocks: CourseBlock[] = parsed.blocks.map((b, i) => ({
-      ...b,
-      id: b.id || `${body.section!.id}_b${i + 1}`,
-    })) as CourseBlock[];
+    // Ensure every block has an id. Illustration blocks need pending=true so
+    // the client-side IllustrationBlock effect fires the image-gen route — the
+    // LLM sometimes omits the flag even when it produced a prompt.
+    const blocks: CourseBlock[] = parsed.blocks.map((b, i) => {
+      const withId = { ...b, id: b.id || `${body.section!.id}_b${i + 1}` };
+      if (
+        withId.type === 'illustration' &&
+        !('src' in withId && withId.src) &&
+        'prompt' in withId && withId.prompt
+      ) {
+        return { ...withId, pending: true };
+      }
+      return withId;
+    }) as CourseBlock[];
 
     // Ensure every citation has an id
     const citations: CourseCitation[] = (parsed.citations || []).map((c, i) => ({
