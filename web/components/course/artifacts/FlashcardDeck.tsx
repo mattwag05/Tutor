@@ -77,8 +77,15 @@ export function FlashcardDeck({ cards: initialCards }: Props) {
       <div
         role="button"
         tabIndex={0}
+        aria-label={flipped ? 'Show question side' : 'Show answer side'}
+        aria-pressed={flipped}
         onClick={() => setFlipped((f) => !f)}
-        onKeyDown={(e) => { if (e.code === 'Space' || e.key === 'Enter') setFlipped((f) => !f); }}
+        onKeyDown={(e) => {
+          if (e.code === 'Space' || e.key === 'Enter') {
+            e.preventDefault();
+            setFlipped((f) => !f);
+          }
+        }}
         className="relative h-64 w-full cursor-pointer"
         style={{ perspective: '1000px' }}
       >
