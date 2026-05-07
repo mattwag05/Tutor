@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useAppShell } from "@/context/AppShellContext";
 import {
   BookOpen,
@@ -14,12 +14,14 @@ import {
   LayoutGrid,
   Library,
   MessageSquare,
+  MoreHorizontal,
   Notebook as NotebookIcon,
   PanelLeftClose,
   PanelLeftOpen,
   Presentation,
   Plus,
   Settings,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -99,7 +101,19 @@ export function SidebarShell({
     router.push("/chat");
   };
 
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  // Close the sheet on route change.
+  useEffect(() => { setMoreOpen(false); }, [pathname]);
+
+  // Items already exposed in the bottom nav — don't repeat them in the sheet.
+  const bottomHrefs = new Set(BOTTOM_NAV.map((b) => b.href));
+  const moreItems: NavEntry[] = [...PRIMARY_NAV, ...SECONDARY_NAV].filter(
+    (it) => !bottomHrefs.has(it.href),
+  );
+
   const mobileNav = (
+    <>
     <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-14 items-stretch border-t border-[var(--border)] bg-[var(--secondary)] sm:hidden">
       {BOTTOM_NAV.map((item) => {
         const active = pathname.startsWith(item.href);
@@ -118,7 +132,59 @@ export function SidebarShell({
           </Link>
         );
       })}
+      <button
+        type="button"
+        onClick={() => setMoreOpen(true)}
+        aria-label={t("More") as string}
+        className="flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)]"
+      >
+        <MoreHorizontal size={20} strokeWidth={1.5} />
+        <span>{t("More")}</span>
+      </button>
     </nav>
+    {moreOpen && (
+      <div
+        className="fixed inset-0 z-[60] flex flex-col bg-black/50 sm:hidden"
+        onClick={() => setMoreOpen(false)}
+      >
+        <div
+          className="mt-auto rounded-t-2xl border-t border-[var(--border)] bg-[var(--secondary)] pb-8 pt-2"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between px-4 pb-2 pt-2">
+            <span className="text-[13px] font-medium text-[var(--foreground)]">{t("More")}</span>
+            <button
+              type="button"
+              onClick={() => setMoreOpen(false)}
+              aria-label={t("Close") as string}
+              className="-mr-2 rounded-md p-1.5 text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+            >
+              <X size={18} />
+            </button>
+          </div>
+          <nav className="grid grid-cols-3 gap-2 px-3 pb-2">
+            {moreItems.map((item) => {
+              const active = pathname.startsWith(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex flex-col items-center justify-center gap-1.5 rounded-xl px-2 py-3 text-[11px] transition-colors ${
+                    active
+                      ? "bg-[var(--background)]/70 text-[var(--foreground)]"
+                      : "text-[var(--muted-foreground)] hover:bg-[var(--background)]/50 hover:text-[var(--foreground)]"
+                  }`}
+                >
+                  <item.icon size={20} strokeWidth={active ? 2 : 1.5} />
+                  <span>{t(item.label)}</span>
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+      </div>
+    )}
+    </>
   );
 
   /* ---- Collapsed state ---- */

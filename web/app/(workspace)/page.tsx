@@ -38,9 +38,9 @@ export default function HomePage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-8 px-4 pb-16 pt-12 bg-[var(--background)]">
+    <div className="flex h-screen flex-col items-center justify-start gap-6 overflow-y-auto px-4 pb-24 pt-10 sm:justify-center sm:gap-8 sm:pb-16 sm:pt-12 bg-[var(--background)]">
       <div className="text-center">
-        <h1 className="text-3xl font-semibold text-[var(--foreground)] tracking-tight">
+        <h1 className="text-2xl font-semibold text-[var(--foreground)] tracking-tight sm:text-3xl">
           What would you like to learn?
         </h1>
         <p className="mt-2 text-sm text-[var(--muted-foreground)]">
@@ -67,42 +67,42 @@ export default function HomePage() {
           <ArrowRight className="h-4 w-4" />
         </Button>
 
-        <div className="flex gap-2">
+        <div className="flex gap-1 sm:gap-2">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => router.push(buildIntentUrl({ target: 'chat', params: text.trim() ? { q: text.trim() } : {} }))}
-            className="flex-1 gap-1.5 text-xs text-[var(--muted-foreground)]"
+            className="flex-1 min-w-0 gap-1 px-1.5 text-[11px] text-[var(--muted-foreground)] sm:gap-1.5 sm:px-3 sm:text-xs"
           >
-            <MessageSquare className="h-3.5 w-3.5" />
-            Chat
+            <MessageSquare className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">Chat</span>
           </Button>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => router.push(buildIntentUrl({ target: 'course', params: text.trim() ? { topic: text.trim() } : {} }))}
-            className="flex-1 gap-1.5 text-xs text-[var(--muted-foreground)]"
+            className="flex-1 min-w-0 gap-1 px-1.5 text-[11px] text-[var(--muted-foreground)] sm:gap-1.5 sm:px-3 sm:text-xs"
           >
-            <GraduationCap className="h-3.5 w-3.5" />
-            Course
+            <GraduationCap className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">Course</span>
           </Button>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => router.push('/book')}
-            className="flex-1 gap-1.5 text-xs text-[var(--muted-foreground)]"
+            className="flex-1 min-w-0 gap-1 px-1.5 text-[11px] text-[var(--muted-foreground)] sm:gap-1.5 sm:px-3 sm:text-xs"
           >
-            <BookOpen className="h-3.5 w-3.5" />
-            Library
+            <BookOpen className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">Library</span>
           </Button>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => router.push('/notebook')}
-            className="flex-1 gap-1.5 text-xs text-[var(--muted-foreground)]"
+            className="flex-1 min-w-0 gap-1 px-1.5 text-[11px] text-[var(--muted-foreground)] sm:gap-1.5 sm:px-3 sm:text-xs"
           >
-            <NotebookPen className="h-3.5 w-3.5" />
-            Notebook
+            <NotebookPen className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">Notebook</span>
           </Button>
         </div>
 
