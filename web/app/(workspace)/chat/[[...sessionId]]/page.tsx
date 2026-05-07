@@ -1213,15 +1213,15 @@ export default function ChatPage() {
       data-preview-open={previewSource ? "true" : "false"}
       className="chat-preview-shell flex h-full flex-col overflow-hidden bg-[var(--background)]"
     >
-      <div className="mx-auto flex w-full max-w-[960px] items-center justify-between px-6 pt-3 pb-0">
-        <span className="text-[15px] font-semibold tracking-[-0.01em] text-[var(--foreground)]">
+      <div className="mx-auto flex w-full max-w-[960px] items-center justify-between gap-2 px-3 pt-3 pb-0 sm:px-6">
+        <span className="truncate text-[15px] font-semibold tracking-[-0.01em] text-[var(--foreground)]">
           {t(activeCap.label)}
         </span>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           <button
             onClick={() => setShowSaveModal(true)}
             disabled={!chatSavePayload}
-            className="rounded-lg border border-[var(--border)]/50 px-3 py-1.5 text-[12px] font-medium text-[var(--muted-foreground)] transition-colors hover:border-[var(--border)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[var(--border)]/50 disabled:hover:text-[var(--muted-foreground)]"
+            className="hidden rounded-lg border border-[var(--border)]/50 px-3 py-1.5 text-[12px] font-medium text-[var(--muted-foreground)] transition-colors hover:border-[var(--border)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[var(--border)]/50 disabled:hover:text-[var(--muted-foreground)] sm:inline-block"
           >
             {t("Save to Notebook")}
           </button>
@@ -1229,13 +1229,13 @@ export default function ChatPage() {
             onClick={handleDownloadMarkdown}
             disabled={!state.messages.length}
             title={t("Download chat history as Markdown")}
-            className="rounded-lg border border-[var(--border)]/50 px-3 py-1.5 text-[12px] font-medium text-[var(--muted-foreground)] transition-colors hover:border-[var(--border)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[var(--border)]/50 disabled:hover:text-[var(--muted-foreground)]"
+            className="hidden rounded-lg border border-[var(--border)]/50 px-3 py-1.5 text-[12px] font-medium text-[var(--muted-foreground)] transition-colors hover:border-[var(--border)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[var(--border)]/50 disabled:hover:text-[var(--muted-foreground)] sm:inline-block"
           >
             {t("Download Markdown")}
           </button>
           <button
             onClick={handleNewChat}
-            className="rounded-lg border border-[var(--border)]/50 px-3 py-1.5 text-[12px] font-medium text-[var(--muted-foreground)] transition-colors hover:border-[var(--border)] hover:text-[var(--foreground)]"
+            className="rounded-lg border border-[var(--border)]/50 px-2.5 py-1.5 text-[12px] font-medium text-[var(--muted-foreground)] transition-colors hover:border-[var(--border)] hover:text-[var(--foreground)] sm:px-3"
           >
             {t("New chat")}
           </button>
