@@ -56,7 +56,10 @@ export function IllustrationBlockView({ block }: Props) {
         src={block.src}
         alt={block.alt || block.prompt}
         className="w-full rounded-lg"
-        style={block.aspectRatio ? { aspectRatio: block.aspectRatio.replace(':', '/') } : undefined}
+        // Reserve space matching the placeholder so the image swap doesn't
+        // shift surrounding text. Default to 16/9 — that's what the
+        // illustration route generates and the prompt example specifies.
+        style={{ aspectRatio: (block.aspectRatio || '16:9').replace(':', '/') }}
       />
       {block.alt && (
         <figcaption className="mt-2 text-center text-sm italic text-neutral-500">
