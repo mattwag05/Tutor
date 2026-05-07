@@ -9,6 +9,12 @@ import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
 import { createLogger } from '@/lib/logger';
+import {
+  readCatalogSync,
+  getActiveProfile,
+  profileBinding,
+  type ProfiledService,
+} from '@/lib/server/catalog-read';
 
 const log = createLogger('ServerProviderConfig');
 
@@ -279,6 +285,41 @@ function getConfig(): ServerConfig {
 }
 
 // ---------------------------------------------------------------------------
+// Catalog override layer (UI-edited credentials in model_catalog.json)
+// ---------------------------------------------------------------------------
+
+// Returns the active catalog profile only when its binding matches providerId.
+// Routes that ask for a non-active provider fall through to YAML/env, matching
+// the LLM behavior in resolve-profile.ts (single source of truth = active profile).
+function activeProfileFor(service: ProfiledService, providerId: string) {
+  const profile = getActiveProfile(readCatalogSync(), service);
+  if (!profile || profileBinding(profile) !== providerId) return null;
+  return profile;
+}
+
+function resolveCatalogFirstApiKey(
+  service: ProfiledService,
+  providerId: string,
+  yamlEnvSection: Record<string, ServerProviderEntry>,
+  clientKey?: string,
+): string {
+  if (clientKey) return clientKey;
+  const fromCatalog = activeProfileFor(service, providerId)?.api_key;
+  if (fromCatalog) return fromCatalog;
+  return yamlEnvSection[providerId]?.apiKey || '';
+}
+
+function resolveCatalogFirstBaseUrl(
+  service: ProfiledService,
+  providerId: string,
+  yamlEnvSection: Record<string, ServerProviderEntry>,
+  clientBaseUrl?: string,
+): string | undefined {
+  if (clientBaseUrl) return clientBaseUrl;
+  return activeProfileFor(service, providerId)?.base_url || yamlEnvSection[providerId]?.baseUrl;
+}
+
+// ---------------------------------------------------------------------------
 // Public API — LLM
 // ---------------------------------------------------------------------------
 
@@ -326,13 +367,11 @@ export function getServerTTSProviders(): Record<string, { baseUrl?: string }> {
 }
 
 export function resolveTTSApiKey(providerId: string, clientKey?: string): string {
-  if (clientKey) return clientKey;
-  return getConfig().tts[providerId]?.apiKey || '';
+  return resolveCatalogFirstApiKey('tts', providerId, getConfig().tts, clientKey);
 }
 
 export function resolveTTSBaseUrl(providerId: string, clientBaseUrl?: string): string | undefined {
-  if (clientBaseUrl) return clientBaseUrl;
-  return getConfig().tts[providerId]?.baseUrl;
+  return resolveCatalogFirstBaseUrl('tts', providerId, getConfig().tts, clientBaseUrl);
 }
 
 // ---------------------------------------------------------------------------
@@ -350,13 +389,11 @@ export function getServerASRProviders(): Record<string, { baseUrl?: string }> {
 }
 
 export function resolveASRApiKey(providerId: string, clientKey?: string): string {
-  if (clientKey) return clientKey;
-  return getConfig().asr[providerId]?.apiKey || '';
+  return resolveCatalogFirstApiKey('asr', providerId, getConfig().asr, clientKey);
 }
 
 export function resolveASRBaseUrl(providerId: string, clientBaseUrl?: string): string | undefined {
-  if (clientBaseUrl) return clientBaseUrl;
-  return getConfig().asr[providerId]?.baseUrl;
+  return resolveCatalogFirstBaseUrl('asr', providerId, getConfig().asr, clientBaseUrl);
 }
 
 // ---------------------------------------------------------------------------
@@ -399,16 +436,14 @@ export function getServerImageProviders(): Record<string, { models?: string[]; b
 }
 
 export function resolveImageApiKey(providerId: string, clientKey?: string): string {
-  if (clientKey) return clientKey;
-  return getConfig().image[providerId]?.apiKey || '';
+  return resolveCatalogFirstApiKey('image', providerId, getConfig().image, clientKey);
 }
 
 export function resolveImageBaseUrl(
   providerId: string,
   clientBaseUrl?: string,
 ): string | undefined {
-  if (clientBaseUrl) return clientBaseUrl;
-  return getConfig().image[providerId]?.baseUrl;
+  return resolveCatalogFirstBaseUrl('image', providerId, getConfig().image, clientBaseUrl);
 }
 
 // ---------------------------------------------------------------------------
@@ -426,16 +461,14 @@ export function getServerVideoProviders(): Record<string, { baseUrl?: string }> 
 }
 
 export function resolveVideoApiKey(providerId: string, clientKey?: string): string {
-  if (clientKey) return clientKey;
-  return getConfig().video[providerId]?.apiKey || '';
+  return resolveCatalogFirstApiKey('video', providerId, getConfig().video, clientKey);
 }
 
 export function resolveVideoBaseUrl(
   providerId: string,
   clientBaseUrl?: string,
 ): string | undefined {
-  if (clientBaseUrl) return clientBaseUrl;
-  return getConfig().video[providerId]?.baseUrl;
+  return resolveCatalogFirstBaseUrl('video', providerId, getConfig().video, clientBaseUrl);
 }
 
 // ---------------------------------------------------------------------------

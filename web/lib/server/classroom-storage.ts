@@ -2,9 +2,10 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import type { NextRequest } from 'next/server';
 import type { Scene, Stage } from '@/lib/types/stage';
+import { classroomsDir, classroomJobsDir } from '@/lib/server/data-dir';
 
-export const CLASSROOMS_DIR = path.join(process.cwd(), 'data', 'classrooms');
-export const CLASSROOM_JOBS_DIR = path.join(process.cwd(), 'data', 'classroom-jobs');
+export const CLASSROOMS_DIR = classroomsDir();
+export const CLASSROOM_JOBS_DIR = classroomJobsDir();
 
 async function ensureDir(dir: string) {
   await fs.mkdir(dir, { recursive: true });

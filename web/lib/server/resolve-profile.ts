@@ -15,12 +15,12 @@ import {
 } from '@/lib/ai/manifest/profiles';
 import { resolveModel, type ResolvedModel } from '@/lib/server/resolve-model';
 import { settingsPath } from '@/lib/server/data-dir';
+import { readCatalog, getActiveProfile } from '@/lib/server/catalog-read';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('ManifestProfile');
 
 const PROFILES_PATH = settingsPath('manifest_profiles.json');
-const CATALOG_PATH = settingsPath('model_catalog.json');
 
 interface ProfilesFile {
   profiles: Partial<Record<ManifestTier, ManifestProfileConfig>>;
@@ -49,30 +49,13 @@ async function loadLLMCredentials(): Promise<LLMCredentials> {
     binding: process.env.LLM_BINDING ?? 'openrouter',
   };
 
-  try {
-    const raw = await fs.readFile(CATALOG_PATH, 'utf-8');
-    const catalog = JSON.parse(raw) as Record<string, unknown>;
-    const llm = (catalog.services as Record<string, unknown>)?.llm as
-      | Record<string, unknown>
-      | undefined;
-    if (!llm) return defaults;
-
-    const activeProfileId = llm.active_profile_id as string | undefined;
-    const profiles = (llm.profiles as Record<string, unknown>[] | undefined) ?? [];
-    const active = profiles.find(
-      (p) => (p as Record<string, unknown>).id === activeProfileId,
-    ) as Record<string, unknown> | undefined;
-
-    if (!active) return defaults;
-
-    return {
-      apiKey: (active.api_key as string | undefined) || defaults.apiKey,
-      baseUrl: (active.base_url as string | undefined) || defaults.baseUrl,
-      binding: (active.binding as string | undefined) || defaults.binding,
-    };
-  } catch {
-    return defaults;
-  }
+  const profile = getActiveProfile(await readCatalog(), 'llm');
+  if (!profile) return defaults;
+  return {
+    apiKey: profile.api_key || defaults.apiKey,
+    baseUrl: profile.base_url || defaults.baseUrl,
+    binding: profile.binding || defaults.binding,
+  };
 }
 
 /** Pure credential-selection logic — exported for unit testing. */

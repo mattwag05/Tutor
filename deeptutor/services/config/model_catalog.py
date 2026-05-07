@@ -29,12 +29,14 @@ def _search_shell() -> dict[str, Any]:
     }
 
 
+_PROFILED_SERVICES = ("llm", "embedding", "tts", "asr", "image", "video")
+
+
 def _default_catalog() -> dict[str, Any]:
     return {
         "version": 1,
         "services": {
-            "llm": _service_shell(),
-            "embedding": _service_shell(),
+            **{svc: _service_shell() for svc in _PROFILED_SERVICES},
             "search": _search_shell(),
         },
     }
@@ -436,10 +438,10 @@ class ModelCatalogService:
     def _normalize(self, catalog: dict[str, Any]) -> bool:
         services = catalog.setdefault("services", {})
         changed = False
-        services.setdefault("llm", _service_shell())
-        services.setdefault("embedding", _service_shell())
+        for svc in _PROFILED_SERVICES:
+            services.setdefault(svc, _service_shell())
         services.setdefault("search", _search_shell())
-        for service_name in ("llm", "embedding", "search"):
+        for service_name in (*_PROFILED_SERVICES, "search"):
             service = services[service_name]
             profiles = service.setdefault("profiles", [])
             for profile in profiles:
@@ -481,7 +483,7 @@ class ModelCatalogService:
             if profiles and not service.get("active_profile_id"):
                 service["active_profile_id"] = profiles[0]["id"]
                 changed = True
-            if service_name in {"llm", "embedding"}:
+            if service_name in _PROFILED_SERVICES:
                 if not service.get("active_model_id"):
                     active_profile = self.get_active_profile(catalog, service_name)
                     if active_profile and active_profile.get("models"):
@@ -501,7 +503,7 @@ class ModelCatalogService:
         return profiles[0] if profiles else None
 
     def get_active_model(self, catalog: dict[str, Any], service_name: str) -> dict[str, Any] | None:
-        if service_name == "search":
+        if service_name not in _PROFILED_SERVICES:
             return None
         service = catalog.get("services", {}).get(service_name, {})
         active_model_id = service.get("active_model_id")

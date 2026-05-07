@@ -7,3 +7,15 @@ export function dataDir(): string {
 export function settingsPath(filename: string): string {
   return path.join(dataDir(), 'user', 'settings', filename);
 }
+
+export function classroomsDir(): string {
+  return path.join(dataDir(), 'classrooms');
+}
+
+export function classroomJobsDir(): string {
+  return path.join(dataDir(), 'classroom-jobs');
+}
+
+export function coursesDir(): string {
+  return path.join(dataDir(), 'courses');
+}

@@ -193,7 +193,46 @@ def _provider_choices() -> dict[str, list[dict[str, str]]]:
         {"value": "serper", "label": "Serper", "base_url": ""},
         {"value": "tavily", "label": "Tavily", "base_url": ""},
     ]
-    return {"llm": llm, "embedding": embedding, "search": search}
+    tts = [
+        {"value": "openai-tts", "label": "OpenAI TTS", "base_url": "https://api.openai.com/v1"},
+        {"value": "azure-tts", "label": "Azure TTS", "base_url": ""},
+        {"value": "elevenlabs-tts", "label": "ElevenLabs", "base_url": "https://api.elevenlabs.io/v1"},
+        {"value": "glm-tts", "label": "GLM TTS", "base_url": ""},
+        {"value": "qwen-tts", "label": "Qwen TTS", "base_url": ""},
+        {"value": "doubao-tts", "label": "Doubao TTS", "base_url": ""},
+        {"value": "minimax-tts", "label": "MiniMax TTS", "base_url": ""},
+        {"value": "voxcpm-tts", "label": "VoxCPM (local)", "base_url": ""},
+    ]
+    asr = [
+        {"value": "openai-whisper", "label": "OpenAI Whisper", "base_url": "https://api.openai.com/v1"},
+        {"value": "qwen-asr", "label": "Qwen ASR", "base_url": ""},
+        {"value": "browser-native", "label": "Browser Web Speech (no key)", "base_url": ""},
+    ]
+    image = [
+        {"value": "openai-image", "label": "OpenAI Images", "base_url": "https://api.openai.com/v1"},
+        {"value": "grok-image", "label": "xAI Grok Image", "base_url": ""},
+        {"value": "minimax-image", "label": "MiniMax Image", "base_url": ""},
+        {"value": "nano-banana", "label": "Nano Banana", "base_url": ""},
+        {"value": "qwen-image", "label": "Qwen Image", "base_url": ""},
+        {"value": "seedream", "label": "Seedream", "base_url": ""},
+    ]
+    video = [
+        {"value": "kling", "label": "Kling", "base_url": ""},
+        {"value": "minimax-video", "label": "MiniMax Video", "base_url": ""},
+        {"value": "seedance", "label": "Seedance", "base_url": ""},
+        {"value": "sora", "label": "Sora", "base_url": ""},
+        {"value": "veo", "label": "Veo", "base_url": ""},
+        {"value": "grok-video", "label": "xAI Grok Video", "base_url": ""},
+    ]
+    return {
+        "llm": llm,
+        "embedding": embedding,
+        "search": search,
+        "tts": tts,
+        "asr": asr,
+        "image": image,
+        "video": video,
+    }
 
 
 @router.get("")

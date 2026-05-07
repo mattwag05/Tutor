@@ -2,8 +2,9 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import type { Course } from '@/lib/types/course';
 import { writeJsonFileAtomic } from './classroom-storage';
+import { coursesDir } from '@/lib/server/data-dir';
 
-export const COURSES_DIR = path.join(process.cwd(), 'data', 'courses');
+export const COURSES_DIR = coursesDir();
 
 export function isValidCourseId(id: string): boolean {
   return /^[a-zA-Z0-9_-]+$/.test(id);
