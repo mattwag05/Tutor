@@ -10,15 +10,19 @@ import {
   Database,
   Eye,
   EyeOff,
+  Film,
+  Image as ImageIcon,
   Info,
   Loader2,
   Lock,
+  Mic,
   Plus,
   Rocket,
   Save,
   Search,
   Terminal,
   Trash2,
+  Volume2,
   Wand2,
 } from "lucide-react";
 
@@ -32,10 +36,18 @@ import {
   MANIFEST_TIERS,
   type ManifestTier,
 } from "@/lib/ai/manifest/profiles";
+import type { ProfiledService } from "@/lib/types/profiled-services";
 
 // "manifest" is the Manifest-tier LLM surface; "llm" catalog still exists in
 // the backend but is no longer surfaced as a first-class tab (C.2).
-type ServiceName = "manifest" | "embedding" | "search";
+type ServiceName =
+  | "manifest"
+  | "embedding"
+  | "search"
+  | "tts"
+  | "asr"
+  | "image"
+  | "video";
 
 type ManifestProfileEntry = {
   model: string;
@@ -110,6 +122,10 @@ type Catalog = {
     llm: CatalogService;
     embedding: CatalogService;
     search: CatalogService;
+    tts: CatalogService;
+    asr: CatalogService;
+    image: CatalogService;
+    video: CatalogService;
   };
 };
 
@@ -138,7 +154,20 @@ type SystemStatus = {
   search: { status: string; provider?: string; error?: string };
 };
 
-const SERVICES = ["manifest", "embedding", "search"] as const;
+const SERVICES = [
+  "manifest",
+  "embedding",
+  "search",
+  "tts",
+  "asr",
+  "image",
+  "video",
+] as const;
+
+// "Modality" services follow the embedding-style "profiles + models" shape.
+// Derived from PROFILED_SERVICES (the canonical server list) minus "llm",
+// which the UI surfaces under the Manifest tab instead.
+type ModalityService = Exclude<ProfiledService, "llm">;
 
 // ---------------------------------------------------------------------------
 
@@ -146,7 +175,7 @@ function cloneCatalog(catalog: Catalog): Catalog {
   return JSON.parse(JSON.stringify(catalog)) as Catalog;
 }
 
-type CatalogServiceName = "embedding" | "search";
+type CatalogServiceName = ModalityService | "search";
 
 function getActiveProfile(
   catalog: Catalog,
@@ -177,19 +206,53 @@ function getActiveModel(
   );
 }
 
+function assertNever(x: never): never {
+  throw new Error(`Unhandled service: ${x as string}`);
+}
+
 function serviceIcon(service: ServiceName) {
-  if (service === "manifest") return <Brain className="h-3.5 w-3.5" />;
-  if (service === "embedding") return <Database className="h-3.5 w-3.5" />;
-  return <Search className="h-3.5 w-3.5" />;
+  switch (service) {
+    case "manifest":
+      return <Brain className="h-3.5 w-3.5" />;
+    case "embedding":
+      return <Database className="h-3.5 w-3.5" />;
+    case "search":
+      return <Search className="h-3.5 w-3.5" />;
+    case "tts":
+      return <Volume2 className="h-3.5 w-3.5" />;
+    case "asr":
+      return <Mic className="h-3.5 w-3.5" />;
+    case "image":
+      return <ImageIcon className="h-3.5 w-3.5" />;
+    case "video":
+      return <Film className="h-3.5 w-3.5" />;
+    default:
+      return assertNever(service);
+  }
 }
 
 function serviceLabel(
   service: ServiceName,
   t: (key: string) => string,
 ): string {
-  if (service === "manifest") return t("LLM");
-  if (service === "embedding") return t("Embedding");
-  return t("Search");
+  switch (service) {
+    case "manifest":
+      return t("LLM");
+    case "embedding":
+      return t("Embedding");
+    case "search":
+      return t("Search");
+    case "tts":
+      return t("TTS");
+    case "asr":
+      return t("ASR");
+    case "image":
+      return t("Image");
+    case "video":
+      return t("Video");
+    default:
+      return assertNever(service);
+  }
 }
 
 function activeProfileDetail(
@@ -218,7 +281,7 @@ function servicePendingApply(
   service: ServiceName,
 ): boolean {
   if (service === "manifest") return false; // manifest has its own dirty tracking
-  const svc = service as "embedding" | "search";
+  const svc = service as CatalogServiceName;
   return (
     JSON.stringify(catalog.services[svc]) !==
     JSON.stringify(draft.services[svc])
@@ -231,17 +294,21 @@ function statusDotClass(configured: boolean, hasError: boolean): string {
   return "bg-[var(--border)]";
 }
 
+function emptyService(): CatalogService {
+  return { active_profile_id: null, active_model_id: null, profiles: [] };
+}
+
 function defaultCatalog(): Catalog {
   return {
     version: 1,
     services: {
-      llm: { active_profile_id: null, active_model_id: null, profiles: [] },
-      embedding: {
-        active_profile_id: null,
-        active_model_id: null,
-        profiles: [],
-      },
+      llm: emptyService(),
+      embedding: emptyService(),
       search: { active_profile_id: null, profiles: [] },
+      tts: emptyService(),
+      asr: emptyService(),
+      image: emptyService(),
+      video: emptyService(),
     },
   };
 }
@@ -646,9 +713,7 @@ function SettingsPageContent() {
   const [accessCodeDraft, setAccessCodeDraft] = useState<string>("");
   const [accessCodeRevealed, setAccessCodeRevealed] = useState(false);
   const [savingAccessCode, setSavingAccessCode] = useState(false);
-  const [providers, setProviders] = useState<
-    Record<string, ProviderOption[]>
-  >({ manifest: [], embedding: [], search: [] });
+  const [providers, setProviders] = useState<Record<string, ProviderOption[]>>({});
   // Most-recent capabilities snapshot from the embedding test run. Cleared
   // when the user kicks off another run, populated when the backend emits
   // the `capabilities` SSE event. Drives the source badge + "Detected: Xd"
@@ -752,8 +817,8 @@ function SettingsPageContent() {
 
   // -- Derived ------------------------------------------------------------
 
-  const activeProfile = activeService === "manifest" ? null : getActiveProfile(draft, activeService as "embedding" | "search");
-  const activeModel = activeService === "manifest" ? null : getActiveModel(draft, activeService as "embedding" | "search");
+  const activeProfile = activeService === "manifest" ? null : getActiveProfile(draft, activeService as CatalogServiceName);
+  const activeModel = activeService === "manifest" ? null : getActiveModel(draft, activeService as CatalogServiceName);
   const hasUnsavedChanges = JSON.stringify(catalog) !== JSON.stringify(draft);
   const searchProviderRaw =
     activeService === "search"
@@ -835,25 +900,30 @@ function SettingsPageContent() {
     return match?.default_dim || "3072";
   };
 
+  const defaultBindingForService = (svc: ModalityService): string => {
+    return providers[svc]?.[0]?.value || "openai";
+  };
+
   const addProfile = () => {
     if (activeService === "manifest") return;
     const svc = activeService as CatalogServiceName;
+    const isSearch = svc === "search";
     mutateCatalog((next) => {
       const service = next.services[svc];
       const profileId = `${svc}-profile-${Date.now()}`;
       const profile: CatalogProfile = {
         id: profileId,
         name: "New Profile",
-        binding: svc === "search" ? undefined : "openai",
-        provider: svc === "search" ? "brave" : undefined,
+        binding: isSearch ? undefined : defaultBindingForService(svc),
+        provider: isSearch ? "brave" : undefined,
         base_url: "",
         api_key: "",
         api_version: "",
-        extra_headers: svc === "search" ? undefined : {},
-        proxy: svc === "search" ? "" : undefined,
+        extra_headers: isSearch ? undefined : {},
+        proxy: isSearch ? "" : undefined,
         models: [],
       };
-      if (svc !== "search") {
+      if (!isSearch) {
         const modelId = `${svc}-model-${Date.now()}`;
         profile.models.push({
           id: modelId,
@@ -887,7 +957,7 @@ function SettingsPageContent() {
 
   const addModel = () => {
     if (activeService === "manifest" || activeService === "search") return;
-    const svc = activeService as "embedding";
+    const svc = activeService as ModalityService;
     mutateCatalog((next) => {
       const service = next.services[svc];
       const profile =
@@ -913,7 +983,7 @@ function SettingsPageContent() {
 
   const removeActiveModel = () => {
     if (activeService === "manifest" || activeService === "search") return;
-    const svc = activeService as "embedding";
+    const svc = activeService as ModalityService;
     mutateCatalog((next) => {
       const service = next.services[svc];
       const profile =
@@ -1327,8 +1397,8 @@ function SettingsPageContent() {
           </div>
 
           {SERVICES.map((service, i) => {
-            const profile = service === "manifest" ? null : getActiveProfile(draft, service as "embedding" | "search");
-            const model = service === "manifest" ? null : getActiveModel(draft, service as "embedding" | "search");
+            const profile = service === "manifest" ? null : getActiveProfile(draft, service as CatalogServiceName);
+            const model = service === "manifest" ? null : getActiveModel(draft, service as CatalogServiceName);
             const serviceStatus =
               service === "manifest"
                 ? status?.llm
@@ -1408,7 +1478,7 @@ function SettingsPageContent() {
         <div className="mb-8">
           <div className="mb-5 flex items-center justify-between">
             <div className="flex items-center gap-1">
-              {(["manifest", "embedding", "search"] as const).map((service) => (
+              {SERVICES.map((service) => (
                 <button
                   key={service}
                   data-tour={`tour-${service}`}
@@ -1420,7 +1490,7 @@ function SettingsPageContent() {
                   }`}
                 >
                   {serviceIcon(service)}
-                  {service === "manifest" ? "LLM" : service.toUpperCase()}
+                  {serviceLabel(service, t)}
                   {service !== "manifest" && (
                     <span className="text-[11px] text-[var(--muted-foreground)]/60">
                       {(draft.services as Record<string, { profiles: unknown[] }>)[service]?.profiles?.length ?? 0}

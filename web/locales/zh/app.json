@@ -156,6 +156,7 @@
   "LLM": "LLM",
   "Embedding": "嵌入模型",
   "TTS": "TTS",
+  "ASR": "ASR",
   "Search": "搜索",
   "Snow": "雪白",
   "Light": "浅色",

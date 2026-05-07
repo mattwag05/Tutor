@@ -1,10 +1,12 @@
 import fs from 'fs';
 import fsp from 'fs/promises';
 import { settingsPath } from './data-dir';
-
-export const PROFILED_SERVICES = ['llm', 'embedding', 'tts', 'asr', 'image', 'video'] as const;
-export type ProfiledService = (typeof PROFILED_SERVICES)[number];
-export type CatalogService = ProfiledService | 'search';
+export {
+  PROFILED_SERVICES,
+  type ProfiledService,
+  type CatalogService,
+} from '@/lib/types/profiled-services';
+import type { CatalogService } from '@/lib/types/profiled-services';
 
 export interface CatalogProfile {
   id?: string;

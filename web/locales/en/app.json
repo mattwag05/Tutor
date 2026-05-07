@@ -156,6 +156,7 @@
   "LLM": "LLM",
   "Embedding": "Embedding",
   "TTS": "TTS",
+  "ASR": "ASR",
   "Search": "Search",
   "Snow": "Snow",
   "Light": "Light",
