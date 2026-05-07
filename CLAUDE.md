@@ -1,8 +1,10 @@
-# DeepTutor CLAUDE.md
+# Tutor CLAUDE.md
 
 AI tutoring platform — multi-agent RAG architecture, Python/FastAPI backend, Next.js frontend.
 
-**Status:** 🔨 In Development (synced from upstream 2026-04-30 → v1.3.7; OpenMAIC retired B.4; Manifest router live C.1; Intent router + PWA live C.3/C.4 2026-05-05)
+> **Naming:** User-facing project name is **Tutor** (folder `~/Desktop/Projects/Tutor/`, deployed at `tutor.tail6e035b.ts.net`). Internal package name is still `deeptutor` (Python module, Docker image `deeptutor-fork`, GitHub repo `mattwag05/DeepTutor`, Pironman compose dir `~/homelab/deeptutor/`). Don't rename code paths — they're load-bearing across upstream sync, Dockerfiles, and compose.
+
+**Status:** 🔨 In Development (synced from upstream 2026-04-30 → v1.3.7; OpenMAIC retired B.4; Manifest router live C.1; Intent router + PWA live C.3/C.4 2026-05-05; course→classroom playback actions fix 2026-05-06)
 **Repo:** https://github.com/mattwag05/DeepTutor.git
 **Upstream:** https://github.com/HKUDS/DeepTutor (main at 445e762)
 **Deployed:** https://tutor.tail6e035b.ts.net (Pironman — 100.126.176.86, unified URL post-2026-05-06)
@@ -16,7 +18,7 @@ AI tutoring platform — multi-agent RAG architecture, Python/FastAPI backend, N
 - **Frontend phases:** Generation Pipeline (B.1) • Course Builder (B.5) • Quiz Attempts (B.6) • Spaced Review (B.6 + kgj) • Manifest Profile Router (C.1) • Intent Router (C.3) • PWA / Mobile (C.4)
 - **Production:** Deployment (Pironman) • OpenMAIC retirement (B.4)
 - **Operations:** Troubleshooting • Upstream Sync • Task Tracking • Remotes • Dropbox/iCloud Conflict Artifacts
-- **Gotchas (1–44):** see "Known Gotchas" — most-cited: #6 (sidebar refactor), #12 (caddy/tailscale on Pironman), #16 (web/ i18n: 2 locales flat), #20 (`/api/v1/quiz/attempts` vs notebook upsert), #28 (stacked-PR rebase), #32 (CI excludes web/), #33 (Buffer.slice for binary Response), #34 (Serwist setup), #40 (dependabot api caps), #41 (vendored-lib devDep prune), #42 (Next 16 POST `localhost` 404), #44 (Manifest `:` separator + OpenRouter slugs).
+- **Gotchas (1–45):** see "Known Gotchas" — most-cited: #6 (sidebar refactor), #12 (caddy/tailscale on Pironman), #16 (web/ i18n: 2 locales flat), #20 (`/api/v1/quiz/attempts` vs notebook upsert), #28 (stacked-PR rebase), #32 (CI excludes web/), #33 (Buffer.slice for binary Response), #34 (Serwist setup), #40 (dependabot api caps), #41 (vendored-lib devDep prune), #42 (Next 16 POST `localhost` 404), #44 (Manifest `:` separator + OpenRouter slugs), #45 (course→classroom projection must emit `Scene.actions`).
 
 ---
 
@@ -244,6 +246,8 @@ npm run audit          # Playwright UI audit (requires next start)
 43. **Dev `process.cwd()` is `web/`, not project root** — `web/lib/server/resolve-profile.ts` resolves `data/user/settings/model_catalog.json` relative to cwd; `npm run dev` from `web/` makes that path miss (catalog lives at project root). Falls through to env defaults, which require `LLM_API_KEY` (or `OPENROUTER_API_KEY`) to be exported in the dev shell. Production via `start_web.py` runs from project root and works fine.
 
 44. **Manifest tier model strings join with `:` not `/`** — `parseModelString` (`web/lib/ai/providers.ts`) splits on the first colon and silently defaults to `providerId='openai'` when no colon is present. `web/lib/server/resolve-profile.ts` uses the exported `buildModelString(binding, model)` helper for this; never reintroduce a `/` join. Default profiles in `web/lib/ai/manifest/profiles.ts` must use OpenRouter slugs (`anthropic/claude-sonnet-4.6`, `anthropic/claude-haiku-4.5`) — Anthropic-direct date snapshots like `claude-sonnet-4-5-20251001` 404 silently on OpenRouter and the route surfaces "LLM returned empty response."
+
+45. **Course→Classroom projection must emit `Scene.actions`** (fixed 2026-05-06 in `web/lib/generation/projections.ts`) — `Stage`'s playback engine bails on empty `currentScene.actions` at `web/components/stage.tsx:381`, so a projected classroom with no actions is silently dead (no TTS, no narration, no advance, no spotlight; play button has nothing to play). `materializeAsClassroom` now calls `buildActions()` to emit a `Spotlight + Speech` pair for the section title and each narratable block. Reuse `proseToPlainText` from `lib/course/section-text.ts` for prose markdown stripping rather than rolling new regex chains. When adding new `CourseBlock` types, extend `narrationForBlock()` so projected scenes still narrate them.
 
 ---
 
