@@ -588,12 +588,32 @@ class ConfigTestRunner:
         wav_bytes = _PROBE_WAV
         url = f"{base_url}/audio/transcriptions"
         headers = {"Authorization": f"Bearer {api_key}", **extra_headers}
-        files = {"file": ("probe.wav", wav_bytes, "audio/wav")}
-        data = {"model": model_id, "response_format": "json"}
-        run.emit("info", f"POST {url} (multipart, {len(wav_bytes)} bytes wav)")
 
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(url, headers=headers, files=files, data=data)
+        # OpenRouter's /audio/transcriptions is OpenAI-compatible in path only —
+        # it expects a JSON body with a base64 `input_audio: { data, format }`
+        # object, not a multipart `file` upload (gotcha #50 in CLAUDE.md).
+        if "openrouter" in binding:
+            import base64
+
+            headers["Content-Type"] = "application/json"
+            headers.setdefault("HTTP-Referer", "https://github.com/HKUDS/DeepTutor")
+            headers.setdefault("X-Title", "DeepTutor")
+            payload = {
+                "model": model_id,
+                "input_audio": {
+                    "data": base64.b64encode(wav_bytes).decode("ascii"),
+                    "format": "wav",
+                },
+            }
+            run.emit("info", f"POST {url} (JSON, {len(wav_bytes)} bytes wav, base64 input_audio)")
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                response = await client.post(url, headers=headers, json=payload)
+        else:
+            files = {"file": ("probe.wav", wav_bytes, "audio/wav")}
+            data = {"model": model_id, "response_format": "json"}
+            run.emit("info", f"POST {url} (multipart, {len(wav_bytes)} bytes wav)")
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                response = await client.post(url, headers=headers, files=files, data=data)
 
         if response.status_code >= 400:
             body_preview = (response.text or "")[:400]
