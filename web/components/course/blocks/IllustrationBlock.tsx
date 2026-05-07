@@ -26,9 +26,16 @@ export function IllustrationBlockView({ block }: Props) {
       .then(async (res) => {
         if (!res.ok) { generatingRef.current = false; return; }
         const data = (await res.json()) as { src?: string };
-        if (data.src) setBlockSrc(block.id, data.src);
-        // On success: leave generatingRef true so re-renders don't re-trigger.
-        // The store update sets block.src, which the effect's guard will catch anyway.
+        if (data.src) {
+          setBlockSrc(block.id, data.src);
+          // Don't reset generatingRef — store update lands block.src which the
+          // effect's first guard will catch on the next render.
+        } else {
+          // Server returned 200 with no src (provider misconfiguration, empty
+          // response, etc.). Reset so the next render can retry rather than
+          // locking the placeholder forever.
+          generatingRef.current = false;
+        }
       })
       .catch(() => { generatingRef.current = false; });
   }, [block.id, block.pending, block.prompt, block.src, courseId, setBlockSrc]);
