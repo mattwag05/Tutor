@@ -289,7 +289,12 @@ addopts = [
     "--strict-markers",
     "--strict-config",
     "--disable-warnings",
-    "--tb=short"
+    "--tb=short",
+    # importlib mode lets pytest collect same-basename test files in
+    # different dirs (tests/book/test_context.py + tests/logging/test_context.py)
+    # without needing __init__.py everywhere — and dodges the stdlib name
+    # clash that __init__.py in tests/logging/ would create.
+    "--import-mode=importlib"
 ]
 
 # ============================================
