@@ -28,6 +28,26 @@ ELEVENLABS_TTS_BINDINGS = {"elevenlabs-tts", "elevenlabs"}
 ELEVENLABS_DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"  # Rachel (public preset)
 
 
+def _build_probe_wav() -> bytes:
+    """0.1s of silence at 16 kHz mono — small enough to upload fast,
+    long enough that Whisper-compatible endpoints accept it."""
+    import io
+    import wave
+
+    sample_rate = 16000
+    n_frames = sample_rate // 10
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as wav:
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
+        wav.setframerate(sample_rate)
+        wav.writeframes(b"\x00\x00" * n_frames)
+    return buf.getvalue()
+
+
+_PROBE_WAV: bytes = _build_probe_wav()
+
+
 def _redact(value: str) -> str:
     if not value:
         return "(empty)"
@@ -140,7 +160,7 @@ class ConfigTestRunner:
                     asyncio.run(self._test_image(run, profile or {}, model or {}))
                 elif service == "video":
                     raise ValueError(
-                        "Video probe not yet implemented (DeepTutor-b63). "
+                        "Video probe not yet implemented. "
                         "Verify provider auth/base_url manually for now."
                     )
                 else:
@@ -533,55 +553,41 @@ class ConfigTestRunner:
             content_type=content_type,
         )
 
-    async def _test_asr(
-        self, run: TestRun, profile: dict[str, Any], model: dict[str, Any]
-    ) -> None:
-        import io
-        import wave
-
-        import httpx
-
+    @staticmethod
+    def _profile_preflight(
+        kind: str, profile: dict[str, Any], model: dict[str, Any]
+    ) -> tuple[str, str, str, str, dict[str, str]]:
         if not profile:
-            raise ValueError("No active ASR profile configured.")
+            raise ValueError(f"No active {kind} profile configured.")
         if not model:
-            raise ValueError("No active ASR model selected for this profile.")
-
+            raise ValueError(f"No active {kind} model selected for this profile.")
         binding = str(profile.get("binding") or profile.get("provider") or "").strip().lower()
         base_url = str(profile.get("base_url") or "").rstrip("/")
         api_key = str(profile.get("api_key") or "").strip()
         model_id = str(model.get("model") or model.get("id") or "").strip()
         extra_headers = _to_headers(profile.get("extra_headers"))
-
         if not base_url:
-            raise ValueError("ASR profile is missing base_url.")
+            raise ValueError(f"{kind} profile is missing base_url.")
         if not api_key:
-            raise ValueError("ASR profile is missing api_key.")
+            raise ValueError(f"{kind} profile is missing api_key.")
         if not model_id:
-            raise ValueError("ASR profile has no model id selected.")
+            raise ValueError(f"{kind} profile has no model id selected.")
+        return binding, base_url, api_key, model_id, extra_headers
 
-        run.emit(
-            "info",
-            f"Resolved ASR provider `{binding or 'unknown'}` with model `{model_id}`.",
+    async def _test_asr(
+        self, run: TestRun, profile: dict[str, Any], model: dict[str, Any]
+    ) -> None:
+        import httpx
+
+        binding, base_url, api_key, model_id, extra_headers = self._profile_preflight(
+            "ASR", profile, model
         )
+        run.emit("info", f"Resolved ASR provider `{binding or 'unknown'}` with model `{model_id}`.")
         run.emit("info", f"Request target: {base_url}")
 
-        # 0.1s of silence at 16 kHz mono — small enough to upload fast,
-        # long enough that Whisper-compatible endpoints accept it.
-        sample_rate = 16000
-        n_frames = sample_rate // 10
-        buf = io.BytesIO()
-        with wave.open(buf, "wb") as wav:
-            wav.setnchannels(1)
-            wav.setsampwidth(2)
-            wav.setframerate(sample_rate)
-            wav.writeframes(b"\x00\x00" * n_frames)
-        wav_bytes = buf.getvalue()
-
+        wav_bytes = _PROBE_WAV
         url = f"{base_url}/audio/transcriptions"
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            **extra_headers,
-        }
+        headers = {"Authorization": f"Bearer {api_key}", **extra_headers}
         files = {"file": ("probe.wav", wav_bytes, "audio/wav")}
         data = {"model": model_id, "response_format": "json"}
         run.emit("info", f"POST {url} (multipart, {len(wav_bytes)} bytes wav)")
@@ -594,7 +600,6 @@ class ConfigTestRunner:
             raise ValueError(
                 f"ASR provider returned HTTP {response.status_code}: {body_preview}"
             )
-
         try:
             result = response.json()
         except Exception as exc:
@@ -614,38 +619,56 @@ class ConfigTestRunner:
     ) -> None:
         import httpx
 
-        if not profile:
-            raise ValueError("No active image profile configured.")
-        if not model:
-            raise ValueError("No active image model selected for this profile.")
-
-        binding = str(profile.get("binding") or profile.get("provider") or "").strip().lower()
-        base_url = str(profile.get("base_url") or "").rstrip("/")
-        api_key = str(profile.get("api_key") or "").strip()
-        model_id = str(model.get("model") or model.get("id") or "").strip()
-        extra_headers = _to_headers(profile.get("extra_headers"))
-
-        if not base_url:
-            raise ValueError("Image profile is missing base_url.")
-        if not api_key:
-            raise ValueError("Image profile is missing api_key.")
-        if not model_id:
-            raise ValueError("Image profile has no model id selected.")
-
+        binding, base_url, api_key, model_id, extra_headers = self._profile_preflight(
+            "image", profile, model
+        )
         run.emit(
-            "info",
-            f"Resolved image provider `{binding or 'unknown'}` with model `{model_id}`.",
+            "info", f"Resolved image provider `{binding or 'unknown'}` with model `{model_id}`."
         )
         run.emit("info", f"Request target: {base_url}")
 
+        # Probe /models first — auth-only, free on OpenAI-compatible providers.
+        # Falls through to a real generation only if the endpoint is missing
+        # (some providers expose only /images/generations).
+        list_url = f"{base_url}/models"
+        list_headers = {"Authorization": f"Bearer {api_key}", **extra_headers}
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            list_response = await client.get(list_url, headers=list_headers)
+
+        if list_response.status_code == 200:
+            try:
+                listed = list_response.json()
+                ids = [m.get("id") for m in (listed.get("data") or []) if isinstance(m, dict)]
+            except Exception:
+                ids = []
+            run.emit(
+                "response",
+                f"Image provider auth OK ({len(ids)} models listed). "
+                "Skipped paid /images/generations probe.",
+                model_present=model_id in ids,
+                listed_count=len(ids),
+            )
+            return
+
+        if list_response.status_code in (401, 403):
+            raise ValueError(
+                f"Image provider rejected /models with HTTP {list_response.status_code}: "
+                f"{(list_response.text or '')[:400]}"
+            )
+
+        # /models 404/405/etc — provider doesn't expose it. Fall through to a
+        # paid generation probe, smallest size most providers accept.
+        run.emit(
+            "info",
+            f"/models unavailable (HTTP {list_response.status_code}); "
+            "falling back to paid /images/generations probe.",
+        )
         url = f"{base_url}/images/generations"
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
             **extra_headers,
         }
-        # Cheapest size most providers accept; gpt-image-1 only takes 1024x1024+ but
-        # it returns a clear error message which surfaces the auth/wiring as healthy.
         payload = {
             "model": model_id,
             "prompt": "DeepTutor probe — solid color square.",
@@ -677,13 +700,11 @@ class ConfigTestRunner:
             )
 
         first = data_items[0] if isinstance(data_items, list) else {}
-        has_url = bool(first.get("url"))
-        has_b64 = bool(first.get("b64_json"))
         run.emit(
             "response",
             f"Image generation succeeded ({len(data_items)} item(s)).",
-            has_url=has_url,
-            has_b64=has_b64,
+            has_url=bool(first.get("url")),
+            has_b64=bool(first.get("b64_json")),
         )
 
     def _test_search(self, run: TestRun, catalog: dict[str, Any]) -> None:

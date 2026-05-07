@@ -1,7 +1,7 @@
-"""Validation paths for the ASR + image probes added 2026-05-07.
+"""Validation paths for the ASR + image probes.
 
 Network-touching probes are out of scope here; we only assert that the
-preflight `ValueError` checks fire on missing config so the Settings UI
+preflight ``ValueError`` checks fire on missing config so the Settings UI
 gets a useful error instead of a silent hang.
 """
 
