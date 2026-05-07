@@ -63,7 +63,7 @@ export default function NotebookRecordPicker({
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-2 text-[var(--muted-foreground)] transition-colors hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
+            className="flex h-11 w-11 touch-manipulation items-center justify-center rounded-lg text-[var(--muted-foreground)] transition-colors hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
             aria-label={t("Close")}
           >
             <X className="h-4 w-4" />

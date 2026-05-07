@@ -173,7 +173,7 @@ export function SidebarShell({
               type="button"
               onClick={() => setMoreOpen(false)}
               aria-label={t("Close") as string}
-              className="-mr-2 rounded-md p-1.5 text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+              className="-mr-2 flex h-11 w-11 touch-manipulation items-center justify-center rounded-md text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
             >
               <X size={18} />
             </button>
