@@ -1272,7 +1272,7 @@ function SettingsPageContent() {
 
   return (
     <div className="h-full overflow-y-auto [scrollbar-gutter:stable]">
-      <div className="mx-auto max-w-[960px] px-6 py-8">
+      <div className="mx-auto max-w-[960px] px-4 py-6 sm:px-6 sm:py-8">
         {/* ── Header ── */}
         <div className="mb-6 flex items-start justify-between">
           <div>
@@ -1656,7 +1656,7 @@ function SettingsPageContent() {
           )}
 
           {activeService !== "manifest" && (activeProfile ? (
-            <div className="grid grid-cols-[200px_1fr] gap-5">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-[200px_1fr]">
               {/* ── Profile list ── */}
               <div className="space-y-2">
                 {draft.services[activeService].profiles.map((profile) => {

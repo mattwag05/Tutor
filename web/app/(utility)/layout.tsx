@@ -8,7 +8,7 @@ export default function UtilityLayout({
   return (
     <div className="flex h-screen overflow-hidden">
       <UtilitySidebar />
-      <main className="flex-1 overflow-hidden bg-[var(--background)]">
+      <main className="flex-1 overflow-hidden bg-[var(--background)] pb-14 sm:pb-0">
         {children}
       </main>
     </div>
