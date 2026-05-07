@@ -215,6 +215,8 @@ export default function SessionList({
                   }}
                   role="button"
                   tabIndex={0}
+                  aria-label={`Open chat: ${session.title || "Untitled chat"}`}
+                  aria-current={active ? "page" : undefined}
                   className={`group flex items-center gap-2 rounded-r-lg py-1 pl-3 pr-2 transition-colors ${
                     active
                       ? "bg-[var(--background)]/50 text-[var(--foreground)]"
