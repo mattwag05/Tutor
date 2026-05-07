@@ -6,7 +6,6 @@ import { generateImage } from '@/lib/media/image-providers';
 import { getActiveImageConfig } from '@/lib/server/provider-config';
 import { apiError, apiSuccess, API_ERROR_CODES } from '@/lib/server/api-response';
 import { getFeatureFlags } from '@/lib/server/feature-flags';
-import type { ImageProviderId } from '@/lib/media/types';
 
 export const maxDuration = 60;
 
@@ -47,7 +46,7 @@ export async function POST(req: NextRequest) {
   try {
     result = await generateImage(
       {
-        providerId: cfg.providerId as ImageProviderId,
+        providerId: cfg.providerId,
         apiKey: cfg.apiKey,
         baseUrl: cfg.baseUrl,
         model: cfg.model,

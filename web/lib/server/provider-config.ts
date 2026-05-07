@@ -15,6 +15,7 @@ import {
   profileBinding,
   type ProfiledService,
 } from '@/lib/server/catalog-read';
+import type { ImageProviderId } from '@/lib/media/types';
 
 const log = createLogger('ServerProviderConfig');
 
@@ -449,37 +450,46 @@ export function resolveImageBaseUrl(
   return resolveCatalogFirstBaseUrl('image', providerId, getConfig().image, clientBaseUrl);
 }
 
-// Resolve the active image generation profile from the catalog, falling back to
-// any single env/YAML-configured provider. Returns null if no usable provider is
-// configured. Both /api/generate/course-illustration and the classroom media
-// generator must use this — picking a hardcoded providerId or `Object.keys(...)[0]`
-// silently ignores the user's catalog selection.
-export function getActiveImageConfig(): {
-  providerId: string;
+export interface ActiveImageConfig {
+  providerId: ImageProviderId;
   apiKey: string;
   baseUrl?: string;
   model?: string;
-} | null {
+}
+
+const KNOWN_IMAGE_PROVIDER_IDS: ReadonlySet<string> = new Set(Object.values(IMAGE_ENV_MAP));
+
+function asImageProviderId(value: string | undefined): ImageProviderId | null {
+  return value && KNOWN_IMAGE_PROVIDER_IDS.has(value) ? (value as ImageProviderId) : null;
+}
+
+// Resolve the active image profile (catalog first, then env/YAML).
+export function getActiveImageConfig(): ActiveImageConfig | null {
+  const cfg = getConfig();
   const profile = getActiveProfile(readCatalogSync(), 'image');
-  const binding = profile ? profileBinding(profile) : undefined;
-  if (profile && binding) {
-    const apiKey = profile.api_key || getConfig().image[binding]?.apiKey || '';
-    const baseUrl = profile.base_url || getConfig().image[binding]?.baseUrl;
+  const catalogProviderId = asImageProviderId(profile ? profileBinding(profile) : undefined);
+  if (profile && catalogProviderId) {
+    const entry = cfg.image[catalogProviderId];
     const firstModel = profile.models?.[0] as { model?: string; id?: string } | undefined;
-    const model = firstModel?.model || firstModel?.id;
-    return { providerId: binding, apiKey, baseUrl, model };
+    return {
+      providerId: catalogProviderId,
+      apiKey: profile.api_key || entry?.apiKey || '',
+      baseUrl: profile.base_url || entry?.baseUrl,
+      model: firstModel?.model || firstModel?.id,
+    };
   }
-  // Catalog has no active image profile — fall back to first env/YAML provider.
-  const envIds = Object.keys(getConfig().image);
-  if (envIds.length === 0) return null;
-  const providerId = envIds[0];
-  const entry = getConfig().image[providerId];
-  return {
-    providerId,
-    apiKey: entry?.apiKey || '',
-    baseUrl: entry?.baseUrl,
-    model: entry?.models?.[0],
-  };
+  for (const id of Object.keys(cfg.image)) {
+    const providerId = asImageProviderId(id);
+    if (!providerId) continue;
+    const entry = cfg.image[providerId];
+    return {
+      providerId,
+      apiKey: entry?.apiKey || '',
+      baseUrl: entry?.baseUrl,
+      model: entry?.models?.[0],
+    };
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------

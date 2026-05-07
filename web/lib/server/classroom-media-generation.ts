@@ -77,27 +77,22 @@ export async function generateMediaForClassroom(
   const requests = outlines.flatMap((o) => o.mediaGenerations ?? []);
   if (requests.length === 0) return {};
 
-  // Resolve providers — image uses the active catalog profile so the user's
-  // Settings selection is honored; falls back to env/YAML when no profile.
   const imageCfg = getActiveImageConfig();
   const videoProviderIds = Object.keys(getServerVideoProviders());
 
   const mediaMap: Record<string, string> = {};
 
-  // Separate image and video requests, generate each type sequentially
-  // but run the two types in parallel (providers often have limited concurrency).
   const imageRequests = requests.filter((r) => r.type === 'image' && !!imageCfg?.apiKey);
   const videoRequests = requests.filter((r) => r.type === 'video' && videoProviderIds.length > 0);
 
   const generateImages = async () => {
     if (!imageCfg || !imageCfg.apiKey) return;
-    const providerId = imageCfg.providerId as ImageProviderId;
-    // Prefer model from catalog profile; fall back to first model in IMAGE_PROVIDERS registry.
+    const { providerId, apiKey, baseUrl: providerBaseUrl } = imageCfg;
     const model = imageCfg.model || IMAGE_PROVIDERS[providerId]?.models?.[0]?.id;
     for (const req of imageRequests) {
       try {
         const result = await generateImage(
-          { providerId, apiKey: imageCfg.apiKey, baseUrl: imageCfg.baseUrl, model },
+          { providerId, apiKey, baseUrl: providerBaseUrl, model },
           { prompt: req.prompt, aspectRatio: req.aspectRatio || '16:9' },
         );
 
