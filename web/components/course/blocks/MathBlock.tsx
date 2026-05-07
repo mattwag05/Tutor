@@ -26,7 +26,7 @@ export function MathBlockView({ block, onExplain }: Props) {
     return (
       <div className="my-8 flex flex-col items-center gap-2">
         <div
-          className="font-serif text-xl"
+          className="w-full max-w-full overflow-x-auto px-1 text-center font-serif text-xl"
           dangerouslySetInnerHTML={{ __html: html }}
         />
         {block.explainable && onExplain && (
