@@ -106,6 +106,14 @@ export function SidebarShell({
   // Close the sheet on route change.
   useEffect(() => { setMoreOpen(false); }, [pathname]);
 
+  // Close on Escape (matches the dialog dismissal pattern users expect).
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setMoreOpen(false); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [moreOpen]);
+
   // Items already exposed in the bottom nav — don't repeat them in the sheet.
   const bottomHrefs = new Set(BOTTOM_NAV.map((b) => b.href));
   const moreItems: NavEntry[] = [...PRIMARY_NAV, ...SECONDARY_NAV].filter(
@@ -149,10 +157,15 @@ export function SidebarShell({
       <div
         className="fixed inset-0 z-[60] flex flex-col bg-black/50 sm:hidden"
         onClick={() => setMoreOpen(false)}
+        role="presentation"
       >
         <div
           className="mt-auto rounded-t-2xl border-t border-[var(--border)] bg-[var(--secondary)] pb-8 pt-2"
           onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+          aria-label={t("More") as string}
+          style={{ paddingBottom: "calc(2rem + env(safe-area-inset-bottom))" }}
         >
           <div className="flex items-center justify-between px-4 pb-2 pt-2">
             <span className="text-[13px] font-medium text-[var(--foreground)]">{t("More")}</span>
