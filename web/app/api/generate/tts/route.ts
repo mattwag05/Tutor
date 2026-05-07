@@ -8,11 +8,11 @@
  */
 
 import { NextRequest } from 'next/server';
-import { generateTTS } from '@/lib/audio/tts-providers';
+import { generateTTS, TTSRateLimitError } from '@/lib/audio/tts-providers';
 import { resolveTTSApiKey, resolveTTSBaseUrl } from '@/lib/server/provider-config';
 import type { TTSProviderId } from '@/lib/audio/types';
 import { createLogger } from '@/lib/logger';
-import { apiError, apiSuccess } from '@/lib/server/api-response';
+import { apiError, apiSuccess, API_ERROR_CODES } from '@/lib/server/api-response';
 import { validateUrlForSSRF } from '@/lib/server/ssrf-guard';
 import { VOXCPM_AUTO_VOICE_ID, VOXCPM_TTS_PROVIDER_ID } from '@/lib/audio/voxcpm';
 
@@ -111,8 +111,15 @@ export async function POST(req: NextRequest) {
       `TTS generation failed [provider=${ttsProviderId ?? 'unknown'}, voice=${ttsVoice ?? 'unknown'}, audioId=${audioId ?? 'unknown'}]:`,
       error,
     );
+    if (error instanceof TTSRateLimitError) {
+      return apiError(
+        API_ERROR_CODES.RATE_LIMITED,
+        429,
+        error.message,
+      );
+    }
     return apiError(
-      'GENERATION_FAILED',
+      API_ERROR_CODES.GENERATION_FAILED,
       500,
       error instanceof Error ? error.message : String(error),
     );

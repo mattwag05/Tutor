@@ -112,10 +112,8 @@ export interface TTSGenerationResult {
 
 /**
  * Thrown when a TTS provider returns a rate-limit / concurrency-quota error.
- * Allows downstream consumers to distinguish rate-limit errors from other TTS failures.
- *
- * TODO: The API route currently catches all errors uniformly as GENERATION_FAILED.
- * This class enables future retry/backoff logic without changing the throw sites.
+ * The /api/generate/tts route maps this to HTTP 429 + RATE_LIMITED so callers
+ * can back off without retrying immediately.
  */
 export class TTSRateLimitError extends Error {
   constructor(
