@@ -128,6 +128,113 @@ const ELEVENLABS_VOICES: { value: string; label: string }[] = [
 
 const ELEVENLABS_CUSTOM_SENTINEL = "__custom__";
 
+// OpenRouter routes audio output via /audio/speech against the gpt-audio
+// family. Voices are inherited from OpenAI TTS (alloy/echo/fable/onyx/nova/
+// shimmer). Image output goes through chat-completions on Gemini / GPT-5
+// image preview models. Catalog verified live 2026-05-07 against
+// /v1/models?output_modalities=audio|image.
+const OPENROUTER_TTS_MODELS: { value: string; label: string }[] = [
+  { value: "openai/gpt-audio", label: "OpenAI GPT Audio" },
+  { value: "openai/gpt-audio-mini", label: "OpenAI GPT Audio Mini" },
+  {
+    value: "openai/gpt-4o-audio-preview",
+    label: "OpenAI GPT-4o Audio (preview)",
+  },
+];
+
+const OPENROUTER_TTS_VOICES: { value: string; label: string }[] = [
+  { value: "alloy", label: "Alloy (neutral)" },
+  { value: "echo", label: "Echo (male)" },
+  { value: "fable", label: "Fable (British male)" },
+  { value: "onyx", label: "Onyx (deep male)" },
+  { value: "nova", label: "Nova (female)" },
+  { value: "shimmer", label: "Shimmer (warm female)" },
+];
+
+const OPENROUTER_ASR_MODELS: { value: string; label: string }[] = [
+  {
+    value: "openai/gpt-4o-audio-preview",
+    label: "OpenAI GPT-4o Audio (preview)",
+  },
+  { value: "openai/gpt-audio", label: "OpenAI GPT Audio" },
+  { value: "openai/gpt-audio-mini", label: "OpenAI GPT Audio Mini" },
+  { value: "google/gemini-2.5-pro", label: "Gemini 2.5 Pro" },
+  { value: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+  { value: "google/gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite" },
+  {
+    value: "mistralai/voxtral-small-24b-2507",
+    label: "Voxtral Small 24B",
+  },
+];
+
+type PresetField = {
+  options: { value: string; label: string }[];
+  placeholder: string;
+  helpText?: string;
+};
+
+// Keyed by `${activeService}:${binding}` so the catalog editor can swap the
+// plain Model ID input for a curated dropdown when the active profile is one
+// of the providers we ship presets for.
+function buildModelPresets(): Record<string, PresetField> {
+  return {
+    "tts:elevenlabs-tts": {
+      options: ELEVENLABS_MODELS,
+      placeholder: "eleven_flash_v2_5",
+    },
+    "tts:openrouter-tts": {
+      options: OPENROUTER_TTS_MODELS,
+      placeholder: "openai/gpt-audio-mini",
+    },
+    "asr:openrouter-asr": {
+      options: OPENROUTER_ASR_MODELS,
+      placeholder: "openai/gpt-4o-audio-preview",
+    },
+    "image:openrouter-image": {
+      options: OPENROUTER_IMAGE_MODELS,
+      placeholder: "google/gemini-2.5-flash-image",
+    },
+  };
+}
+
+function buildVoicePresets(): Record<string, PresetField> {
+  return {
+    "tts:elevenlabs-tts": {
+      options: ELEVENLABS_VOICES,
+      placeholder: "21m00Tcm4TlvDq8ikWAM",
+      helpText:
+        "Pick a preset voice or enter a custom voice ID from your ElevenLabs library.",
+    },
+    "tts:openrouter-tts": {
+      options: OPENROUTER_TTS_VOICES,
+      placeholder: "alloy",
+      helpText:
+        "Pick a preset voice routed through OpenRouter (gpt-audio voices: alloy, echo, fable, onyx, nova, shimmer).",
+    },
+  };
+}
+
+const OPENROUTER_IMAGE_MODELS: { value: string; label: string }[] = [
+  {
+    value: "google/gemini-2.5-flash-image",
+    label: "Gemini 2.5 Flash Image",
+  },
+  {
+    value: "google/gemini-3.1-flash-image-preview",
+    label: "Gemini 3.1 Flash Image (preview)",
+  },
+  {
+    value: "google/gemini-3-pro-image-preview",
+    label: "Gemini 3 Pro Image (preview)",
+  },
+  { value: "openai/gpt-5-image", label: "OpenAI GPT-5 Image" },
+  { value: "openai/gpt-5-image-mini", label: "OpenAI GPT-5 Image Mini" },
+  { value: "openai/gpt-5.4-image-2", label: "OpenAI GPT-5.4 Image 2" },
+];
+
+const MODEL_PRESETS = buildModelPresets();
+const VOICE_PRESETS = buildVoicePresets();
+
 type CatalogProfile = {
   id: string;
   name: string;
@@ -2112,56 +2219,69 @@ function SettingsPageContent() {
                           <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
                             {t("Model ID")}
                           </div>
-                          {activeService === "tts" &&
-                          activeProfile?.binding === "elevenlabs-tts" ? (
-                            <ElevenLabsPresetField
-                              value={activeModel.model}
-                              options={ELEVENLABS_MODELS}
-                              placeholder="eleven_flash_v2_5"
-                              inputClass={inputClass}
-                              selectClass={selectClass}
-                              selectOptionClass={selectOptionClass}
-                              onChange={(value) =>
-                                updateModelField("model", value)
-                              }
-                              t={t}
-                            />
-                          ) : (
-                            <input
-                              className={inputClass}
-                              value={activeModel.model}
-                              onChange={(e) =>
-                                updateModelField("model", e.target.value)
-                              }
-                              placeholder="gpt-4o"
-                            />
-                          )}
+                          {(() => {
+                            const presetKey = `${activeService}:${activeProfile?.binding ?? ""}`;
+                            const modelPreset = MODEL_PRESETS[presetKey];
+                            if (modelPreset) {
+                              return (
+                                <ElevenLabsPresetField
+                                  value={activeModel.model}
+                                  options={modelPreset.options}
+                                  placeholder={modelPreset.placeholder}
+                                  inputClass={inputClass}
+                                  selectClass={selectClass}
+                                  selectOptionClass={selectOptionClass}
+                                  onChange={(value) =>
+                                    updateModelField("model", value)
+                                  }
+                                  t={t}
+                                />
+                              );
+                            }
+                            return (
+                              <input
+                                className={inputClass}
+                                value={activeModel.model}
+                                onChange={(e) =>
+                                  updateModelField("model", e.target.value)
+                                }
+                                placeholder="gpt-4o"
+                              />
+                            );
+                          })()}
                         </div>
                         {activeService === "tts" &&
-                          activeProfile?.binding === "elevenlabs-tts" && (
-                            <div>
-                              <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
-                                {t("Voice ID")}
-                              </div>
-                              <ElevenLabsPresetField
-                                value={activeModel.voice ?? ""}
-                                options={ELEVENLABS_VOICES}
-                                placeholder="21m00Tcm4TlvDq8ikWAM"
-                                inputClass={inputClass}
-                                selectClass={selectClass}
-                                selectOptionClass={selectOptionClass}
-                                onChange={(value) =>
-                                  updateModelField("voice", value)
-                                }
-                                t={t}
-                              />
-                              <p className="mt-1.5 text-[11px] text-[var(--muted-foreground)]">
-                                {t(
-                                  "Pick a preset voice or enter a custom voice ID from your ElevenLabs library.",
+                          (() => {
+                            const voicePreset =
+                              VOICE_PRESETS[
+                                `tts:${activeProfile?.binding ?? ""}`
+                              ];
+                            if (!voicePreset) return null;
+                            return (
+                              <div>
+                                <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
+                                  {t("Voice ID")}
+                                </div>
+                                <ElevenLabsPresetField
+                                  value={activeModel.voice ?? ""}
+                                  options={voicePreset.options}
+                                  placeholder={voicePreset.placeholder}
+                                  inputClass={inputClass}
+                                  selectClass={selectClass}
+                                  selectOptionClass={selectOptionClass}
+                                  onChange={(value) =>
+                                    updateModelField("voice", value)
+                                  }
+                                  t={t}
+                                />
+                                {voicePreset.helpText && (
+                                  <p className="mt-1.5 text-[11px] text-[var(--muted-foreground)]">
+                                    {t(voicePreset.helpText)}
+                                  </p>
                                 )}
-                              </p>
-                            </div>
-                          )}
+                              </div>
+                            );
+                          })()}
                         {false /* context window: LLM-only, managed by Manifest tier editor in C.2 */ && (
                           <>
                             <div>

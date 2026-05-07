@@ -21,6 +21,10 @@ import {
   testMiniMaxImageConnectivity,
 } from './adapters/minimax-image-adapter';
 import { generateWithGrokImage, testGrokImageConnectivity } from './adapters/grok-image-adapter';
+import {
+  generateWithOpenRouterImage,
+  testOpenRouterImageConnectivity,
+} from './adapters/openrouter-image-adapter';
 
 export const IMAGE_PROVIDERS: Record<ImageProviderId, ImageProviderConfig> = {
   seedream: {
@@ -116,6 +120,28 @@ export const IMAGE_PROVIDERS: Record<ImageProviderId, ImageProviderConfig> = {
     ],
     supportedAspectRatios: ['16:9', '4:3', '1:1', '9:16'],
   },
+  'openrouter-image': {
+    id: 'openrouter-image',
+    name: 'OpenRouter Image',
+    requiresApiKey: true,
+    defaultBaseUrl: 'https://openrouter.ai/api/v1',
+    // Models discovered via /v1/models?output_modalities=image (2026-05-07).
+    models: [
+      { id: 'google/gemini-2.5-flash-image', name: 'Gemini 2.5 Flash Image' },
+      {
+        id: 'google/gemini-3.1-flash-image-preview',
+        name: 'Gemini 3.1 Flash Image (preview)',
+      },
+      {
+        id: 'google/gemini-3-pro-image-preview',
+        name: 'Gemini 3 Pro Image (preview)',
+      },
+      { id: 'openai/gpt-5-image', name: 'OpenAI GPT-5 Image' },
+      { id: 'openai/gpt-5-image-mini', name: 'OpenAI GPT-5 Image Mini' },
+      { id: 'openai/gpt-5.4-image-2', name: 'OpenAI GPT-5.4 Image 2' },
+    ],
+    supportedAspectRatios: ['16:9', '4:3', '1:1', '9:16'],
+  },
 };
 
 export async function testImageConnectivity(
@@ -134,6 +160,8 @@ export async function testImageConnectivity(
       return testMiniMaxImageConnectivity(config);
     case 'grok-image':
       return testGrokImageConnectivity(config);
+    case 'openrouter-image':
+      return testOpenRouterImageConnectivity(config);
     default:
       return {
         success: false,
@@ -159,6 +187,8 @@ export async function generateImage(
       return generateWithMiniMaxImage(config, options);
     case 'grok-image':
       return generateWithGrokImage(config, options);
+    case 'openrouter-image':
+      return generateWithOpenRouterImage(config, options);
     default:
       throw new Error(`Unsupported image provider: ${config.providerId}`);
   }

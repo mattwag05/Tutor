@@ -213,11 +213,13 @@ def _provider_choices() -> dict[str, list[dict[str, str]]]:
         {"value": "qwen-tts", "label": "Qwen TTS", "base_url": ""},
         {"value": "doubao-tts", "label": "Doubao TTS", "base_url": ""},
         {"value": "minimax-tts", "label": "MiniMax TTS", "base_url": ""},
+        {"value": "openrouter-tts", "label": "OpenRouter TTS", "base_url": "https://openrouter.ai/api/v1"},
         {"value": "voxcpm-tts", "label": "VoxCPM (local)", "base_url": ""},
     ]
     asr = [
         {"value": "openai-whisper", "label": "OpenAI Whisper", "base_url": "https://api.openai.com/v1"},
         {"value": "qwen-asr", "label": "Qwen ASR", "base_url": ""},
+        {"value": "openrouter-asr", "label": "OpenRouter ASR", "base_url": "https://openrouter.ai/api/v1"},
         {"value": "browser-native", "label": "Browser Web Speech (no key)", "base_url": ""},
     ]
     image = [
@@ -225,6 +227,7 @@ def _provider_choices() -> dict[str, list[dict[str, str]]]:
         {"value": "grok-image", "label": "xAI Grok Image", "base_url": ""},
         {"value": "minimax-image", "label": "MiniMax Image", "base_url": ""},
         {"value": "nano-banana", "label": "Nano Banana", "base_url": ""},
+        {"value": "openrouter-image", "label": "OpenRouter Image", "base_url": "https://openrouter.ai/api/v1"},
         {"value": "qwen-image", "label": "Qwen Image", "base_url": ""},
         {"value": "seedream", "label": "Seedream", "base_url": ""},
     ]

@@ -150,6 +150,12 @@ import { experimental_transcribe as transcribe } from 'ai';
 import type { ASRModelConfig } from './types';
 import { isCustomASRProvider } from './types';
 import { ASR_PROVIDERS } from './constants';
+import { getAudioResponseFormat } from './tts-providers';
+import {
+  OPENROUTER_DEFAULT_BASE_URL,
+  getOpenRouterRankingHeaders,
+  normalizeBaseUrl,
+} from '@/lib/ai/openrouter';
 
 /**
  * Result of ASR transcription
@@ -182,12 +188,77 @@ export async function transcribeAudio(
     case 'qwen-asr':
       return await transcribeQwenASR(config, audioBuffer);
 
+    case 'openrouter-asr':
+      return await transcribeOpenRouterASR(config, audioBuffer);
+
     default:
       if (isCustomASRProvider(config.providerId)) {
         return await transcribeOpenAIWhisper(config, audioBuffer);
       }
       throw new Error(`Unsupported ASR provider: ${config.providerId}`);
   }
+}
+
+/**
+ * OpenRouter ASR implementation.
+ *
+ * OpenRouter exposes an OpenAI-compatible `POST /audio/transcriptions` route
+ * that accepts a base64 `input_audio` object (note: OpenRouter expects an
+ * object, not a `file` multipart upload like OpenAI direct). Routed models
+ * include the gpt-audio family, Gemini 2.5/3.x, and Voxtral.
+ */
+async function transcribeOpenRouterASR(
+  config: ASRModelConfig,
+  audioBuffer: Buffer | Blob,
+): Promise<ASRTranscriptionResult> {
+  const baseUrl = normalizeBaseUrl(
+    config.baseUrl || ASR_PROVIDERS['openrouter-asr'].defaultBaseUrl,
+    OPENROUTER_DEFAULT_BASE_URL,
+  );
+
+  let base64Audio: string;
+  let mime = 'audio/webm';
+  if (audioBuffer instanceof Buffer) {
+    base64Audio = audioBuffer.toString('base64');
+  } else if (audioBuffer instanceof Blob) {
+    if (audioBuffer.type) mime = audioBuffer.type;
+    const arrayBuffer = await audioBuffer.arrayBuffer();
+    base64Audio = Buffer.from(arrayBuffer).toString('base64');
+  } else {
+    throw new Error('Invalid audio buffer type');
+  }
+
+  const body: Record<string, unknown> = {
+    model: config.modelId || 'openai/gpt-4o-audio-preview',
+    input_audio: {
+      data: base64Audio,
+      format: getAudioResponseFormat(mime),
+    },
+  };
+  if (config.language && config.language !== 'auto') {
+    body.language = config.language;
+  }
+
+  const response = await fetch(`${baseUrl}/audio/transcriptions`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${config.apiKey}`,
+      'Content-Type': 'application/json',
+      ...getOpenRouterRankingHeaders(),
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => response.statusText);
+    if (errorText.includes('audio is empty') || errorText.includes('too short')) {
+      return { text: '' };
+    }
+    throw new Error(`OpenRouter ASR API error (${response.status}): ${errorText}`);
+  }
+
+  const data = (await response.json()) as { text?: string };
+  return { text: data.text || '' };
 }
 
 /**

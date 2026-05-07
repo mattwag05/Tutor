@@ -928,6 +928,33 @@ export const TTS_PROVIDERS: Record<BuiltInTTSProviderId, TTSProviderConfig> = {
     speedRange: { min: 0.7, max: 1.2, default: 1.0 },
   },
 
+  'openrouter-tts': {
+    id: 'openrouter-tts',
+    name: 'OpenRouter TTS',
+    requiresApiKey: true,
+    defaultBaseUrl: 'https://openrouter.ai/api/v1',
+    icon: '/logos/openrouter.svg',
+    // OpenRouter exposes an OpenAI-compatible /audio/speech endpoint. Models
+    // with `audio` output modality (verified via /v1/models?output_modalities=audio):
+    models: [
+      { id: 'openai/gpt-audio', name: 'OpenAI GPT Audio' },
+      { id: 'openai/gpt-audio-mini', name: 'OpenAI GPT Audio Mini' },
+      { id: 'openai/gpt-4o-audio-preview', name: 'OpenAI GPT-4o Audio (preview)' },
+    ],
+    defaultModelId: 'openai/gpt-audio-mini',
+    // OpenRouter's gpt-audio family inherits OpenAI's six base voices.
+    voices: [
+      { id: 'alloy', name: 'Alloy', language: 'en-US', gender: 'neutral' },
+      { id: 'echo', name: 'Echo', language: 'en-US', gender: 'male' },
+      { id: 'fable', name: 'Fable', language: 'en-GB', gender: 'male' },
+      { id: 'onyx', name: 'Onyx', language: 'en-US', gender: 'male' },
+      { id: 'nova', name: 'Nova', language: 'en-US', gender: 'female' },
+      { id: 'shimmer', name: 'Shimmer', language: 'en-US', gender: 'female' },
+    ],
+    supportedFormats: ['mp3', 'wav', 'flac', 'opus', 'pcm16'],
+    speedRange: { min: 0.25, max: 4.0, default: 1.0 },
+  },
+
   'browser-native-tts': {
     id: 'browser-native-tts',
     name: '浏览器原生 (Web Speech API)',
@@ -1076,6 +1103,50 @@ export const ASR_PROVIDERS: Record<BuiltInASRProviderId, ASRProviderConfig> = {
     supportedFormats: ['mp3', 'wav', 'webm', 'm4a', 'flac'],
   },
 
+  'openrouter-asr': {
+    id: 'openrouter-asr',
+    name: 'OpenRouter ASR',
+    requiresApiKey: true,
+    defaultBaseUrl: 'https://openrouter.ai/api/v1',
+    icon: '/logos/openrouter.svg',
+    // OpenRouter exposes an OpenAI-compatible /audio/transcriptions endpoint.
+    // Verified via /v1/models?input_modalities=audio (key picks):
+    models: [
+      { id: 'openai/gpt-4o-audio-preview', name: 'OpenAI GPT-4o Audio (preview)' },
+      { id: 'openai/gpt-audio', name: 'OpenAI GPT Audio' },
+      { id: 'openai/gpt-audio-mini', name: 'OpenAI GPT Audio Mini' },
+      { id: 'google/gemini-2.5-pro', name: 'Gemini 2.5 Pro' },
+      { id: 'google/gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
+      { id: 'google/gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite' },
+      { id: 'mistralai/voxtral-small-24b-2507', name: 'Voxtral Small 24B' },
+    ],
+    defaultModelId: 'openai/gpt-4o-audio-preview',
+    // Whisper-class models are multilingual; advertise the same broad set as
+    // openai-whisper since these all support language hinting.
+    supportedLanguages: [
+      'auto',
+      'zh',
+      'en',
+      'ja',
+      'ko',
+      'es',
+      'fr',
+      'de',
+      'ru',
+      'ar',
+      'pt',
+      'it',
+      'hi',
+      'nl',
+      'pl',
+      'tr',
+      'vi',
+      'th',
+      'id',
+    ],
+    supportedFormats: ['mp3', 'wav', 'webm', 'm4a', 'flac', 'ogg'],
+  },
+
   'browser-native': {
     id: 'browser-native',
     name: '浏览器原生 ASR (Web Speech API)',
@@ -1157,6 +1228,7 @@ export const DEFAULT_TTS_VOICES: Record<BuiltInTTSProviderId, string> = {
   'doubao-tts': 'zh_female_vv_uranus_bigtts',
   'elevenlabs-tts': 'EXAVITQu4vr4xnSDxMaL',
   'minimax-tts': 'female-yujie',
+  'openrouter-tts': 'alloy',
   'browser-native-tts': 'default',
 };
 
@@ -1169,6 +1241,7 @@ export const DEFAULT_TTS_MODELS: Record<BuiltInTTSProviderId, string> = {
   'doubao-tts': '',
   'elevenlabs-tts': 'eleven_multilingual_v2',
   'minimax-tts': 'speech-2.8-hd',
+  'openrouter-tts': 'openai/gpt-audio-mini',
   'browser-native-tts': '',
 };
 

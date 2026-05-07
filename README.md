@@ -32,6 +32,8 @@
 
 ### 📦 Releases
 
+> **[2026.5.7]** [v1.6.0](https://github.com/mattwag05/DeepTutor/releases/tag/v1.6.0) *(fork)* — OpenRouter is now a first-class provider for TTS, ASR, and image generation. The Settings UI surfaces dropdowns for OpenRouter-routed model slugs (gpt-audio family for TTS/ASR, Gemini 2.5 Flash Image / GPT-5 Image for image) and the six gpt-audio voices (alloy, echo, fable, onyx, nova, shimmer). Audio routes hit OpenRouter's OpenAI-compatible `/audio/speech` and `/audio/transcriptions` endpoints; image generation goes through chat-completions because OpenRouter does not expose `/images/generations`. Video is **not** supported via OpenRouter (no models in the catalog emit video output as of 2026-05-07) — keep using Seedance / Kling / Veo / Sora / MiniMax / Grok for video.
+
 > **[2026.5.6]** [v1.5.0](https://github.com/mattwag05/DeepTutor/releases/tag/v1.5.0) *(fork)* — Settings UI now covers every provider modality (TTS, ASR, image, video alongside LLM/embedding/search) plus a feature-flag toggle for course illustrations. Catalog edits land in the bind-mounted `data/user/settings/` volume so changes survive container rebuilds. Bundles two related path-bug fixes: `course-storage` and `classroom-storage` now anchor on the `dataDir()` helper so on-disk classroom and course content actually persists.
 
 > **[2026.5.5]** [v1.4.0](https://github.com/mattwag05/DeepTutor/releases/tag/v1.4.0) *(fork)* — Manifest tier-based LLM router (`tutor-cheap / tutor-balanced / tutor-premium`), home-page intent classifier, PWA manifest + service worker with offline spaced-review, and mobile bottom nav.

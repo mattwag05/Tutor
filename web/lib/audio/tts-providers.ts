@@ -96,6 +96,11 @@ import type { TTSModelConfig } from './types';
 import { isCustomTTSProvider } from './types';
 import { TTS_PROVIDERS } from './constants';
 import {
+  OPENROUTER_DEFAULT_BASE_URL,
+  getOpenRouterRankingHeaders,
+  normalizeBaseUrl,
+} from '@/lib/ai/openrouter';
+import {
   VOXCPM_VLLM_MODEL_ID,
   VOXCPM_AUTO_VOICE_ID,
   normalizeVoxCPMBackend,
@@ -161,6 +166,9 @@ export async function generateTTS(
       return await generateDoubaoTTS(config, text);
     case 'elevenlabs-tts':
       return await generateElevenLabsTTS(config, text);
+
+    case 'openrouter-tts':
+      return await generateOpenRouterTTS(config, text);
 
     case 'browser-native-tts':
       throw new Error(
@@ -289,7 +297,7 @@ function buildVoxCPMTargetText(text: string, voicePrompt?: string): string {
   return prompt ? `(${prompt})${text}` : text;
 }
 
-function getAudioResponseFormat(contentType: string): string {
+export function getAudioResponseFormat(contentType: string): string {
   if (contentType.includes('audio/wav') || contentType.includes('audio/x-wav')) return 'wav';
   if (contentType.includes('audio/mpeg') || contentType.includes('audio/mp3')) return 'mp3';
   if (contentType.includes('audio/flac')) return 'flac';
@@ -735,6 +743,56 @@ async function generateElevenLabsTTS(
   return {
     audio: new Uint8Array(arrayBuffer),
     format: requestedFormat,
+  };
+}
+
+/**
+ * OpenRouter TTS implementation.
+ *
+ * OpenRouter exposes an OpenAI-compatible `POST /audio/speech` endpoint that
+ * routes to gpt-audio family models. Voice/format inputs match OpenAI TTS;
+ * we add the recommended `HTTP-Referer` / `X-Title` ranking headers so usage
+ * is attributed to Tutor in OpenRouter's dashboard.
+ */
+async function generateOpenRouterTTS(
+  config: TTSModelConfig,
+  text: string,
+): Promise<TTSGenerationResult> {
+  const baseUrl = normalizeBaseUrl(
+    config.baseUrl || TTS_PROVIDERS['openrouter-tts'].defaultBaseUrl,
+    OPENROUTER_DEFAULT_BASE_URL,
+  );
+  const requestedFormat = config.format || 'mp3';
+  const response = await fetch(`${baseUrl}/audio/speech`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${config.apiKey}`,
+      'Content-Type': 'application/json; charset=utf-8',
+      ...getOpenRouterRankingHeaders(),
+    },
+    body: JSON.stringify({
+      model: config.modelId || 'openai/gpt-audio-mini',
+      input: text,
+      voice: config.voice || 'alloy',
+      speed: config.speed || 1.0,
+      response_format: requestedFormat,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => response.statusText);
+    if (response.status === 429) {
+      throw new TTSRateLimitError('openrouter-tts', errorText || 'rate limit exceeded');
+    }
+    throw new Error(`OpenRouter TTS API error (${response.status}): ${errorText}`);
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+  const contentType = response.headers.get('content-type') || '';
+  const format = getAudioResponseFormat(contentType) || requestedFormat;
+  return {
+    audio: new Uint8Array(arrayBuffer),
+    format,
   };
 }
 
