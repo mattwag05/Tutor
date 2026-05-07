@@ -358,7 +358,7 @@ const UserMessage = memo(function UserMessage({
                 const spec = docIconFor(filename);
                 const Icon = spec.Icon;
                 const cardClass =
-                  "flex h-14 w-[220px] items-center gap-2.5 rounded-xl border border-[var(--border)] bg-[var(--card)] px-2.5 text-left shadow-sm transition-colors hover:border-[var(--primary)]/40 hover:bg-[var(--muted)]/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/40";
+                  "flex h-14 w-full max-w-full sm:w-[220px] items-center gap-2.5 rounded-xl border border-[var(--border)] bg-[var(--card)] px-2.5 text-left shadow-sm transition-colors hover:border-[var(--primary)]/40 hover:bg-[var(--muted)]/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/40";
                 return (
                   <button
                     key={`doc-${ai}`}

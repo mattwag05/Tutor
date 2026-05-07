@@ -1244,9 +1244,9 @@ function BotsTab({
                   <p className="text-[14px] font-medium text-[var(--foreground)] truncate">
                     {bot.name}
                   </p>
-                  <div className="mt-0.5 flex items-center gap-3 text-[12px] text-[var(--muted-foreground)]">
+                  <div className="mt-0.5 flex min-w-0 items-center gap-3 text-[12px] text-[var(--muted-foreground)]">
                     {bot.description ? (
-                      <span className="truncate max-w-[300px]">
+                      <span className="truncate max-w-[140px] sm:max-w-[300px]">
                         {bot.description}
                       </span>
                     ) : (
