@@ -218,7 +218,7 @@ stdout_logfile=/dev/fd/1
 stdout_logfile_maxbytes=0
 stderr_logfile=/dev/fd/2
 stderr_logfile_maxbytes=0
-environment=NODE_ENV="production"
+environment=NODE_ENV="production",TUTOR_DATA_DIR="/app/data"
 EOF
 
 RUN sed -i 's/\r$//' /etc/supervisor/conf.d/deeptutor.conf
@@ -400,7 +400,7 @@ stdout_logfile=/dev/fd/1
 stdout_logfile_maxbytes=0
 stderr_logfile=/dev/fd/2
 stderr_logfile_maxbytes=0
-environment=NODE_ENV="development"
+environment=NODE_ENV="development",TUTOR_DATA_DIR="/app/data"
 EOF
 
 RUN sed -i 's/\r$//' /etc/supervisor/conf.d/deeptutor.conf

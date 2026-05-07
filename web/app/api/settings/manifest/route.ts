@@ -3,8 +3,9 @@ import path from 'path';
 import { NextResponse } from 'next/server';
 import { DEFAULT_MANIFEST_PROFILES, MANIFEST_TIERS, type ManifestTier } from '@/lib/ai/manifest/profiles';
 import type { ManifestProfileConfig } from '@/lib/ai/manifest/profiles';
+import { settingsPath } from '@/lib/server/data-dir';
 
-const PROFILES_PATH = path.join(process.cwd(), 'data/user/settings/manifest_profiles.json');
+const PROFILES_PATH = settingsPath('manifest_profiles.json');
 
 interface ProfilesFile {
   profiles: Partial<Record<ManifestTier, ManifestProfileConfig>>;

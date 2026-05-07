@@ -8,19 +8,19 @@
  */
 
 import fs from 'fs/promises';
-import path from 'path';
 import {
   DEFAULT_MANIFEST_PROFILES,
   type ManifestTier,
   type ManifestProfileConfig,
 } from '@/lib/ai/manifest/profiles';
 import { resolveModel, type ResolvedModel } from '@/lib/server/resolve-model';
+import { settingsPath } from '@/lib/server/data-dir';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('ManifestProfile');
 
-const PROFILES_PATH = path.join(process.cwd(), 'data/user/settings/manifest_profiles.json');
-const CATALOG_PATH = path.join(process.cwd(), 'data/user/settings/model_catalog.json');
+const PROFILES_PATH = settingsPath('manifest_profiles.json');
+const CATALOG_PATH = settingsPath('model_catalog.json');
 
 interface ProfilesFile {
   profiles: Partial<Record<ManifestTier, ManifestProfileConfig>>;
