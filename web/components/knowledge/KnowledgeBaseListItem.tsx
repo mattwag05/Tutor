@@ -89,7 +89,7 @@ export default function KnowledgeBaseListItem({
 
         <div
           className={`flex shrink-0 items-center gap-0.5 ${
-            selected ? "" : "opacity-0 group-hover:opacity-100"
+            selected ? "" : "opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
           } transition-opacity`}
         >
           {!kb.is_default && (

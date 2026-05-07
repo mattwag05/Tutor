@@ -532,7 +532,7 @@ export default memo(function ChatComposer({
                           onRemoveAttachment(i);
                         }}
                         aria-label={removeLabel}
-                        className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--foreground)] text-[var(--background)] opacity-0 shadow-sm transition-opacity group-hover:opacity-100"
+                        className="absolute -right-1.5 -top-1.5 flex h-4 w-4 touch-manipulation items-center justify-center rounded-full bg-[var(--foreground)] text-[var(--background)] opacity-100 shadow-sm transition-opacity before:absolute before:-inset-2 before:content-[''] sm:opacity-0 sm:group-hover:opacity-100"
                       >
                         <X size={10} />
                       </button>
@@ -569,7 +569,7 @@ export default memo(function ChatComposer({
                           onRemoveAttachment(i);
                         }}
                         aria-label={removeLabel}
-                        className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--foreground)] text-[var(--background)] opacity-0 shadow-sm transition-opacity group-hover:opacity-100"
+                        className="absolute -right-1.5 -top-1.5 flex h-4 w-4 touch-manipulation items-center justify-center rounded-full bg-[var(--foreground)] text-[var(--background)] opacity-100 shadow-sm transition-opacity before:absolute before:-inset-2 before:content-[''] sm:opacity-0 sm:group-hover:opacity-100"
                       >
                         <X size={10} />
                       </button>
