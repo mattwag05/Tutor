@@ -1658,7 +1658,7 @@ export default function CoWriterPage() {
           type="button"
           onClick={() => router.push("/co-writer")}
           className="inline-flex items-center gap-1.5 rounded-md bg-[var(--primary)] px-3 py-1.5 text-sm font-medium text-white transition-opacity hover:opacity-90"
-        >
+          aria-label="Back">
           <ChevronLeft size={14} />
           {t("Back to Co-Writer")}
         </button>

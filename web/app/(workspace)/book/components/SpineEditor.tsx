@@ -162,7 +162,7 @@ export default function SpineEditor({
                   <button
                     onClick={() => remove(idx)}
                     className="rounded-md border border-rose-300/60 p-1 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10"
-                  >
+                    aria-label="Delete">
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -240,7 +240,7 @@ export default function SpineEditor({
           <button
             onClick={addChapter}
             className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm font-medium text-[var(--muted-foreground)] hover:border-[var(--primary)]/40 hover:text-[var(--primary)]"
-          >
+            aria-label="Add">
             <Plus className="h-4 w-4" /> {t("Add chapter")}
           </button>
         </div>

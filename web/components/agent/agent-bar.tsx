@@ -983,7 +983,7 @@ export function AgentBar() {
                       setMaxTurns(String(v));
                     }}
                     className="size-5 flex items-center justify-center text-muted-foreground/60 hover:text-foreground transition-colors rounded-full hover:bg-muted"
-                  >
+                    aria-label="Add">
                     <Plus className="size-2.5" />
                   </button>
                 </div>

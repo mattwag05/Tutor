@@ -896,7 +896,7 @@ export default function QuizViewer({
           onClick={() => setIdx((value) => Math.max(0, value - 1))}
           disabled={idx === 0}
           className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[12px] font-medium text-[var(--muted-foreground)] transition-colors hover:bg-[var(--muted)] hover:text-[var(--foreground)] disabled:opacity-30"
-        >
+          aria-label="Back">
           <ChevronLeft size={13} />
           {t("Previous")}
         </button>

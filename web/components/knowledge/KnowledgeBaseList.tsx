@@ -119,7 +119,7 @@ export default function KnowledgeBaseList({
           type="button"
           onClick={onCreate}
           className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-[var(--primary)] px-3 py-1.5 text-[12.5px] font-medium text-[var(--primary-foreground)] transition-opacity hover:opacity-90"
-        >
+          aria-label="Add">
           <Plus size={13} />
           {t("New knowledge base")}
         </button>

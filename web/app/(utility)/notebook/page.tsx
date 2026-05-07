@@ -268,13 +268,13 @@ export default function NotebookPage() {
                           setRenamingCat({ id: cat.id, name: cat.name })
                         }
                         className="rounded p-1 text-[var(--muted-foreground)] transition-colors hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
-                      >
+                        aria-label="Edit">
                         <Pencil size={12} />
                       </button>
                       <button
                         onClick={() => void handleDeleteCategory(cat.id)}
                         className="rounded p-1 text-[var(--muted-foreground)] transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30"
-                      >
+                        aria-label="Delete">
                         <Trash2 size={12} />
                       </button>
                     </div>
@@ -300,7 +300,7 @@ export default function NotebookPage() {
                   onClick={() => void handleCreateCategory()}
                   disabled={!newCatName.trim()}
                   className="rounded-lg bg-[var(--primary)] px-3 py-1.5 text-[12px] font-medium text-white disabled:opacity-30"
-                >
+                  aria-label="Add">
                   <Plus size={13} />
                 </button>
               </div>

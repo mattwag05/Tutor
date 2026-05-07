@@ -205,7 +205,7 @@ export default function BookLibrary({
             type="button"
             onClick={onNewBook}
             className="inline-flex items-center gap-1.5 rounded-md bg-[var(--primary)] px-3 py-1.5 text-xs font-medium text-[var(--primary-foreground)] transition-opacity hover:opacity-90"
-          >
+            aria-label="Add">
             <Plus size={13} />
             {t("New book")}
           </button>
@@ -474,7 +474,7 @@ function EmptyState({ onNewBook }: { onNewBook: () => void }) {
         type="button"
         onClick={onNewBook}
         className="inline-flex items-center gap-1.5 rounded-md bg-[var(--primary)] px-3 py-1.5 text-sm font-medium text-[var(--primary-foreground)] transition-opacity hover:opacity-90"
-      >
+        aria-label="Add">
         <Plus size={14} />
         {t("New book")}
       </button>

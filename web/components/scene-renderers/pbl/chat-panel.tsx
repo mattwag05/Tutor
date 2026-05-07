@@ -140,6 +140,7 @@ export function ChatPanel({
           <button
             onClick={handleSubmit}
             disabled={!input.trim() || isLoading}
+            aria-label="Send message"
             className="shrink-0 h-8 w-8 rounded-lg flex items-center justify-center transition-colors bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
             <ArrowUp className="w-4 h-4" />

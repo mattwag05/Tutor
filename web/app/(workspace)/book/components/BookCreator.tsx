@@ -503,7 +503,7 @@ export default function BookCreator({
                     else void refreshSessions();
                   }}
                   className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
-                >
+                  aria-label="Refresh">
                   <RefreshCw className="h-3 w-3" />
                   {t("Refresh")}
                 </button>

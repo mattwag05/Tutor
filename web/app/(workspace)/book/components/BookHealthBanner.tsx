@@ -156,7 +156,7 @@ export default function BookHealthBanner({
                     <button
                       onClick={() => onRecompile(kbDrift.stale_page_ids![0])}
                       className="ml-1 inline-flex items-center gap-1 rounded border border-current px-1.5 py-0.5 text-xs hover:bg-white/40"
-                    >
+                      aria-label="Refresh">
                       <RefreshCcw className="h-3 w-3" />{" "}
                       {t("Recompile first stale page")}
                     </button>

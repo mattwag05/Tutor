@@ -57,7 +57,7 @@ export default function FlashCardsBlock({ block }: FlashCardsBlockProps) {
           }}
           disabled={idx === 0}
           className="inline-flex items-center gap-1 rounded-md border border-[var(--border)] px-2 py-1 text-xs disabled:opacity-30"
-        >
+          aria-label="Back">
           <ChevronLeft className="h-3.5 w-3.5" /> {t("Prev")}
         </button>
         <button

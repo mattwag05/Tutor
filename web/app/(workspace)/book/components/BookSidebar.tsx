@@ -94,7 +94,7 @@ export default function BookSidebar({
         <button
           onClick={onBackToLibrary}
           className="inline-flex items-center gap-1.5 self-start rounded-md px-2 py-1 text-xs font-medium text-[var(--muted-foreground)] transition-colors hover:bg-[var(--muted)]/40 hover:text-[var(--foreground)]"
-        >
+          aria-label="Back">
           <ArrowLeft className="h-3.5 w-3.5" /> {t("All books")}
         </button>
         <button

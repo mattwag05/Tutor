@@ -216,7 +216,7 @@ export const ProactiveCard = ({
                 onListen();
               }}
               className="flex-1 py-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 dark:from-amber-500 dark:to-amber-600 dark:hover:from-amber-600 dark:hover:to-amber-700 text-white text-[11px] font-black rounded-lg flex items-center justify-center gap-1.5 transition-all active:scale-[0.97] shadow-sm shadow-amber-200/50 dark:shadow-amber-800/50"
-            >
+              aria-label="Play">
               <Play className="w-3 h-3 fill-current" /> {t('proactiveCard.join')}
             </button>
 
