@@ -293,7 +293,20 @@ function CourseLandingPageInner() {
       )}
 
       {state.phase !== 'streaming' && (
-        <CourseHistoryGrid courses={courses} loading={coursesLoading} />
+        <CourseHistoryGrid
+          courses={courses}
+          loading={coursesLoading}
+          onDelete={async (courseId) => {
+            const prev = courses;
+            setCourses((cs) => cs.filter((c) => c.id !== courseId));
+            try {
+              const res = await fetch(`/api/course/${courseId}`, { method: 'DELETE' });
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            } catch {
+              setCourses(prev);
+            }
+          }}
+        />
       )}
       </div>
     </main>

@@ -205,7 +205,7 @@ export const ProactiveCard = ({
             </span>
           </div>
 
-          <p className="text-[13px] font-bold text-gray-800 dark:text-gray-200 leading-snug px-0.5">
+          <p className="line-clamp-2 text-[13px] font-bold text-gray-800 dark:text-gray-200 leading-snug px-0.5">
             {action.topic}
           </p>
 
