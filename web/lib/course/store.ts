@@ -34,6 +34,7 @@ interface CourseStoreState {
 
   loadCourse: (id: string) => Promise<void>;
   generateSection: (sectionId: string) => Promise<void>;
+  regenerateSection: (sectionId: string) => Promise<void>;
   generateArtifact: (
     kind: 'flashcards' | 'studyGuide' | 'finalExam' | 'podcast',
     mode?: 'solo' | 'conversational',
@@ -180,6 +181,22 @@ const useCourseStoreBase = create<CourseStoreState>((set, get) => ({
       status: s.blocks.length > 0 ? 'ready' : s.status || 'pending',
     }));
     set({ course });
+  },
+
+  regenerateSection: async (sectionId) => {
+    // Reset blocks + status so generateSection's "already ready" short-circuit
+    // (load-bearing for prefetch + IntersectionObserver) doesn't no-op us.
+    const course = get().course;
+    if (!course) return;
+    set({
+      course: updateSection(course, sectionId, (s) => ({
+        ...s,
+        blocks: [],
+        status: 'pending',
+        error: undefined,
+      })),
+    });
+    await get().generateSection(sectionId);
   },
 
   generateSection: async (sectionId) => {

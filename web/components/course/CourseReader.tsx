@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Pencil } from 'lucide-react';
+import { Pencil, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCourseStore } from '@/lib/course/store';
 import type { CourseArtifacts, CourseBlock, CourseCitation, CourseSection } from '@/lib/types/course';
@@ -513,6 +513,7 @@ function SectionView({
   registerRef,
 }: SectionViewProps) {
   const status = section.status || 'pending';
+  const regenerateSection = useCourseStore.use.regenerateSection();
   const blockList = useMemo(
     () =>
       section.blocks.map((block) => (
@@ -538,10 +539,29 @@ function SectionView({
           <SectionAudio section={section} />
           {blockList}
           <GoDeeperStrip prompts={section.goDeeperPrompts} onAsk={onAsk} />
+          <div className="mt-6 flex justify-end">
+            <button
+              type="button"
+              onClick={() => void regenerateSection(section.id)}
+              aria-label={`Regenerate section: ${section.title}`}
+              className="relative inline-flex items-center gap-1.5 rounded-md border border-neutral-200 bg-white px-2.5 py-1 text-xs text-neutral-500 touch-manipulation transition hover:border-neutral-400 hover:bg-neutral-50 hover:text-neutral-700 before:absolute before:-inset-2 before:content-[''] dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-400 dark:hover:border-neutral-600 dark:hover:bg-neutral-900 dark:hover:text-neutral-200"
+            >
+              <RotateCcw size={12} strokeWidth={1.8} />
+              Regenerate section
+            </button>
+          </div>
         </>
       ) : status === 'error' ? (
         <div className="rounded-md border border-rose-200 bg-rose-50 p-4 text-rose-800 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-200">
-          {section.error || 'Failed to generate this section.'}
+          <div className="mb-2">{section.error || 'Failed to generate this section.'}</div>
+          <button
+            type="button"
+            onClick={() => void regenerateSection(section.id)}
+            className="relative inline-flex items-center gap-1.5 rounded-md border border-rose-300 bg-white px-2.5 py-1 text-xs text-rose-700 touch-manipulation transition hover:bg-rose-50 before:absolute before:-inset-2 before:content-[''] dark:border-rose-800 dark:bg-rose-950 dark:text-rose-200"
+          >
+            <RotateCcw size={12} strokeWidth={1.8} />
+            Try again
+          </button>
         </div>
       ) : (
         <GenerationSkeleton />
