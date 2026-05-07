@@ -76,8 +76,8 @@ async def analyze_image(request: VisionAnalyzeRequest) -> VisionAnalyzeResponse:
             api_key = llm_config.api_key
             base_url = llm_config.base_url
         except Exception as e:
-            logger.error(f"Failed to get LLM config: {e}")
-            raise HTTPException(status_code=500, detail=f"LLM configuration error: {e}")
+            logger.error(f"Failed to get LLM config: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail="LLM configuration error")
 
         # Initialize agent
         language = get_ui_language(default="zh")
