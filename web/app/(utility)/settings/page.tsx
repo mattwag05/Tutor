@@ -1171,6 +1171,11 @@ function SettingsPageContent() {
       eventSourceRef.current.close();
       eventSourceRef.current = null;
     }
+    // The Manifest tab is a UI-only surface for tier credentials; the
+    // underlying LLM catalog profile is what each tier falls back to when not
+    // overridden, so testing it covers the common case. The backend test
+    // runner only knows llm/embedding/search service keys.
+    const testService = activeService === "manifest" ? "llm" : activeService;
     setLogs(`Preparing ${activeService} diagnostics...\n`);
     setTestRunning(activeService);
     if (activeService === "embedding") {
@@ -1178,7 +1183,7 @@ function SettingsPageContent() {
     }
     try {
       const response = await fetch(
-        apiUrl(`/api/v1/settings/tests/${activeService}/start`),
+        apiUrl(`/api/v1/settings/tests/${testService}/start`),
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1194,7 +1199,7 @@ function SettingsPageContent() {
       }
       const source = new EventSource(
         apiUrl(
-          `/api/v1/settings/tests/${activeService}/${payload.run_id}/events`,
+          `/api/v1/settings/tests/${testService}/${payload.run_id}/events`,
         ),
       );
       eventSourceRef.current = source;
@@ -2153,20 +2158,18 @@ function SettingsPageContent() {
               )}
             </button>
             <div className="ml-3 flex items-center gap-3">
-              {activeService !== "manifest" && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!diagnosticsOpen) setDiagnosticsOpen(true);
-                    runDetailedTest();
-                  }}
-                  disabled={testRunning !== null}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)]/50 px-2.5 py-1 text-[12px] text-[var(--muted-foreground)] transition-colors hover:border-[var(--border)] hover:text-[var(--foreground)] disabled:opacity-40"
-                >
-                  {serviceIcon(activeService)}
-                  {t("Run test")}
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => {
+                  if (!diagnosticsOpen) setDiagnosticsOpen(true);
+                  runDetailedTest();
+                }}
+                disabled={testRunning !== null}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)]/50 px-2.5 py-1 text-[12px] text-[var(--muted-foreground)] transition-colors hover:border-[var(--border)] hover:text-[var(--foreground)] disabled:opacity-40"
+              >
+                {serviceIcon(activeService)}
+                {t("Run test")}
+              </button>
               <button
                 type="button"
                 onClick={() => setDiagnosticsOpen((v) => !v)}
