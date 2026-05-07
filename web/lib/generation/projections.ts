@@ -19,6 +19,8 @@ import type {
   PPTLatexElement,
   PPTImageElement,
 } from '@/lib/types/slides';
+import type { Action, SpeechAction, SpotlightAction } from '@/lib/types/action';
+import { proseToPlainText } from '@/lib/course/section-text';
 import type { PersistedClassroomData } from '@/lib/server/classroom-storage';
 
 // ---------------------------------------------------------------------------
@@ -110,7 +112,8 @@ function sectionToScene(
   course: Course,
 ): Scene {
   const theme = themeForCourse(course);
-  const slide = buildSlide(section, theme);
+  const { slide, blockPairs } = buildSlide(section, theme);
+  const actions = buildActions(section, slide, blockPairs);
 
   const content: SlideContent = { type: 'slide', canvas: slide };
 
@@ -121,16 +124,26 @@ function sectionToScene(
     title: section.title,
     order,
     content,
+    actions,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
 }
 
-function buildSlide(section: CourseSection, theme: SlideTheme): Slide {
+interface BlockElementPair {
+  block: CourseBlock;
+  elementId: string;
+}
+
+function buildSlide(
+  section: CourseSection,
+  theme: SlideTheme,
+): { slide: Slide; blockPairs: BlockElementPair[] } {
   const PADDING = 40;
   const USABLE_W = VIEWPORT_SIZE - PADDING * 2;
 
   const elements: PPTElement[] = [];
+  const blockPairs: BlockElementPair[] = [];
   let cursorY = PADDING;
 
   // Section title
@@ -154,19 +167,74 @@ function buildSlide(section: CourseSection, theme: SlideTheme): Slide {
     const el = blockToElement(block, PADDING, cursorY, USABLE_W, theme);
     if (!el) continue;
     elements.push(el);
+    blockPairs.push({ block, elementId: el.id });
     cursorY += el.height + 12;
     // Stop filling if we're approaching the bottom of the slide.
     if (cursorY > SLIDE_HEIGHT - 40) break;
   }
 
   return {
-    id: makeId(),
-    viewportSize: VIEWPORT_SIZE,
-    viewportRatio: VIEWPORT_RATIO,
-    theme,
-    elements,
-    type: 'content',
+    slide: {
+      id: makeId(),
+      viewportSize: VIEWPORT_SIZE,
+      viewportRatio: VIEWPORT_RATIO,
+      theme,
+      elements,
+      type: 'content',
+    },
+    blockPairs,
   };
+}
+
+const makeSpotlight = (elementId: string): SpotlightAction => ({
+  id: makeId(),
+  type: 'spotlight',
+  elementId,
+});
+
+const makeSpeech = (text: string): SpeechAction => ({
+  id: makeId(),
+  type: 'speech',
+  text,
+});
+
+// Stage's playback engine bails on empty `scene.actions` (stage.tsx:381),
+// so projected classrooms must ship a narration sequence or playback is dead.
+function buildActions(
+  section: CourseSection,
+  slide: Slide,
+  blockPairs: BlockElementPair[],
+): Action[] {
+  const titleElementId = slide.elements[0]!.id;
+  const actions: Action[] = [makeSpotlight(titleElementId), makeSpeech(section.title)];
+
+  for (const { block, elementId } of blockPairs) {
+    const text = narrationForBlock(block);
+    if (!text) continue;
+    actions.push(makeSpotlight(elementId), makeSpeech(text));
+  }
+
+  return actions;
+}
+
+function narrationForBlock(block: CourseBlock): string | null {
+  switch (block.type) {
+    case 'prose':
+      return proseToPlainText(block.markdown) || null;
+    case 'heading':
+      return block.text;
+    case 'pullQuote':
+      return block.attribution ? `${block.text} — ${block.attribution}` : block.text;
+    case 'math':
+      return block.display ? "Here's a key formula on the board." : null;
+    case 'illustration':
+      return block.alt || null;
+    case 'fillBlankQuiz':
+    case 'multipleChoiceQuiz':
+      return block.question;
+    default:
+      return null;
+  }
 }
 
 function blockToElement(
