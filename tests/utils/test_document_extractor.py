@@ -5,11 +5,15 @@ from __future__ import annotations
 import base64
 import io
 
-from docx import Document as DocxDocument
-from openpyxl import Workbook
-from pptx import Presentation
-from pptx.util import Inches
 import pytest
+
+# Optional `cli` extras — skip the whole module rather than failing collection.
+DocxDocument = pytest.importorskip("docx").Document
+openpyxl_module = pytest.importorskip("openpyxl")
+Workbook = openpyxl_module.Workbook
+pptx_module = pytest.importorskip("pptx")
+Presentation = pptx_module.Presentation
+Inches = pytest.importorskip("pptx.util").Inches
 
 from deeptutor.utils import document_extractor as document_extractor_module
 from deeptutor.utils.document_extractor import (

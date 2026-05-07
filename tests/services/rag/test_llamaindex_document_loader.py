@@ -6,11 +6,15 @@ import asyncio
 import io
 from pathlib import Path
 
-from docx import Document as DocxDocument
-from openpyxl import Workbook
-from pptx import Presentation
-from pptx.util import Inches
 import pytest
+
+# Optional `cli` extras — skip the whole module rather than failing collection.
+DocxDocument = pytest.importorskip("docx").Document
+openpyxl_module = pytest.importorskip("openpyxl")
+Workbook = openpyxl_module.Workbook
+pptx_module = pytest.importorskip("pptx")
+Presentation = pptx_module.Presentation
+Inches = pytest.importorskip("pptx.util").Inches
 
 
 def _make_docx(paragraphs: list[str]) -> bytes:
