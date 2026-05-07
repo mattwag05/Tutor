@@ -170,7 +170,7 @@ export default function CoWriterHomePage() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto px-6 py-6">
+      <main className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6">
         {error ? (
           <div className="mb-4 rounded-md border border-rose-300/30 bg-rose-50/40 px-3 py-2 text-xs text-rose-700 dark:bg-rose-950/30 dark:text-rose-300">
             {error}
