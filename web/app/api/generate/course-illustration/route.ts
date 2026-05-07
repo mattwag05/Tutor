@@ -3,14 +3,12 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { readCourse, isValidCourseId, courseImagePath } from '@/lib/server/course-storage';
 import { generateImage } from '@/lib/media/image-providers';
-import { resolveImageApiKey, resolveImageBaseUrl } from '@/lib/server/provider-config';
+import { getActiveImageConfig } from '@/lib/server/provider-config';
 import { apiError, apiSuccess, API_ERROR_CODES } from '@/lib/server/api-response';
 import { getFeatureFlags } from '@/lib/server/feature-flags';
 import type { ImageProviderId } from '@/lib/media/types';
 
 export const maxDuration = 60;
-
-const DEFAULT_PROVIDER: ImageProviderId = 'openai-image';
 
 export async function POST(req: NextRequest) {
   if (!getFeatureFlags().course_illustrations) {
@@ -40,16 +38,20 @@ export async function POST(req: NextRequest) {
     return apiError(API_ERROR_CODES.INVALID_REQUEST, 404, `Course ${courseId} not found`);
   }
 
-  const apiKey = resolveImageApiKey(DEFAULT_PROVIDER);
-  if (!apiKey) {
+  const cfg = getActiveImageConfig();
+  if (!cfg || !cfg.apiKey) {
     return apiError(API_ERROR_CODES.MISSING_API_KEY, 500, 'No image API key configured');
   }
 
-  const baseUrl = resolveImageBaseUrl(DEFAULT_PROVIDER);
   let result: Awaited<ReturnType<typeof generateImage>>;
   try {
     result = await generateImage(
-      { providerId: DEFAULT_PROVIDER, apiKey, baseUrl },
+      {
+        providerId: cfg.providerId as ImageProviderId,
+        apiKey: cfg.apiKey,
+        baseUrl: cfg.baseUrl,
+        model: cfg.model,
+      },
       { prompt, aspectRatio: '16:9' },
     );
   } catch (err) {

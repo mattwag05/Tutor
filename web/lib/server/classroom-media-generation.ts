@@ -17,11 +17,9 @@ import { IMAGE_PROVIDERS } from '@/lib/media/image-providers';
 import { VIDEO_PROVIDERS } from '@/lib/media/video-providers';
 import { isMediaPlaceholder } from '@/lib/store/media-generation';
 import {
-  getServerImageProviders,
   getServerVideoProviders,
   getServerTTSProviders,
-  resolveImageApiKey,
-  resolveImageBaseUrl,
+  getActiveImageConfig,
   resolveVideoApiKey,
   resolveVideoBaseUrl,
   resolveTTSApiKey,
@@ -79,31 +77,27 @@ export async function generateMediaForClassroom(
   const requests = outlines.flatMap((o) => o.mediaGenerations ?? []);
   if (requests.length === 0) return {};
 
-  // Resolve providers
-  const imageProviderIds = Object.keys(getServerImageProviders());
+  // Resolve providers — image uses the active catalog profile so the user's
+  // Settings selection is honored; falls back to env/YAML when no profile.
+  const imageCfg = getActiveImageConfig();
   const videoProviderIds = Object.keys(getServerVideoProviders());
 
   const mediaMap: Record<string, string> = {};
 
   // Separate image and video requests, generate each type sequentially
   // but run the two types in parallel (providers often have limited concurrency).
-  const imageRequests = requests.filter((r) => r.type === 'image' && imageProviderIds.length > 0);
+  const imageRequests = requests.filter((r) => r.type === 'image' && !!imageCfg?.apiKey);
   const videoRequests = requests.filter((r) => r.type === 'video' && videoProviderIds.length > 0);
 
   const generateImages = async () => {
+    if (!imageCfg || !imageCfg.apiKey) return;
+    const providerId = imageCfg.providerId as ImageProviderId;
+    // Prefer model from catalog profile; fall back to first model in IMAGE_PROVIDERS registry.
+    const model = imageCfg.model || IMAGE_PROVIDERS[providerId]?.models?.[0]?.id;
     for (const req of imageRequests) {
       try {
-        const providerId = imageProviderIds[0] as ImageProviderId;
-        const apiKey = resolveImageApiKey(providerId);
-        if (!apiKey) {
-          log.warn(`No API key for image provider "${providerId}", skipping ${req.elementId}`);
-          continue;
-        }
-        const providerConfig = IMAGE_PROVIDERS[providerId];
-        const model = providerConfig?.models?.[0]?.id;
-
         const result = await generateImage(
-          { providerId, apiKey, baseUrl: resolveImageBaseUrl(providerId), model },
+          { providerId, apiKey: imageCfg.apiKey, baseUrl: imageCfg.baseUrl, model },
           { prompt: req.prompt, aspectRatio: req.aspectRatio || '16:9' },
         );
 

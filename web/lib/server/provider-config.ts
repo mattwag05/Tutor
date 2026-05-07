@@ -449,6 +449,39 @@ export function resolveImageBaseUrl(
   return resolveCatalogFirstBaseUrl('image', providerId, getConfig().image, clientBaseUrl);
 }
 
+// Resolve the active image generation profile from the catalog, falling back to
+// any single env/YAML-configured provider. Returns null if no usable provider is
+// configured. Both /api/generate/course-illustration and the classroom media
+// generator must use this — picking a hardcoded providerId or `Object.keys(...)[0]`
+// silently ignores the user's catalog selection.
+export function getActiveImageConfig(): {
+  providerId: string;
+  apiKey: string;
+  baseUrl?: string;
+  model?: string;
+} | null {
+  const profile = getActiveProfile(readCatalogSync(), 'image');
+  const binding = profile ? profileBinding(profile) : undefined;
+  if (profile && binding) {
+    const apiKey = profile.api_key || getConfig().image[binding]?.apiKey || '';
+    const baseUrl = profile.base_url || getConfig().image[binding]?.baseUrl;
+    const firstModel = profile.models?.[0] as { model?: string; id?: string } | undefined;
+    const model = firstModel?.model || firstModel?.id;
+    return { providerId: binding, apiKey, baseUrl, model };
+  }
+  // Catalog has no active image profile — fall back to first env/YAML provider.
+  const envIds = Object.keys(getConfig().image);
+  if (envIds.length === 0) return null;
+  const providerId = envIds[0];
+  const entry = getConfig().image[providerId];
+  return {
+    providerId,
+    apiKey: entry?.apiKey || '',
+    baseUrl: entry?.baseUrl,
+    model: entry?.models?.[0],
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Public API — Video Generation
 // ---------------------------------------------------------------------------
