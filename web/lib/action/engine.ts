@@ -361,7 +361,7 @@ export class ActionEngine {
         rotate: 0,
         defaultFontName: 'Microsoft YaHei',
         defaultColor: action.color ?? '#333333',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
       } as any,
       wb.data.id,
     );
@@ -387,7 +387,7 @@ export class ActionEngine {
         rotate: 0,
         fill: action.fillColor ?? '#5b9bd5',
         fixedRatio: false,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
       } as any,
       wb.data.id,
     );
@@ -412,7 +412,7 @@ export class ActionEngine {
         chartType: action.chartType,
         data: action.data,
         themeColors: action.themeColors ?? ['#5b9bd5', '#ed7d31', '#a5a5a5', '#ffc000', '#4472c4'],
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
       } as any,
       wb.data.id,
     );
@@ -444,7 +444,7 @@ export class ActionEngine {
           html,
           color: action.color ?? '#000000',
           fixedRatio: true,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
         } as any,
         wb.data.id,
       );
@@ -504,7 +504,7 @@ export class ActionEngine {
               colFooter: false,
             }
           : undefined,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
       } as any,
       wb.data.id,
     );
@@ -536,7 +536,7 @@ export class ActionEngine {
         style: action.style ?? 'solid',
         color: action.color ?? '#333333',
         points: action.points ?? ['', ''],
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
       } as any,
       wb.data.id,
     );
@@ -565,7 +565,7 @@ export class ActionEngine {
         width: action.width ?? 500,
         height: action.height ?? 300,
         rotate: 0,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
       } as any,
       wb.data.id,
     );
@@ -582,7 +582,7 @@ export class ActionEngine {
     const elementResult = this.stageAPI.whiteboard.getElement(action.elementId, wb.data.id);
     if (!elementResult.success || !elementResult.data) return;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const element = elementResult.data as any;
     if (element.type !== 'code') return;
 
@@ -628,7 +628,7 @@ export class ActionEngine {
     }
 
     this.stageAPI.whiteboard.updateElement(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       { ...element, lines } as any,
       wb.data.id,
     );

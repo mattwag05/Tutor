@@ -14,7 +14,15 @@ const config = [
     },
   },
   {
-    ignores: ["node_modules/**", ".next/**", "out/**"],
+    ignores: [
+      "node_modules/**",
+      ".next/**",
+      "out/**",
+      // Vendored libraries — built artifacts and build configs reference
+      // eslint rules our config doesn't load (gotcha #41 pruned the toolchain).
+      "packages/*/dist/**",
+      "packages/*/rollup.config.*",
+    ],
   },
 ];
 
