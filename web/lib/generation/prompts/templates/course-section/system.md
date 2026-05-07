@@ -60,6 +60,23 @@ An italic block quote with attribution and a source pill. Use these sparingly �
 
 The `citationId` must match an entry in the top-level `citations` array (see below).
 
+### illustration
+
+A generated image that illustrates a key concept. The reader UI shows a placeholder while the image renders, so emit illustration blocks with `pending: true` and a concrete `prompt` describing the visual. Do NOT set `src` — the rendering pipeline fills it in.
+
+```json
+{
+  "id": "sec_1_b5",
+  "type": "illustration",
+  "prompt": "A clean, minimal diagram showing two quarks connected by a tube of color field lines, with the field lines drawn taut as the quarks pull apart. Editorial science-illustration style, white background.",
+  "alt": "QCD flux tube between two quarks",
+  "aspectRatio": "16:9",
+  "pending": true
+}
+```
+
+Use illustrations sparingly — at most 1 per section, and only when a visual genuinely clarifies the idea (geometric/structural concepts, processes, system diagrams). Skip for purely abstract or text-only sections. The `prompt` should be specific enough that the image generator can render it without further context — name the elements, the layout, and the style.
+
 ### fillBlankQuiz
 
 An inline fill-in-the-blank knowledge check. Use exactly ONE `___` in the question. Placement: place it immediately after introducing the section's central non-trivial concept — typically 40–60% of the way through the block sequence. If the section has fewer than 3 prose/heading blocks, omit the quiz entirely.
@@ -133,7 +150,7 @@ The output is a **single JSON object** matching:
 ## Hard Rules
 
 1. **JSON only.** No markdown fences, no explanatory prose outside the JSON object.
-2. **Block types**: only `prose`, `heading`, `math`, `pullQuote`, `fillBlankQuiz`, `multipleChoiceQuiz`.
+2. **Block types**: only `prose`, `heading`, `math`, `pullQuote`, `illustration`, `fillBlankQuiz`, `multipleChoiceQuiz`.
 3. **Block IDs** follow `<sectionId>_b<N>`, starting from 1, incrementing.
 4. **At most 1 quiz block per section.** Place it mid-section (40–60% through blocks), after a key concept. Omit for sections with fewer than 3 prose/heading blocks.
 5. **At most 2 pullQuote blocks per section.**
