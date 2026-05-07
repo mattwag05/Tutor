@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCourseStore } from '@/lib/course/store';
 import type { CourseArtifacts, CourseBlock, CourseCitation, CourseSection } from '@/lib/types/course';
@@ -160,6 +161,7 @@ export function CourseReader({ courseId }: Props) {
         projecting={projecting}
         onOpenToc={() => setTocOpen(true)}
         onOpenAsClassroom={() => void openAsClassroom()}
+        onRename={(next) => useCourseStore.getState().setTitle(next)}
       />
 
       <CourseTOCDrawer
@@ -266,17 +268,36 @@ function ReaderHeader({
   projecting,
   onOpenToc,
   onOpenAsClassroom,
+  onRename,
 }: {
   courseId: string;
   title: string;
   projecting: boolean;
   onOpenToc: () => void;
   onOpenAsClassroom: () => void;
+  onRename: (next: string) => void;
 }) {
   const [downloading, setDownloading] = useState(false);
   const downloadingRef = useRef(false);
   const [exportingSlides, setExportingSlides] = useState(false);
   const exportingSlidesRef = useRef(false);
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(title);
+  const titleInputRef = useRef<HTMLInputElement | null>(null);
+
+  const startEditingTitle = useCallback(() => {
+    setTitleDraft(title);
+    setEditingTitle(true);
+  }, [title]);
+
+  useEffect(() => {
+    if (editingTitle) requestAnimationFrame(() => titleInputRef.current?.select());
+  }, [editingTitle]);
+
+  const commitTitle = useCallback(() => {
+    onRename(titleDraft);
+    setEditingTitle(false);
+  }, [onRename, titleDraft]);
 
   const downloadPdf = useCallback(async () => {
     if (downloadingRef.current) return;
@@ -343,8 +364,41 @@ function ReaderHeader({
           ≡
         </span>
       </button>
-      <div className="min-w-0 flex-1 truncate font-serif text-lg text-neutral-900 dark:text-neutral-50">
-        {title}
+      <div className="flex min-w-0 flex-1 items-center gap-1.5">
+        {editingTitle ? (
+          <input
+            ref={titleInputRef}
+            type="text"
+            value={titleDraft}
+            onChange={(e) => setTitleDraft(e.target.value)}
+            onBlur={commitTitle}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                commitTitle();
+              } else if (e.key === 'Escape') {
+                e.preventDefault();
+                setEditingTitle(false);
+              }
+            }}
+            aria-label="Course title"
+            className="min-w-0 flex-1 rounded-md border border-neutral-300 bg-white px-2 py-1 font-serif text-base text-neutral-900 outline-none focus:border-neutral-500 sm:text-lg dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
+          />
+        ) : (
+          <>
+            <div className="min-w-0 flex-1 truncate font-serif text-lg text-neutral-900 dark:text-neutral-50">
+              {title}
+            </div>
+            <button
+              type="button"
+              onClick={startEditingTitle}
+              aria-label="Rename course"
+              className="relative flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-md text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-700 sm:h-8 sm:w-8 dark:hover:bg-neutral-900 dark:hover:text-neutral-200"
+            >
+              <Pencil size={14} strokeWidth={1.8} />
+            </button>
+          </>
+        )}
       </div>
 
       {/* Inline actions — hidden on mobile, visible from sm: (640px) up. */}
