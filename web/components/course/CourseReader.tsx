@@ -10,6 +10,7 @@ import type { CourseArtifacts, CourseBlock, CourseCitation, CourseSection } from
 import { triggerBlobDownload } from '@/lib/utils/blob-download';
 import { CourseTOCDrawer } from './CourseTOCDrawer';
 import { AdvanceBar } from './AdvanceBar';
+import { SectionProgressBar, SECTION_PROGRESS_BAR_HEIGHT } from './SectionProgressBar';
 import { GoDeeperStrip } from './GoDeeperStrip';
 import { ProseBlockView } from './blocks/ProseBlock';
 import { HeadingBlockView } from './blocks/HeadingBlock';
@@ -45,7 +46,6 @@ export function CourseReader({ courseId }: Props) {
   >(null);
   const [projecting, setProjecting] = useState(false);
   const projectingRef = useRef(false);
-  const sectionRefs = useRef<Array<HTMLElement | null>>([]);
   const scrollRootRef = useRef<HTMLDivElement | null>(null);
 
   const openAsClassroom = useCallback(async () => {
@@ -72,9 +72,8 @@ export function CourseReader({ courseId }: Props) {
     void loadCourse(courseId);
   }, [courseId, loadCourse]);
 
-  // Hydrate the active section and pre-fetch the next one.
-  // Small delay on the next-section fetch to avoid racing the current
-  // section for LLM bandwidth.
+  // Hydrate the active section and pre-fetch the next one. The small delay on
+  // the next-section fetch avoids racing the current section for LLM bandwidth.
   useEffect(() => {
     if (!course) return;
     const current = course.sections[activeIndex];
@@ -86,41 +85,36 @@ export function CourseReader({ courseId }: Props) {
     }
   }, [course, activeIndex, generateSection]);
 
-  // Observer only needs to rebuild when the section count changes, not on
-  // every in-place section hydration (which replaces the course object).
-  const sectionCount = course?.sections.length ?? 0;
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            const idx = Number(entry.target.getAttribute('data-section-index'));
-            if (!Number.isNaN(idx)) setActiveIndex(idx);
-          }
-        }
-      },
-      { root: scrollRootRef.current, threshold: 0.4 },
-    );
-    sectionRefs.current.forEach((el) => el && observer.observe(el));
-    return () => observer.disconnect();
-  }, [sectionCount]);
+  const totalSections = course?.sections.length ?? 0;
+  const goToIndex = useCallback(
+    (idx: number) => {
+      if (idx < 0 || idx >= totalSections) return;
+      setActiveIndex(idx);
+      scrollRootRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+    },
+    [totalSections],
+  );
 
-  const scrollToSection = useCallback(
+  const goToSectionId = useCallback(
     (sectionId: string) => {
       const idx = course?.sections.findIndex((s) => s.id === sectionId) ?? -1;
       if (idx < 0) return;
-      sectionRefs.current[idx]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      goToIndex(idx);
     },
-    [course],
+    [course, goToIndex],
   );
 
   const onAdvance = useCallback(() => {
     const current = course?.sections[activeIndex];
     const next = course?.sections[activeIndex + 1];
-    if (!current || !next) return;
+    if (!current) return;
     markSectionComplete(current.id);
-    scrollToSection(next.id);
-  }, [course, activeIndex, markSectionComplete, scrollToSection]);
+    if (next) goToIndex(activeIndex + 1);
+  }, [course, activeIndex, markSectionComplete, goToIndex]);
+
+  const onPrevious = useCallback(() => {
+    if (activeIndex > 0) goToIndex(activeIndex - 1);
+  }, [activeIndex, goToIndex]);
 
   const onGoDeeper = useCallback((prompt: string) => {
     toast('Go deeper coming soon', {
@@ -149,6 +143,7 @@ export function CourseReader({ courseId }: Props) {
 
   const currentSection = course.sections[activeIndex];
   const nextSection = course.sections[activeIndex + 1];
+  const isLastSection = activeIndex >= totalSections - 1;
 
   return (
     <div
@@ -159,6 +154,8 @@ export function CourseReader({ courseId }: Props) {
         courseId={courseId}
         title={course.title}
         projecting={projecting}
+        sectionNumber={activeIndex + 1}
+        sectionCount={totalSections}
         onOpenToc={() => setTocOpen(true)}
         onOpenAsClassroom={() => void openAsClassroom()}
         onRename={(next) => useCourseStore.getState().setTitle(next)}
@@ -169,35 +166,48 @@ export function CourseReader({ courseId }: Props) {
         open={tocOpen}
         activeSectionId={currentSection?.id}
         onClose={() => setTocOpen(false)}
-        onSelectSection={scrollToSection}
+        onSelectSection={goToSectionId}
         onOpenArtifact={onOpenArtifact}
       />
 
-      <main className="mx-auto max-w-2xl px-4 pb-40 pt-8 sm:px-6">
-        {course.sections.map((section, i) => (
-          <SectionView
-            key={section.id}
-            index={i}
-            section={section}
+      <main className="mx-auto max-w-2xl px-4 pb-48 pt-8 sm:px-6">
+        {currentSection ? (
+          <SectionCard
+            key={currentSection.id}
+            index={activeIndex}
+            section={currentSection}
             citations={course.citations}
             courseId={courseId}
             onAsk={onGoDeeper}
-            registerRef={(el) => {
-              sectionRefs.current[i] = el;
-            }}
           />
-        ))}
-        {!nextSection && (
+        ) : null}
+        {isLastSection && currentSection?.status === 'ready' ? (
           <CompletionPage
             title={course.title}
             type="course"
             sourceId={courseId}
             onProjection={() => void openAsClassroom()}
           />
-        )}
+        ) : null}
       </main>
 
-      <AdvanceBar nextTitle={nextSection?.title} onAdvance={onAdvance} />
+      <AdvanceBar
+        nextTitle={nextSection?.title}
+        onAdvance={onAdvance}
+        onPrevious={onPrevious}
+        hasPrevious={activeIndex > 0}
+        bottomOffset={SECTION_PROGRESS_BAR_HEIGHT}
+      />
+
+      {currentSection ? (
+        <SectionProgressBar
+          scrollRef={scrollRootRef}
+          sectionNumber={activeIndex + 1}
+          sectionCount={totalSections}
+          sectionTitle={currentSection.title}
+          resetKey={currentSection.id}
+        />
+      ) : null}
 
       {activeArtifact && course && (
         <ArtifactOverlay
@@ -266,6 +276,8 @@ function ReaderHeader({
   courseId,
   title,
   projecting,
+  sectionNumber,
+  sectionCount,
   onOpenToc,
   onOpenAsClassroom,
   onRename,
@@ -273,6 +285,8 @@ function ReaderHeader({
   courseId: string;
   title: string;
   projecting: boolean;
+  sectionNumber: number;
+  sectionCount: number;
   onOpenToc: () => void;
   onOpenAsClassroom: () => void;
   onRename: (next: string) => void;
@@ -364,6 +378,9 @@ function ReaderHeader({
           ≡
         </span>
       </button>
+      <span className="hidden shrink-0 items-center rounded-full border border-neutral-200 bg-white px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-neutral-500 sm:inline-flex dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-400">
+        {sectionNumber} / {sectionCount}
+      </span>
       <div className="flex min-w-0 flex-1 items-center gap-1.5">
         {editingTitle ? (
           <input
@@ -495,23 +512,21 @@ function ReaderHeader({
   );
 }
 
-interface SectionViewProps {
+interface SectionCardProps {
   index: number;
   section: CourseSection;
   citations: Record<string, CourseCitation>;
   courseId: string;
   onAsk: (prompt: string) => void;
-  registerRef: (el: HTMLElement | null) => void;
 }
 
-function SectionView({
+function SectionCard({
   index,
   section,
   citations,
   courseId,
   onAsk,
-  registerRef,
-}: SectionViewProps) {
+}: SectionCardProps) {
   const status = section.status || 'pending';
   const regenerateSection = useCourseStore.use.regenerateSection();
   const blockList = useMemo(
@@ -529,7 +544,13 @@ function SectionView({
   );
 
   return (
-    <section ref={registerRef} data-section-index={index} className="scroll-mt-20 py-12">
+    <section
+      data-section-index={index}
+      className="animate-fade-in scroll-mt-20 py-8"
+    >
+      <div className="mb-3 font-mono text-[10px] uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
+        Section {index + 1}
+      </div>
       <h1 className="mb-3 font-serif text-4xl text-neutral-900 dark:text-neutral-50">
         {section.title}
       </h1>

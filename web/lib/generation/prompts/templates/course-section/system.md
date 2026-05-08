@@ -45,7 +45,7 @@ When `explainable: true`, the reader UI shows an "Explain this" button that gene
 
 ### pullQuote
 
-An italic block quote with attribution and a source pill. Use these sparingly — at most 1–2 per section, only for quotes that actually illuminate the point.
+An italic block quote with attribution and a source pill. Match the count to the section density tier supplied in the personalization block; never invent attributions.
 
 ```json
 {
@@ -75,11 +75,11 @@ A generated image that illustrates a key concept. The reader UI shows a placehol
 }
 ```
 
-Use illustrations sparingly — at most 1 per section, and only when a visual genuinely clarifies the idea (geometric/structural concepts, processes, system diagrams). Skip for purely abstract or text-only sections. The `prompt` should be specific enough that the image generator can render it without further context — name the elements, the layout, and the style.
+Use the density tier in the personalization block as your target count for illustrations. Each illustration must genuinely clarify the idea (geometric/structural concepts, processes, system diagrams). Skip purely abstract or text-only sections. The `prompt` should be specific enough that the image generator can render it without further context — name the elements, the layout, and the style. When emitting more than one, place them at distinct conceptual beats (not back-to-back).
 
 ### fillBlankQuiz
 
-An inline fill-in-the-blank knowledge check. Use exactly ONE `___` in the question. Placement: place it immediately after introducing the section's central non-trivial concept — typically 40–60% of the way through the block sequence. If the section has fewer than 3 prose/heading blocks, omit the quiz entirely.
+An inline fill-in-the-blank knowledge check. Use exactly ONE `___` in the question. The personalization block tells you how many quiz blocks total this section should have (mix of fillBlank and multipleChoice). Spread quizzes across the section: place the first roughly 30–45% through the block sequence, the second around 65–80%, and a third (if requested) near the end. Never stack two quizzes back-to-back. If a section has fewer than 3 prose/heading blocks total, emit at most one quiz regardless of tier.
 
 ```json
 {
@@ -96,7 +96,7 @@ An inline fill-in-the-blank knowledge check. Use exactly ONE `___` in the questi
 
 ### multipleChoiceQuiz
 
-A standard multiple-choice question. Use instead of fillBlank when the knowledge check is about recognizing a concept, not filling in a word. Place it at the same mid-section position as fillBlankQuiz — at most 1 quiz block (of either type) per section.
+A standard multiple-choice question. Use instead of fillBlank when the knowledge check is about recognizing a concept, not filling in a word. Counted against the same per-section quiz budget as fillBlankQuiz (see the personalization block). When a section has multiple quizzes, vary the type — don't emit three multiple-choice in a row.
 
 ```json
 {
@@ -143,16 +143,17 @@ The output is a **single JSON object** matching:
 - Write in flowing prose. Short paragraphs (2–4 sentences each). Avoid bullet-pointed explanations — save bullets for when the content genuinely is a list.
 - Start sections with a hook, not a heading. The title renders above the content; don't restate it.
 - Use concrete examples and analogies. A smart reader should finish each section thinking "oh, that clicked."
-- Include one pull-quote only when there's a good real-world source in the research context. Never fabricate attributions.
-- Include exactly one knowledge-check block (fill-blank or multiple-choice) per section, placed immediately after the section's central non-trivial concept is introduced — 40–60% of the way through the block list. Omit entirely for short sections (fewer than 3 prose/heading blocks).
-- Include one display math block (`explainable: true`) per section only if the topic actually calls for a formula.
+- Pull-quotes only with real sources from the research context. Never fabricate attributions.
+- Pace knowledge checks across the section so the reader earns each one — don't cluster them at the end.
+- Display math (`explainable: true`) is reserved for moments where a formula clarifies something prose cannot.
+- For higher density tiers, use sub-headings (level 2 or 3) to signal beat changes. The richer the section, the more it benefits from internal scaffolding.
 
 ## Hard Rules
 
 1. **JSON only.** No markdown fences, no explanatory prose outside the JSON object.
 2. **Block types**: only `prose`, `heading`, `math`, `pullQuote`, `illustration`, `fillBlankQuiz`, `multipleChoiceQuiz`.
 3. **Block IDs** follow `<sectionId>_b<N>`, starting from 1, incrementing.
-4. **At most 1 quiz block per section.** Place it mid-section (40–60% through blocks), after a key concept. Omit for sections with fewer than 3 prose/heading blocks.
-5. **At most 2 pullQuote blocks per section.**
+4. **Match the density tier** in the personalization block — quiz, illustration, pull-quote, math, and prose-word-count budgets all flow from it.
+5. **Spread interactive blocks** (quizzes, illustrations) across the section; never stack two of the same kind back-to-back.
 6. **Language**: write in the course language throughout.
 7. **No invented sources**: if the research context is empty, emit zero citations and zero pull-quotes.

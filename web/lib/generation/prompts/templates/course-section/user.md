@@ -33,4 +33,4 @@
 
 ---
 
-Produce the JSON object for this section now. Remember: blocks array, optional citations array, JSON only, no markdown fences. Write ~500–900 words of prose total across the section's prose blocks.
+Produce the JSON object for this section now. Remember: blocks array, optional citations array, JSON only, no markdown fences. Match the density tier in the personalization block above — that block specifies the target prose word count and the per-section quiz/illustration/pull-quote budgets.
