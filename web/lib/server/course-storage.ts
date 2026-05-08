@@ -100,7 +100,15 @@ export async function deleteCourse(id: string): Promise<boolean> {
   }
 }
 
-export type CourseSummary = { id: string; title: string; topic: string; createdAt: string; sectionCount: number };
+export type CourseSummary = {
+  id: string;
+  title: string;
+  topic: string;
+  createdAt: string;
+  sectionCount: number;
+  language: Course['language'];
+  personalization?: Course['personalization'];
+};
 
 export async function listCourses(): Promise<CourseSummary[]> {
   try {
@@ -108,7 +116,7 @@ export async function listCourses(): Promise<CourseSummary[]> {
     const summaries = await Promise.all(
       files
         .filter((f) => f.endsWith('.json'))
-        .map(async (f) => {
+        .map(async (f): Promise<CourseSummary | null> => {
           try {
             const content = await fs.readFile(path.join(COURSES_DIR, f), 'utf-8');
             const c = JSON.parse(content) as Course;
@@ -118,6 +126,8 @@ export async function listCourses(): Promise<CourseSummary[]> {
               topic: c.topic,
               createdAt: c.createdAt,
               sectionCount: c.sections.length,
+              language: c.language,
+              personalization: c.personalization,
             };
           } catch {
             return null;

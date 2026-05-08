@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, useEffect, Suspense } from 'react';
+import { useRef, useState, useEffect, Suspense, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { nanoid } from 'nanoid';
 import { BookOpen, GraduationCap } from 'lucide-react';
@@ -44,90 +44,136 @@ function CourseLandingPageInner() {
 
   const personalization: CoursePersonalization = { depth, audience, style };
 
-  const generate = async () => {
-    const trimmed = topic.trim();
-    if (!trimmed) return;
+  /** Run the outline stream + create flow. Used by both the form submit and
+   *  the per-card Regenerate action — the latter passes its own settings so
+   *  it doesn't depend on whatever's currently typed into the form. Returns
+   *  the new course id on success, undefined on error/abort. */
+  const runGeneration = useCallback(
+    async (args: {
+      topic: string;
+      language: Language;
+      personalization: CoursePersonalization;
+    }): Promise<string | undefined> => {
+      const trimmed = args.topic.trim();
+      if (!trimmed) return undefined;
 
-    setState({ phase: 'streaming', sections: [], courseTitle: trimmed });
+      setState({ phase: 'streaming', sections: [], courseTitle: trimmed });
 
-    const abort = new AbortController();
-    abortRef.current = abort;
+      // Abort any prior in-flight stream so back-to-back triggers can't race.
+      abortRef.current?.abort();
+      const abort = new AbortController();
+      abortRef.current = abort;
 
-    try {
-      const res = await fetch('/api/generate/course-outline-stream', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic: trimmed, language, personalization }),
-        signal: abort.signal,
-      });
+      try {
+        const res = await fetch('/api/generate/course-outline-stream', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            topic: trimmed,
+            language: args.language,
+            personalization: args.personalization,
+          }),
+          signal: abort.signal,
+        });
 
-      if (!res.ok || !res.body) {
-        setState({ phase: 'error', message: `Request failed: ${res.status}` });
-        return;
-      }
+        if (!res.ok || !res.body) {
+          setState({ phase: 'error', message: `Request failed: ${res.status}` });
+          return undefined;
+        }
 
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      const sections: CourseSection[] = [];
-      let courseTitle = trimmed;
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        const sections: CourseSection[] = [];
+        let courseTitle = trimmed;
 
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
 
-        // SSE framing: events separated by \n\n, each prefixed with "data: "
-        const frames = buffer.split(/\n\n/);
-        buffer = frames.pop() || '';
-        for (const frame of frames) {
-          const line = frame.split('\n').find((l) => l.startsWith('data:'));
-          if (!line) continue;
-          const payload = line.slice(5).trim();
-          if (!payload) continue;
-          try {
-            const ev = JSON.parse(payload) as CourseOutlineStreamEvent;
-            if (ev.type === 'section') {
-              sections.push(ev.data);
-              setState({ phase: 'streaming', sections: [...sections], courseTitle });
-            } else if (ev.type === 'done') {
-              courseTitle = ev.title || courseTitle;
-              const id = nanoid();
-              const createRes = await fetch('/api/course', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  id,
-                  title: courseTitle,
-                  topic: trimmed,
-                  language,
-                  personalization,
-                  sections: ev.sections,
-                }),
-              });
-              if (createRes.ok) {
-                router.push(`/course/${id}`);
-              } else {
+          // SSE framing: events separated by \n\n, each prefixed with "data: "
+          const frames = buffer.split(/\n\n/);
+          buffer = frames.pop() || '';
+          for (const frame of frames) {
+            const line = frame.split('\n').find((l) => l.startsWith('data:'));
+            if (!line) continue;
+            const payload = line.slice(5).trim();
+            if (!payload) continue;
+            try {
+              const ev = JSON.parse(payload) as CourseOutlineStreamEvent;
+              if (ev.type === 'section') {
+                sections.push(ev.data);
+                setState({ phase: 'streaming', sections: [...sections], courseTitle });
+              } else if (ev.type === 'done') {
+                courseTitle = ev.title || courseTitle;
+                const id = nanoid();
+                const createRes = await fetch('/api/course', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    id,
+                    title: courseTitle,
+                    topic: trimmed,
+                    language: args.language,
+                    personalization: args.personalization,
+                    sections: ev.sections,
+                  }),
+                });
+                if (createRes.ok) {
+                  router.push(`/course/${id}`);
+                  return id;
+                }
                 setState({ phase: 'error', message: 'Failed to create course' });
+                return undefined;
+              } else if (ev.type === 'error') {
+                setState({ phase: 'error', message: ev.error });
+                return undefined;
               }
-              return;
-            } else if (ev.type === 'error') {
-              setState({ phase: 'error', message: ev.error });
-              return;
+            } catch {
+              // Ignore malformed frames
             }
-          } catch {
-            // Ignore malformed frames
           }
         }
+      } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') return undefined;
+        setState({
+          phase: 'error',
+          message: error instanceof Error ? error.message : String(error),
+        });
+        return undefined;
       }
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') return;
-      setState({
-        phase: 'error',
-        message: error instanceof Error ? error.message : String(error),
+      return undefined;
+    },
+    [router],
+  );
+
+  // Stop any in-flight stream when the user navigates away mid-generation.
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  const generate = () =>
+    runGeneration({ topic, language, personalization });
+
+  const regenerateCourse = useCallback(
+    async (courseId: string) => {
+      const existing = courses.find((c) => c.id === courseId);
+      if (!existing) {
+        setState({ phase: 'error', message: 'Course not found' });
+        return;
+      }
+      const newId = await runGeneration({
+        topic: existing.topic,
+        language: existing.language,
+        personalization: existing.personalization ?? personalization,
       });
-    }
-  };
+      if (newId && newId !== courseId) {
+        // Navigation has already kicked off — drop the prior course in the
+        // background so the homepage list reflects only the new one.
+        void fetch(`/api/course/${courseId}`, { method: 'DELETE' });
+      }
+    },
+    [courses, runGeneration, personalization],
+  );
 
   const disabled = state.phase === 'streaming';
 
@@ -179,6 +225,7 @@ function CourseLandingPageInner() {
           e.preventDefault();
           void generate();
         }}
+        aria-busy={disabled}
         className="space-y-3"
       >
         <textarea
@@ -306,6 +353,7 @@ function CourseLandingPageInner() {
               setCourses(prev);
             }
           }}
+          onRegenerate={(courseId) => regenerateCourse(courseId)}
         />
       )}
       </div>

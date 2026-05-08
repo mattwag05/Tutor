@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Trash2 } from 'lucide-react';
+import { RotateCcw, Trash2 } from 'lucide-react';
 import type { CourseSummary } from '@/lib/server/course-storage';
 
 
@@ -16,15 +16,18 @@ function formatDate(iso: string): string {
   }
 }
 
+type ConfirmAction = 'delete' | 'regenerate';
+
 interface Props {
   courses: CourseSummary[];
   loading?: boolean;
   onDelete?: (courseId: string) => Promise<void> | void;
+  onRegenerate?: (courseId: string) => Promise<void> | void;
 }
 
-export function CourseHistoryGrid({ courses, loading, onDelete }: Props) {
+export function CourseHistoryGrid({ courses, loading, onDelete, onRegenerate }: Props) {
   const router = useRouter();
-  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<{ id: string; action: ConfirmAction } | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
 
   if (loading) {
@@ -58,14 +61,15 @@ export function CourseHistoryGrid({ courses, loading, onDelete }: Props) {
     );
   }
 
-  const handleDeleteClick = async (courseId: string) => {
-    if (!onDelete) return;
+  const handleConfirm = async (courseId: string, action: ConfirmAction) => {
+    const handler = action === 'delete' ? onDelete : onRegenerate;
+    if (!handler) return;
     setPendingId(courseId);
     try {
-      await onDelete(courseId);
+      await handler(courseId);
     } finally {
       setPendingId(null);
-      setConfirmingId(null);
+      setConfirming(null);
     }
   };
 
@@ -76,7 +80,8 @@ export function CourseHistoryGrid({ courses, loading, onDelete }: Props) {
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         {courses.map((course) => {
-          const isConfirming = confirmingId === course.id;
+          const confirmAction = confirming?.id === course.id ? confirming.action : null;
+          const isConfirming = confirmAction !== null;
           const isPending = pendingId === course.id;
           return (
             <div
@@ -92,11 +97,11 @@ export function CourseHistoryGrid({ courses, loading, onDelete }: Props) {
               }}
               className="group relative flex cursor-pointer flex-col rounded-xl border border-neutral-200 bg-white px-4 py-3 text-left shadow-sm transition hover:border-neutral-400 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-neutral-600"
             >
-              <div className="line-clamp-2 pr-12 font-serif text-base text-neutral-900 group-hover:text-neutral-700 dark:text-neutral-50 dark:group-hover:text-neutral-200">
+              <div className="line-clamp-2 pr-20 font-serif text-base text-neutral-900 group-hover:text-neutral-700 dark:text-neutral-50 dark:group-hover:text-neutral-200">
                 {course.title}
               </div>
               {course.topic !== course.title && (
-                <div className="mt-0.5 line-clamp-1 pr-12 text-xs text-neutral-500 dark:text-neutral-400">
+                <div className="mt-0.5 line-clamp-1 pr-20 text-xs text-neutral-500 dark:text-neutral-400">
                   {course.topic}
                 </div>
               )}
@@ -109,21 +114,39 @@ export function CourseHistoryGrid({ courses, loading, onDelete }: Props) {
                 )}
               </div>
 
-              {onDelete && !isConfirming && (
-                <button
-                  type="button"
-                  aria-label={`Delete ${course.title}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setConfirmingId(course.id);
-                  }}
-                  className="absolute right-1 top-1 flex h-11 w-11 touch-manipulation items-center justify-center rounded-lg text-neutral-400 opacity-100 transition hover:bg-neutral-100 hover:text-rose-600 sm:opacity-0 sm:group-hover:opacity-100 dark:hover:bg-neutral-800"
-                >
-                  <Trash2 size={16} strokeWidth={1.8} />
-                </button>
+              {!isConfirming && (
+                <div className="absolute right-1 top-1 flex items-center gap-0.5 opacity-100 sm:opacity-0 sm:transition sm:group-hover:opacity-100">
+                  {onRegenerate && (
+                    <button
+                      type="button"
+                      aria-label={`Regenerate ${course.title}`}
+                      title="Regenerate course"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setConfirming({ id: course.id, action: 'regenerate' });
+                      }}
+                      className="flex h-11 w-11 touch-manipulation items-center justify-center rounded-lg text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-700 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
+                    >
+                      <RotateCcw size={16} strokeWidth={1.8} />
+                    </button>
+                  )}
+                  {onDelete && (
+                    <button
+                      type="button"
+                      aria-label={`Delete ${course.title}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setConfirming({ id: course.id, action: 'delete' });
+                      }}
+                      className="flex h-11 w-11 touch-manipulation items-center justify-center rounded-lg text-neutral-400 transition hover:bg-neutral-100 hover:text-rose-600 dark:hover:bg-neutral-800"
+                    >
+                      <Trash2 size={16} strokeWidth={1.8} />
+                    </button>
+                  )}
+                </div>
               )}
 
-              {onDelete && isConfirming && (
+              {isConfirming && confirmAction === 'delete' && (
                 <div
                   className="absolute right-1 top-1 flex items-center gap-1 rounded-lg border border-neutral-200 bg-white px-1.5 py-1 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
                   onClick={(e) => e.stopPropagation()}
@@ -131,7 +154,7 @@ export function CourseHistoryGrid({ courses, loading, onDelete }: Props) {
                   <button
                     type="button"
                     disabled={isPending}
-                    onClick={() => void handleDeleteClick(course.id)}
+                    onClick={() => void handleConfirm(course.id, 'delete')}
                     className="relative rounded-md bg-rose-600 px-2.5 py-1 text-xs font-medium text-white touch-manipulation hover:bg-rose-700 disabled:opacity-60 before:absolute before:-inset-2 before:content-['']"
                   >
                     {isPending ? 'Deleting…' : 'Delete'}
@@ -139,7 +162,31 @@ export function CourseHistoryGrid({ courses, loading, onDelete }: Props) {
                   <button
                     type="button"
                     disabled={isPending}
-                    onClick={() => setConfirmingId(null)}
+                    onClick={() => setConfirming(null)}
+                    className="relative rounded-md px-2 py-1 text-xs text-neutral-600 touch-manipulation hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800 before:absolute before:-inset-2 before:content-['']"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+
+              {isConfirming && confirmAction === 'regenerate' && (
+                <div
+                  className="absolute right-1 top-1 flex items-center gap-1 rounded-lg border border-neutral-200 bg-white px-1.5 py-1 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => void handleConfirm(course.id, 'regenerate')}
+                    className="relative rounded-md bg-neutral-900 px-2.5 py-1 text-xs font-medium text-white touch-manipulation hover:bg-neutral-800 disabled:opacity-60 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-white before:absolute before:-inset-2 before:content-['']"
+                  >
+                    {isPending ? 'Starting…' : 'Regenerate'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => setConfirming(null)}
                     className="relative rounded-md px-2 py-1 text-xs text-neutral-600 touch-manipulation hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800 before:absolute before:-inset-2 before:content-['']"
                   >
                     Cancel

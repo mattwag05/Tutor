@@ -16,7 +16,7 @@ interface Props {
 }
 
 /** Rendered height in px. AdvanceBar uses this to clear the bar. */
-export const SECTION_PROGRESS_BAR_HEIGHT = 32;
+export const SECTION_PROGRESS_BAR_HEIGHT = 44;
 
 /** Sticky bottom progress bar for the active section. Tracks scroll progress
  *  through the active card and surfaces course-level position. */
@@ -52,26 +52,32 @@ export function SectionProgressBar({
 
   return (
     <div
-      className="pointer-events-none fixed bottom-0 left-0 right-0 z-20 px-0"
+      className="pointer-events-none fixed bottom-0 left-0 right-0 z-20"
       role="progressbar"
       aria-label={`Reading progress for ${sectionTitle}`}
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={pct}
     >
-      <div className="pointer-events-auto border-t border-neutral-200/80 bg-white/85 backdrop-blur dark:border-neutral-800/80 dark:bg-neutral-950/85">
-        <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-1.5 text-[10px] font-mono uppercase tracking-wider text-neutral-500 sm:px-6 dark:text-neutral-400">
-          <span>
-            Section {sectionNumber} / {sectionCount}
-          </span>
-          <span className="truncate text-neutral-400 dark:text-neutral-500">{sectionTitle}</span>
-          <span aria-hidden>{pct}%</span>
-        </div>
-        <div className="h-[3px] w-full bg-neutral-200/70 dark:bg-neutral-800/70">
+      <div className="pointer-events-auto border-t border-neutral-300 bg-white shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.08)] dark:border-neutral-700 dark:bg-neutral-950 dark:shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.5)]">
+        {/* Track + fill — sits at the top of the strip so the eye lands on it first. */}
+        <div className="relative h-2 w-full bg-neutral-200 dark:bg-neutral-800">
           <div
-            className="h-full bg-neutral-900 transition-[width] duration-150 ease-out dark:bg-neutral-100"
+            className="absolute inset-y-0 left-0 bg-gradient-to-r from-neutral-700 to-neutral-900 shadow-[0_0_8px_rgba(0,0,0,0.15)] transition-[width] duration-200 ease-out dark:from-neutral-200 dark:to-white dark:shadow-[0_0_8px_rgba(255,255,255,0.2)]"
             style={{ width: `${pct}%` }}
           />
+        </div>
+        <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-2.5 text-xs sm:px-6">
+          <span className="font-mono font-semibold uppercase tracking-wider text-neutral-600 dark:text-neutral-300">
+            Section {sectionNumber} / {sectionCount}
+          </span>
+          <span className="truncate text-neutral-500 dark:text-neutral-400">{sectionTitle}</span>
+          <span
+            className="font-mono font-semibold tabular-nums text-neutral-900 dark:text-neutral-50"
+            aria-hidden
+          >
+            {pct}%
+          </span>
         </div>
       </div>
     </div>
