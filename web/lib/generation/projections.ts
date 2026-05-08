@@ -22,6 +22,7 @@ import type {
 import type { Action, SpeechAction, SpotlightAction } from '@/lib/types/action';
 import { proseToPlainText } from '@/lib/course/section-text';
 import type { PersistedClassroomData } from '@/lib/server/classroom-storage';
+import { courseImageUrl } from '@/lib/server/course-storage';
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -112,7 +113,7 @@ function sectionToScene(
   course: Course,
 ): Scene {
   const theme = themeForCourse(course);
-  const { slide, blockPairs } = buildSlide(section, theme);
+  const { slide, blockPairs } = buildSlide(section, theme, course.id);
   const actions = buildActions(section, slide, blockPairs);
 
   const content: SlideContent = { type: 'slide', canvas: slide };
@@ -138,6 +139,7 @@ interface BlockElementPair {
 function buildSlide(
   section: CourseSection,
   theme: SlideTheme,
+  courseId: string,
 ): { slide: Slide; blockPairs: BlockElementPair[] } {
   const PADDING = 40;
   const USABLE_W = VIEWPORT_SIZE - PADDING * 2;
@@ -163,13 +165,21 @@ function buildSlide(
   elements.push(titleEl);
   cursorY += 56 + 16;
 
-  for (const block of section.blocks) {
-    const el = blockToElement(block, PADDING, cursorY, USABLE_W, theme);
+  // Project illustrations first so they always survive the SLIDE_HEIGHT
+  // truncation below — sections with prose-heavy openings would otherwise
+  // exhaust the slide before reaching an illustration block, dropping it
+  // silently from the classroom view.
+  const illustrationsFirst = [
+    ...section.blocks.filter((b) => b.type === 'illustration'),
+    ...section.blocks.filter((b) => b.type !== 'illustration'),
+  ];
+
+  for (const block of illustrationsFirst) {
+    const el = blockToElement(block, PADDING, cursorY, USABLE_W, theme, courseId);
     if (!el) continue;
     elements.push(el);
     blockPairs.push({ block, elementId: el.id });
     cursorY += el.height + 12;
-    // Stop filling if we're approaching the bottom of the slide.
     if (cursorY > SLIDE_HEIGHT - 40) break;
   }
 
@@ -243,6 +253,7 @@ function blockToElement(
   top: number,
   width: number,
   theme: SlideTheme,
+  courseId: string,
 ): (PPTElement & { height: number }) | null {
   switch (block.type) {
     case 'prose': {
@@ -301,7 +312,14 @@ function blockToElement(
       return el;
     }
     case 'illustration': {
-      if (!block.src) return null;
+      // When the course block has finished generating, block.src is the
+      // canonical course-image URL; for blocks whose generation hasn't
+      // landed yet (pending: true, src: null), reconstruct the URL from
+      // course.id + block.id so the projected slide will render the image
+      // as soon as the course-side IllustrationBlock self-heal completes
+      // (gotcha #67). Previously this case returned null and the
+      // illustration was silently dropped from the classroom forever.
+      const src = block.src || courseImageUrl(courseId, block.id);
       const height = 140;
       const el: PPTImageElement & { height: number } = {
         id: makeId(),
@@ -312,7 +330,7 @@ function blockToElement(
         height,
         rotate: 0,
         fixedRatio: true,
-        src: block.src,
+        src,
       };
       return el;
     }

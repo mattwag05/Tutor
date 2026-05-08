@@ -1,5 +1,9 @@
 import { generateTTS } from '@/lib/audio/tts-providers';
-import { resolveTTSApiKey, resolveTTSBaseUrl } from '@/lib/server/provider-config';
+import {
+  getActiveTTSConfig,
+  resolveTTSApiKey,
+  resolveTTSBaseUrl,
+} from '@/lib/server/provider-config';
 import { TTS_PROVIDERS } from '@/lib/audio/constants';
 import { TTS_MAX_TEXT_LENGTH, splitLongSpeechText } from '@/lib/audio/tts-utils';
 import type { TTSProviderId } from '@/lib/audio/types';
@@ -11,8 +15,8 @@ export interface CourseTTSOptions {
   speed?: number;
 }
 
-const DEFAULT_PROVIDER_ID: TTSProviderId = 'openai-tts';
-const DEFAULT_VOICE = 'nova';
+const FALLBACK_PROVIDER_ID: TTSProviderId = 'openai-tts';
+const FALLBACK_VOICE = 'nova';
 const DEFAULT_MAX_CHUNK_CHARS = 3800;
 
 function defaultModelFor(providerId: TTSProviderId): string | undefined {
@@ -29,11 +33,13 @@ export async function synthesizeCourseAudio(
     throw new Error('TTS input text is empty');
   }
 
-  const providerId = opts.providerId ?? DEFAULT_PROVIDER_ID;
+  const active = opts.providerId ? null : getActiveTTSConfig();
+  const providerId = opts.providerId ?? active?.providerId ?? FALLBACK_PROVIDER_ID;
   const provider = TTS_PROVIDERS[providerId as keyof typeof TTS_PROVIDERS];
 
-  const apiKey = resolveTTSApiKey(providerId);
-  const baseUrl = resolveTTSBaseUrl(providerId);
+  const apiKey = active?.providerId === providerId ? active.apiKey : resolveTTSApiKey(providerId);
+  const baseUrl =
+    active?.providerId === providerId ? active.baseUrl : resolveTTSBaseUrl(providerId);
 
   if (provider?.requiresApiKey && !apiKey) {
     throw new Error(
@@ -44,8 +50,8 @@ export async function synthesizeCourseAudio(
 
   const config = {
     providerId,
-    modelId: opts.modelId ?? defaultModelFor(providerId),
-    voice: opts.voice ?? DEFAULT_VOICE,
+    modelId: opts.modelId ?? active?.model ?? defaultModelFor(providerId),
+    voice: opts.voice ?? active?.voice ?? FALLBACK_VOICE,
     speed: opts.speed ?? 1.0,
     apiKey,
     baseUrl,

@@ -26,6 +26,10 @@ export function courseImagePath(courseId: string, blockId: string): string {
   return path.join(COURSES_DIR, courseId, 'images', `${blockId}.jpg`);
 }
 
+export function courseImageUrl(courseId: string, blockId: string): string {
+  return `/api/course/${courseId}/image/${blockId}`;
+}
+
 export async function writeSectionAudio(
   courseId: string,
   sectionId: string,

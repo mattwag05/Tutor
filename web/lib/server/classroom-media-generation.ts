@@ -20,6 +20,7 @@ import {
   getServerVideoProviders,
   getServerTTSProviders,
   getActiveImageConfig,
+  getActiveTTSConfig,
   resolveVideoApiKey,
   resolveVideoBaseUrl,
   resolveTTSApiKey,
@@ -199,25 +200,39 @@ export async function generateTTSForClassroom(
   const audioDir = path.join(CLASSROOMS_DIR, classroomId, 'audio');
   await ensureDir(audioDir);
 
-  // Resolve TTS provider (exclude browser-native-tts)
+  // Prefer the catalog's active TTS profile (model + voice are loaded from
+  // model_catalog.json); fall back to the first env/YAML provider only if no
+  // catalog profile is configured. The catalog values are required for
+  // OpenAI-compatible local servers (Kokoro, etc.) which reject the OpenAI
+  // default model name.
+  const activeTTS = getActiveTTSConfig();
   const ttsProviderIds = Object.keys(getServerTTSProviders()).filter(
     (id) => id !== 'browser-native-tts',
   );
-  if (ttsProviderIds.length === 0) {
+  const providerId =
+    activeTTS?.providerId ?? ((ttsProviderIds[0] as TTSProviderId | undefined) ?? null);
+  if (!providerId) {
     log.warn('No server TTS provider configured, skipping TTS generation');
     return;
   }
 
-  const providerId = ttsProviderIds[0] as TTSProviderId;
-  const apiKey = resolveTTSApiKey(providerId);
+  const apiKey = activeTTS?.apiKey || resolveTTSApiKey(providerId);
   if (!apiKey) {
     log.warn(`No API key for TTS provider "${providerId}", skipping TTS generation`);
     return;
   }
   const ttsBaseUrl =
+    activeTTS?.baseUrl ||
     resolveTTSBaseUrl(providerId) ||
     TTS_PROVIDERS[providerId as keyof typeof TTS_PROVIDERS]?.defaultBaseUrl;
-  const voice = DEFAULT_TTS_VOICES[providerId as keyof typeof DEFAULT_TTS_VOICES] || 'default';
+  const modelId =
+    activeTTS?.model ||
+    DEFAULT_TTS_MODELS[providerId as keyof typeof DEFAULT_TTS_MODELS] ||
+    '';
+  const voice =
+    activeTTS?.voice ||
+    DEFAULT_TTS_VOICES[providerId as keyof typeof DEFAULT_TTS_VOICES] ||
+    'default';
   const format =
     TTS_PROVIDERS[providerId as keyof typeof TTS_PROVIDERS]?.supportedFormats?.[0] || 'mp3';
   if (providerId === VOXCPM_TTS_PROVIDER_ID && voice === VOXCPM_AUTO_VOICE_ID) {
@@ -245,7 +260,7 @@ export async function generateTTSForClassroom(
         const result = await generateTTS(
           {
             providerId,
-            modelId: DEFAULT_TTS_MODELS[providerId as keyof typeof DEFAULT_TTS_MODELS] || '',
+            modelId,
             apiKey,
             baseUrl: ttsBaseUrl,
             voice,

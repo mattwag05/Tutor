@@ -1,7 +1,12 @@
 import { NextRequest } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
-import { readCourse, isValidCourseId, courseImagePath } from '@/lib/server/course-storage';
+import {
+  readCourse,
+  isValidCourseId,
+  courseImagePath,
+  courseImageUrl,
+} from '@/lib/server/course-storage';
 import { generateImage } from '@/lib/media/image-providers';
 import { getActiveImageConfig } from '@/lib/server/provider-config';
 import { apiError, apiSuccess, API_ERROR_CODES } from '@/lib/server/api-response';
@@ -68,7 +73,7 @@ export async function POST(req: NextRequest) {
     const imgPath = courseImagePath(courseId, blockId);
     await fs.mkdir(path.dirname(imgPath), { recursive: true });
     await fs.writeFile(imgPath, Buffer.from(result.base64, 'base64'));
-    src = `/api/course/${courseId}/image/${blockId}`;
+    src = courseImageUrl(courseId, blockId);
   } else {
     return apiError(API_ERROR_CODES.GENERATION_FAILED, 500, 'Provider returned no image data');
   }

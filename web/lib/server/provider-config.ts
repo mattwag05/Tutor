@@ -16,6 +16,8 @@ import {
   type ProfiledService,
 } from '@/lib/server/catalog-read';
 import type { ImageProviderId } from '@/lib/media/types';
+import type { TTSProviderId } from '@/lib/audio/types';
+import { TTS_PROVIDERS } from '@/lib/audio/constants';
 
 const log = createLogger('ServerProviderConfig');
 
@@ -376,6 +378,57 @@ export function resolveTTSApiKey(providerId: string, clientKey?: string): string
 
 export function resolveTTSBaseUrl(providerId: string, clientBaseUrl?: string): string | undefined {
   return resolveCatalogFirstBaseUrl('tts', providerId, getConfig().tts, clientBaseUrl);
+}
+
+export interface ActiveTTSConfig {
+  providerId: TTSProviderId;
+  apiKey: string;
+  baseUrl?: string;
+  model?: string;
+  voice?: string;
+}
+
+function asTTSProviderId(value: string | undefined): TTSProviderId | null {
+  if (!value) return null;
+  if (value in TTS_PROVIDERS) return value as TTSProviderId;
+  if (value.startsWith('custom-tts-')) return value as TTSProviderId;
+  return null;
+}
+
+// Resolve the active TTS profile (catalog first, then env/YAML).
+// Mirrors getActiveImageConfig — necessary because `synthesize.ts` and
+// classroom TTS both default to OpenAI's model+voice when not given one,
+// which Kokoro and other OpenAI-compatible local servers reject (HTTP 400
+// "Unsupported model: gpt-4o-mini-tts").
+export function getActiveTTSConfig(): ActiveTTSConfig | null {
+  const cfg = getConfig();
+  const profile = getActiveProfile(readCatalogSync(), 'tts');
+  const catalogProviderId = asTTSProviderId(profile ? profileBinding(profile) : undefined);
+  if (profile && catalogProviderId) {
+    const entry = cfg.tts[catalogProviderId];
+    const firstModel = profile.models?.[0] as
+      | { model?: string; id?: string; voice?: string }
+      | undefined;
+    return {
+      providerId: catalogProviderId,
+      apiKey: profile.api_key || entry?.apiKey || '',
+      baseUrl: profile.base_url || entry?.baseUrl,
+      model: firstModel?.model || firstModel?.id,
+      voice: firstModel?.voice,
+    };
+  }
+  for (const id of Object.keys(cfg.tts)) {
+    const providerId = asTTSProviderId(id);
+    if (!providerId) continue;
+    const entry = cfg.tts[providerId];
+    return {
+      providerId,
+      apiKey: entry?.apiKey || '',
+      baseUrl: entry?.baseUrl,
+      model: entry?.models?.[0],
+    };
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------
