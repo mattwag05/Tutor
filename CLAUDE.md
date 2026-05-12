@@ -2,7 +2,7 @@
 
 AI tutoring platform — multi-agent RAG architecture, Python/FastAPI backend, Next.js frontend.
 
-> **Naming:** User-facing project name is **Tutor** (folder `~/Desktop/Projects/Tutor/`, deployed at `tutor.tail6e035b.ts.net`). Internal package name is still `deeptutor` (Python module, Docker image `deeptutor-fork`, GitHub repo `mattwag05/DeepTutor`, Pironman compose dir `~/homelab/deeptutor/`). Don't rename code paths — they're load-bearing across upstream sync, Dockerfiles, and compose.
+> **Naming:** User-facing project name is **Tutor** (folder `~/Projects/Tutor/`, deployed at `tutor.tail6e035b.ts.net`). Internal package name is still `deeptutor` (Python module, Docker image `deeptutor-fork`, GitHub repo `mattwag05/DeepTutor`, Pironman compose dir `~/homelab/deeptutor/`). Don't rename code paths — they're load-bearing across upstream sync, Dockerfiles, and compose.
 
 **Status:** 🔨 In Development (last upstream merge 2026-04-30 → v1.3.7; v1.5.0 catalog covers all 7 provider modalities + feature flags 2026-05-06; **v1.6.0** OpenRouter as first-class TTS/ASR/image provider 2026-05-07; **v1.6.1** mobile UX sweep — iOS focus-zoom, h-dvh, hover-reveal touch, 44px tap targets, interactiveWidget 2026-05-07; **v1.6.2** Course Builder card-mode reader — one section at a time, sticky in-section progress bar, depth-derived density tiers 2026-05-07)
 **Repo:** https://github.com/mattwag05/DeepTutor.git
