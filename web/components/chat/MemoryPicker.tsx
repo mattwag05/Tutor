@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Brain, Check, FileText, ScrollText } from "lucide-react";
+import { Brain, FileText, ScrollText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
 import PickerModalShell from "@/components/common/PickerModalShell";
+import PickerListItem from "@/components/common/PickerListItem";
 import type { SpaceMemoryFile } from "@/lib/space-items";
 
 interface MemoryPickerProps {
@@ -112,38 +113,23 @@ export default function MemoryPicker({
               const active = selected.includes(option.key);
               const Icon = option.icon;
               return (
-                <button
+                <PickerListItem
                   key={option.key}
+                  selected={active}
                   onClick={() => toggle(option.key)}
-                  className={`flex w-full items-start gap-3 px-4 py-3 text-left transition-colors ${
-                    active
-                      ? "bg-[var(--primary)]/8"
-                      : "hover:bg-[var(--muted)]/40"
-                  }`}
                 >
-                  <div
-                    className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors ${
-                      active
-                        ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)]"
-                        : "border-[var(--border)] text-transparent"
-                    }`}
-                  >
-                    <Check size={12} />
+                  <div className="flex items-center gap-2 text-[14px] font-medium text-[var(--foreground)]">
+                    <Icon
+                      size={14}
+                      strokeWidth={1.7}
+                      className="text-[var(--primary)]"
+                    />
+                    {t(option.label)}
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 text-[14px] font-medium text-[var(--foreground)]">
-                      <Icon
-                        size={14}
-                        strokeWidth={1.7}
-                        className="text-[var(--primary)]"
-                      />
-                      {t(option.label)}
-                    </div>
-                    <p className="mt-0.5 text-[12px] leading-5 text-[var(--muted-foreground)]">
-                      {t(option.description)}
-                    </p>
-                  </div>
-                </button>
+                  <p className="mt-0.5 text-[12px] leading-5 text-[var(--muted-foreground)]">
+                    {t(option.description)}
+                  </p>
+                </PickerListItem>
               );
             })}
           </div>

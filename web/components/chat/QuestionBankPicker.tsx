@@ -3,14 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Bookmark,
-  Check,
   ClipboardList,
   FolderOpen,
   Loader2,
-  Search,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import PickerModalShell from "@/components/common/PickerModalShell";
+import PickerListItem from "@/components/common/PickerListItem";
+import SearchInput from "@/components/common/SearchInput";
 import {
   listCategories,
   listNotebookEntries,
@@ -204,15 +204,11 @@ export default function QuestionBankPicker({
         </div>
 
         <div className="mb-4 flex items-center gap-2">
-          <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted-foreground)]" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={t("Search questions by content")}
-              className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] py-2.5 pl-9 pr-3 text-[13px] text-[var(--foreground)] outline-none transition focus:border-[var(--primary)]/50 focus:ring-2 focus:ring-[var(--primary)]/15"
-            />
-          </div>
+          <SearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder={t("Search questions by content")}
+          />
           <button
             onClick={() => setSelectedIds([])}
             className="rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2.5 text-[12px] font-medium text-[var(--muted-foreground)] transition-colors hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
@@ -231,71 +227,56 @@ export default function QuestionBankPicker({
               {filteredEntries.map((entry) => {
                 const selected = selectedIds.includes(entry.id);
                 return (
-                  <button
+                  <PickerListItem
                     key={entry.id}
+                    selected={selected}
                     onClick={() => toggleEntry(entry.id)}
-                    className={`flex w-full items-start gap-3 px-4 py-3 text-left transition-colors ${
-                      selected
-                        ? "bg-[var(--primary)]/8"
-                        : "hover:bg-[var(--muted)]/40"
-                    }`}
                   >
-                    <div
-                      className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors ${
-                        selected
-                          ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)]"
-                          : "border-[var(--border)] text-transparent"
-                      }`}
-                    >
-                      <Check size={12} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {entry.difficulty && (
-                          <span
-                            className={`rounded-md px-1.5 py-0.5 text-[10px] font-medium uppercase ${
-                              entry.difficulty === "hard"
-                                ? "bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-400"
-                                : entry.difficulty === "medium"
-                                  ? "bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400"
-                                  : "bg-green-50 text-green-600 dark:bg-green-950/30 dark:text-green-400"
-                            }`}
-                          >
-                            {entry.difficulty}
-                          </span>
-                        )}
-                        {entry.question_type && (
-                          <span className="rounded-md bg-[var(--muted)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--muted-foreground)]">
-                            {entry.question_type}
-                          </span>
-                        )}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {entry.difficulty && (
                         <span
-                          className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${
-                            entry.is_correct
-                              ? "bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-400"
-                              : "bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400"
+                          className={`rounded-md px-1.5 py-0.5 text-[10px] font-medium uppercase ${
+                            entry.difficulty === "hard"
+                              ? "bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-400"
+                              : entry.difficulty === "medium"
+                                ? "bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400"
+                                : "bg-green-50 text-green-600 dark:bg-green-950/30 dark:text-green-400"
                           }`}
                         >
-                          {entry.is_correct ? t("Correct") : t("Incorrect")}
+                          {entry.difficulty}
                         </span>
-                        {entry.bookmarked && (
-                          <Bookmark
-                            size={11}
-                            className="text-[var(--primary)]"
-                            fill="currentColor"
-                          />
-                        )}
-                      </div>
-                      <p className="mt-1 line-clamp-2 text-[13px] leading-5 text-[var(--foreground)]">
-                        {entry.question}
-                      </p>
-                      {entry.session_title && (
-                        <div className="mt-1 truncate text-[11px] text-[var(--muted-foreground)]/85">
-                          {entry.session_title}
-                        </div>
+                      )}
+                      {entry.question_type && (
+                        <span className="rounded-md bg-[var(--muted)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--muted-foreground)]">
+                          {entry.question_type}
+                        </span>
+                      )}
+                      <span
+                        className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${
+                          entry.is_correct
+                            ? "bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-400"
+                            : "bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400"
+                        }`}
+                      >
+                        {entry.is_correct ? t("Correct") : t("Incorrect")}
+                      </span>
+                      {entry.bookmarked && (
+                        <Bookmark
+                          size={11}
+                          className="text-[var(--primary)]"
+                          fill="currentColor"
+                        />
                       )}
                     </div>
-                  </button>
+                    <p className="mt-1 line-clamp-2 text-[13px] leading-5 text-[var(--foreground)]">
+                      {entry.question}
+                    </p>
+                    {entry.session_title && (
+                      <div className="mt-1 truncate text-[11px] text-[var(--muted-foreground)]/85">
+                        {entry.session_title}
+                      </div>
+                    )}
+                  </PickerListItem>
                 );
               })}
             </div>

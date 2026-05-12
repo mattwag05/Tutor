@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, Loader2, Search, Sparkles, Wand2 } from "lucide-react";
+import { Check, Loader2, Sparkles, Wand2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import PickerModalShell from "@/components/common/PickerModalShell";
+import PickerListItem from "@/components/common/PickerListItem";
+import SearchInput from "@/components/common/SearchInput";
 import { listSkills, type SkillInfo } from "@/lib/skills-api";
 
 export interface SkillsPickerSelection {
@@ -177,15 +179,11 @@ export default function SkillsPicker({
         </button>
 
         <div className="mb-4 flex items-center gap-2">
-          <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted-foreground)]" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={t("Search skills by name, description, or tag")}
-              className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] py-2.5 pl-9 pr-3 text-[13px] text-[var(--foreground)] outline-none transition focus:border-[var(--primary)]/50 focus:ring-2 focus:ring-[var(--primary)]/15"
-            />
-          </div>
+          <SearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder={t("Search skills by name, description, or tag")}
+          />
           <button
             onClick={handleClear}
             className="rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2.5 text-[12px] font-medium text-[var(--muted-foreground)] transition-colors hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
@@ -205,49 +203,35 @@ export default function SkillsPicker({
                 const active = !auto && selected.includes(skill.name);
                 const dimmed = auto;
                 return (
-                  <button
+                  <PickerListItem
                     key={skill.name}
+                    selected={active}
                     onClick={() => toggleSkill(skill.name)}
-                    className={`flex w-full items-start gap-3 px-4 py-3 text-left transition-colors ${
-                      active
-                        ? "bg-[var(--primary)]/8"
-                        : "hover:bg-[var(--muted)]/40"
-                    } ${dimmed ? "opacity-55" : ""}`}
+                    className={dimmed ? "opacity-55" : ""}
                   >
-                    <div
-                      className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors ${
-                        active
-                          ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)]"
-                          : "border-[var(--border)] text-transparent"
-                      }`}
-                    >
-                      <Check size={12} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="truncate text-[14px] font-medium text-[var(--foreground)]">
-                          {skill.name}
-                        </span>
-                        {skill.tags?.length ? (
-                          <div className="flex flex-wrap gap-1">
-                            {skill.tags.slice(0, 3).map((tag) => (
-                              <span
-                                key={tag}
-                                className="rounded-md bg-[var(--muted)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--muted-foreground)]"
-                              >
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        ) : null}
-                      </div>
-                      {skill.description ? (
-                        <p className="mt-1 line-clamp-2 text-[12px] leading-5 text-[var(--muted-foreground)]">
-                          {skill.description}
-                        </p>
+                    <div className="flex items-center gap-2">
+                      <span className="truncate text-[14px] font-medium text-[var(--foreground)]">
+                        {skill.name}
+                      </span>
+                      {skill.tags?.length ? (
+                        <div className="flex flex-wrap gap-1">
+                          {skill.tags.slice(0, 3).map((tag) => (
+                            <span
+                              key={tag}
+                              className="rounded-md bg-[var(--muted)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--muted-foreground)]"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
                       ) : null}
                     </div>
-                  </button>
+                    {skill.description ? (
+                      <p className="mt-1 line-clamp-2 text-[12px] leading-5 text-[var(--muted-foreground)]">
+                        {skill.description}
+                      </p>
+                    ) : null}
+                  </PickerListItem>
                 );
               })}
             </div>

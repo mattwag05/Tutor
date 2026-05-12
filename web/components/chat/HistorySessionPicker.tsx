@@ -2,14 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  Check,
   History as HistoryIcon,
   Loader2,
   MessageSquare,
-  Search,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import PickerModalShell from "@/components/common/PickerModalShell";
+import PickerListItem from "@/components/common/PickerListItem";
+import SearchInput from "@/components/common/SearchInput";
 import { listSessions, type SessionSummary } from "@/lib/session-api";
 import { normalizeMessageContent, truncateText } from "@/lib/message-content";
 
@@ -124,15 +124,11 @@ export default function HistorySessionPicker({
     >
       <div className="bg-[var(--background)]/40 p-5">
         <div className="mb-4 flex items-center gap-2">
-          <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted-foreground)]" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={t("Search sessions by title or last message")}
-              className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] py-2.5 pl-9 pr-3 text-[13px] text-[var(--foreground)] outline-none transition focus:border-[var(--primary)]/50 focus:ring-2 focus:ring-[var(--primary)]/15"
-            />
-          </div>
+          <SearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder={t("Search sessions by title or last message")}
+          />
           <button
             onClick={() => setSelectedIds([])}
             className="rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2.5 text-[12px] font-medium text-[var(--muted-foreground)] transition-colors hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
@@ -155,50 +151,35 @@ export default function HistorySessionPicker({
                   session.updated_at || session.created_at,
                 );
                 return (
-                  <button
+                  <PickerListItem
                     key={id}
+                    selected={selected}
                     onClick={() => toggleSession(session)}
-                    className={`flex w-full items-start gap-3 px-4 py-3 text-left transition-colors ${
-                      selected
-                        ? "bg-[var(--primary)]/8"
-                        : "hover:bg-[var(--muted)]/40"
-                    }`}
                   >
-                    <div
-                      className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors ${
-                        selected
-                          ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)]"
-                          : "border-[var(--border)] text-transparent"
-                      }`}
-                    >
-                      <Check size={12} />
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1 rounded-md bg-[var(--muted)] px-2 py-0.5 text-[11px] font-medium text-[var(--muted-foreground)]">
+                        <MessageSquare size={11} />
+                        {t("History")}
+                      </span>
+                      <span className="truncate text-[14px] font-medium text-[var(--foreground)]">
+                        {session.title || t("Untitled session")}
+                      </span>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="inline-flex items-center gap-1 rounded-md bg-[var(--muted)] px-2 py-0.5 text-[11px] font-medium text-[var(--muted-foreground)]">
-                          <MessageSquare size={11} />
-                          {t("History")}
-                        </span>
-                        <span className="truncate text-[14px] font-medium text-[var(--foreground)]">
-                          {session.title || t("Untitled session")}
-                        </span>
-                      </div>
-                      {session.last_message ? (
-                        <p className="mt-1 line-clamp-2 text-[12px] leading-5 text-[var(--muted-foreground)]">
-                          {truncateText(
-                            normalizeMessageContent(session.last_message),
-                            200,
-                          )}
-                        </p>
-                      ) : null}
-                      <div className="mt-2 flex items-center gap-3 text-[11px] text-[var(--muted-foreground)]/85">
-                        <span>
-                          {session.message_count ?? 0} {t("messages")}
-                        </span>
-                        {timestamp && <span>{timestamp}</span>}
-                      </div>
+                    {session.last_message ? (
+                      <p className="mt-1 line-clamp-2 text-[12px] leading-5 text-[var(--muted-foreground)]">
+                        {truncateText(
+                          normalizeMessageContent(session.last_message),
+                          200,
+                        )}
+                      </p>
+                    ) : null}
+                    <div className="mt-2 flex items-center gap-3 text-[11px] text-[var(--muted-foreground)]/85">
+                      <span>
+                        {session.message_count ?? 0} {t("messages")}
+                      </span>
+                      {timestamp && <span>{timestamp}</span>}
                     </div>
-                  </button>
+                  </PickerListItem>
                 );
               })}
             </div>

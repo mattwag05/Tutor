@@ -7,10 +7,11 @@ import {
   ChevronRight,
   Layers3,
   Loader2,
-  Search,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import PickerModalShell from "@/components/common/PickerModalShell";
+import PickerListItem from "@/components/common/PickerListItem";
+import SearchInput from "@/components/common/SearchInput";
 import { bookApi } from "@/lib/book-api";
 import type { Book, BookDetail, Chapter, Page } from "@/lib/book-types";
 import type {
@@ -253,12 +254,10 @@ export default function BookReferencePicker({
       <div className="grid min-h-0 flex-1 grid-cols-[300px_minmax(0,1fr)]">
         <aside className="flex min-h-0 flex-col border-r border-[var(--border)] bg-[var(--background)]/40 p-4">
           <div className="relative mb-3">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted-foreground)]" />
-            <input
+            <SearchInput
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={setQuery}
               placeholder={t("Search books")}
-              className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] py-2.5 pl-9 pr-3 text-[13px] outline-none transition focus:border-[var(--primary)]/50 focus:ring-2 focus:ring-[var(--primary)]/15"
             />
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto rounded-2xl border border-[var(--border)] bg-[var(--card)]">
@@ -384,37 +383,23 @@ export default function BookReferencePicker({
                             pageKey(activeBook.id, page.id),
                           );
                           return (
-                            <button
+                            <PickerListItem
                               key={page.id}
+                              selected={checked}
                               onClick={() =>
                                 togglePage(activeBook, page, chapter)
                               }
-                              className={`flex w-full items-start gap-3 px-5 py-3 text-left transition-colors ${
-                                checked
-                                  ? "bg-[var(--primary)]/8"
-                                  : "hover:bg-[var(--muted)]/30"
-                              }`}
+                              className="px-5 py-3 hover:bg-[var(--muted)]/30"
                             >
-                              <span
-                                className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors ${
-                                  checked
-                                    ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)]"
-                                    : "border-[var(--border)] text-transparent"
-                                }`}
-                              >
-                                <Check size={12} />
+                              <span className="block text-[13px] font-medium text-[var(--foreground)]">
+                                {page.title || t("Untitled chapter")}
                               </span>
-                              <span className="min-w-0 flex-1">
-                                <span className="block text-[13px] font-medium text-[var(--foreground)]">
-                                  {page.title || t("Untitled chapter")}
+                              {page.learning_objectives?.length ? (
+                                <span className="mt-1 line-clamp-2 text-[12px] leading-5 text-[var(--muted-foreground)]">
+                                  {page.learning_objectives.join("; ")}
                                 </span>
-                                {page.learning_objectives?.length ? (
-                                  <span className="mt-1 line-clamp-2 text-[12px] leading-5 text-[var(--muted-foreground)]">
-                                    {page.learning_objectives.join("; ")}
-                                  </span>
-                                ) : null}
-                              </span>
-                            </button>
+                              ) : null}
+                            </PickerListItem>
                           );
                         })}
                       </div>
