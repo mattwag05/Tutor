@@ -315,6 +315,9 @@ web/public/workbox-*.js.map
 !web/lib/ai/manifest/
 !web/app/api/settings/manifest/
 
+# graphify — auto-generated knowledge-graph artifacts (run `graphify update .` locally)
+graphify-out/
+
 # iCloud Drive duplicates "<name> 2", "<name> 3" etc. on synced trees.
 # Untracked artifacts; gitignore them so `git add -A` can't accidentally
 # commit a stale copy. CLAUDE.md gotcha #26 covers cleanup + tsc filter.
