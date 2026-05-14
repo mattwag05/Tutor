@@ -225,6 +225,92 @@ class ModelCatalogService:
             }
             changed = True
 
+        image_service = services.setdefault("image", _service_shell())
+        if not image_service.get("profiles") and (summary.image["model"] or summary.image["host"]):
+            profile_id = "image-profile-default"
+            model_id = "image-model-default"
+            services["image"] = {
+                "active_profile_id": profile_id,
+                "active_model_id": model_id,
+                "profiles": [
+                    {
+                        "id": profile_id,
+                        "name": "Default Image Endpoint",
+                        "binding": summary.image["binding"] or "openai-image",
+                        "base_url": summary.image["host"] or "",
+                        "api_key": summary.image["api_key"],
+                        "api_version": summary.image["api_version"],
+                        "extra_headers": {},
+                        "models": [
+                            {
+                                "id": model_id,
+                                "name": summary.image["model"] or "Default Image Model",
+                                "model": summary.image["model"],
+                            }
+                        ],
+                    }
+                ],
+            }
+            changed = True
+
+        tts_service = services.setdefault("tts", _service_shell())
+        if not tts_service.get("profiles") and (summary.tts["model"] or summary.tts["host"]):
+            profile_id = "tts-profile-default"
+            model_id = "tts-model-default"
+            services["tts"] = {
+                "active_profile_id": profile_id,
+                "active_model_id": model_id,
+                "profiles": [
+                    {
+                        "id": profile_id,
+                        "name": "Default TTS Endpoint",
+                        "binding": summary.tts["binding"] or "openai-tts",
+                        "base_url": summary.tts["host"] or "",
+                        "api_key": summary.tts["api_key"],
+                        "api_version": summary.tts["api_version"],
+                        "extra_headers": {},
+                        "default_voice": summary.tts["voice"] or "",
+                        "models": [
+                            {
+                                "id": model_id,
+                                "name": summary.tts["model"] or "Default TTS Model",
+                                "model": summary.tts["model"],
+                                "voice": summary.tts["voice"] or "",
+                            }
+                        ],
+                    }
+                ],
+            }
+            changed = True
+
+        asr_service = services.setdefault("asr", _service_shell())
+        if not asr_service.get("profiles") and (summary.asr["model"] or summary.asr["host"]):
+            profile_id = "asr-profile-default"
+            model_id = "asr-model-default"
+            services["asr"] = {
+                "active_profile_id": profile_id,
+                "active_model_id": model_id,
+                "profiles": [
+                    {
+                        "id": profile_id,
+                        "name": "Default ASR Endpoint",
+                        "binding": summary.asr["binding"] or "openai-asr",
+                        "base_url": summary.asr["host"] or "",
+                        "api_key": summary.asr["api_key"],
+                        "api_version": summary.asr["api_version"],
+                        "extra_headers": {},
+                        "models": [
+                            {
+                                "id": model_id,
+                                "name": summary.asr["model"] or "Default ASR Model",
+                                "model": summary.asr["model"],
+                            }
+                        ],
+                    }
+                ],
+            }
+            changed = True
+
         return changed
 
     def _sync_active_services_from_env(self, catalog: dict[str, Any]) -> bool:
@@ -320,6 +406,85 @@ class ModelCatalogService:
                 service["profiles"] = [profile]
                 service["active_profile_id"] = profile_id
             return self.get_active_profile(catalog, "search") or profiles[0]
+
+        def ensure_image_profile() -> tuple[dict[str, Any], dict[str, Any]]:
+            service = cast(dict[str, Any], services.setdefault("image", _service_shell()))
+            profiles = cast(list[dict[str, Any]], service.setdefault("profiles", []))
+            if not profiles:
+                profile_id = "image-profile-default"
+                model_id = "image-model-default"
+                profile = {
+                    "id": profile_id,
+                    "name": "Default Image Endpoint",
+                    "binding": "openai-image",
+                    "base_url": "",
+                    "api_key": "",
+                    "api_version": "",
+                    "extra_headers": {},
+                    "models": [{"id": model_id, "name": "Default Image Model", "model": ""}],
+                }
+                service["profiles"] = [profile]
+                service["active_profile_id"] = profile_id
+                service["active_model_id"] = model_id
+            profile = self.get_active_profile(catalog, "image") or profiles[0]
+            model = (
+                self.get_active_model(catalog, "image")
+                or cast(list[dict[str, Any]], profile.setdefault("models", [{}]))[0]
+            )
+            return profile, model
+
+        def ensure_tts_profile() -> tuple[dict[str, Any], dict[str, Any]]:
+            service = cast(dict[str, Any], services.setdefault("tts", _service_shell()))
+            profiles = cast(list[dict[str, Any]], service.setdefault("profiles", []))
+            if not profiles:
+                profile_id = "tts-profile-default"
+                model_id = "tts-model-default"
+                profile = {
+                    "id": profile_id,
+                    "name": "Default TTS Endpoint",
+                    "binding": "openai-tts",
+                    "base_url": "",
+                    "api_key": "",
+                    "api_version": "",
+                    "extra_headers": {},
+                    "default_voice": "",
+                    "models": [{"id": model_id, "name": "Default TTS Model", "model": "", "voice": ""}],
+                }
+                service["profiles"] = [profile]
+                service["active_profile_id"] = profile_id
+                service["active_model_id"] = model_id
+            profile = self.get_active_profile(catalog, "tts") or profiles[0]
+            model = (
+                self.get_active_model(catalog, "tts")
+                or cast(list[dict[str, Any]], profile.setdefault("models", [{}]))[0]
+            )
+            return profile, model
+
+        def ensure_asr_profile() -> tuple[dict[str, Any], dict[str, Any]]:
+            service = cast(dict[str, Any], services.setdefault("asr", _service_shell()))
+            profiles = cast(list[dict[str, Any]], service.setdefault("profiles", []))
+            if not profiles:
+                profile_id = "asr-profile-default"
+                model_id = "asr-model-default"
+                profile = {
+                    "id": profile_id,
+                    "name": "Default ASR Endpoint",
+                    "binding": "openai-asr",
+                    "base_url": "",
+                    "api_key": "",
+                    "api_version": "",
+                    "extra_headers": {},
+                    "models": [{"id": model_id, "name": "Default ASR Model", "model": ""}],
+                }
+                service["profiles"] = [profile]
+                service["active_profile_id"] = profile_id
+                service["active_model_id"] = model_id
+            profile = self.get_active_profile(catalog, "asr") or profiles[0]
+            model = (
+                self.get_active_model(catalog, "asr")
+                or cast(list[dict[str, Any]], profile.setdefault("models", [{}]))[0]
+            )
+            return profile, model
 
         llm_keys = {
             "LLM_BINDING",
@@ -439,6 +604,82 @@ class ModelCatalogService:
             if "SEARCH_PROXY" in env_values and profile.get("proxy") != summary.search["proxy"]:
                 profile["proxy"] = summary.search["proxy"]
                 changed = True
+
+        image_keys = {"IMAGE_BINDING", "IMAGE_MODEL", "IMAGE_API_KEY", "IMAGE_HOST", "IMAGE_API_VERSION"}
+        if image_keys.intersection(env_values.keys()):
+            profile, model = ensure_image_profile()
+            if "IMAGE_BINDING" in env_values and profile.get("binding") != summary.image["binding"]:
+                profile["binding"] = summary.image["binding"]
+                changed = True
+            if "IMAGE_API_KEY" in env_values and profile.get("api_key") != summary.image["api_key"]:
+                profile["api_key"] = summary.image["api_key"]
+                changed = True
+            if "IMAGE_HOST" in env_values and profile.get("base_url") != summary.image["host"]:
+                profile["base_url"] = summary.image["host"]
+                changed = True
+            if "IMAGE_API_VERSION" in env_values and profile.get("api_version") != summary.image["api_version"]:
+                profile["api_version"] = summary.image["api_version"]
+                changed = True
+            if "IMAGE_MODEL" in env_values:
+                if model.get("model") != summary.image["model"]:
+                    model["model"] = summary.image["model"]
+                    changed = True
+                if summary.image["model"] and model.get("name") != summary.image["model"]:
+                    model["name"] = summary.image["model"]
+                    changed = True
+
+        tts_keys = {"TTS_BINDING", "TTS_MODEL", "TTS_API_KEY", "TTS_URL", "TTS_API_VERSION", "TTS_VOICE"}
+        if tts_keys.intersection(env_values.keys()):
+            profile, model = ensure_tts_profile()
+            if "TTS_BINDING" in env_values and profile.get("binding") != summary.tts["binding"]:
+                profile["binding"] = summary.tts["binding"]
+                changed = True
+            if "TTS_API_KEY" in env_values and profile.get("api_key") != summary.tts["api_key"]:
+                profile["api_key"] = summary.tts["api_key"]
+                changed = True
+            if "TTS_URL" in env_values and profile.get("base_url") != summary.tts["host"]:
+                profile["base_url"] = summary.tts["host"]
+                changed = True
+            if "TTS_API_VERSION" in env_values and profile.get("api_version") != summary.tts["api_version"]:
+                profile["api_version"] = summary.tts["api_version"]
+                changed = True
+            if "TTS_MODEL" in env_values:
+                if model.get("model") != summary.tts["model"]:
+                    model["model"] = summary.tts["model"]
+                    changed = True
+                if summary.tts["model"] and model.get("name") != summary.tts["model"]:
+                    model["name"] = summary.tts["model"]
+                    changed = True
+            if "TTS_VOICE" in env_values:
+                if model.get("voice") != summary.tts["voice"]:
+                    model["voice"] = summary.tts["voice"]
+                    changed = True
+                if profile.get("default_voice") != summary.tts["voice"]:
+                    profile["default_voice"] = summary.tts["voice"]
+                    changed = True
+
+        asr_keys = {"ASR_BINDING", "ASR_MODEL", "ASR_API_KEY", "ASR_HOST", "ASR_API_VERSION"}
+        if asr_keys.intersection(env_values.keys()):
+            profile, model = ensure_asr_profile()
+            if "ASR_BINDING" in env_values and profile.get("binding") != summary.asr["binding"]:
+                profile["binding"] = summary.asr["binding"]
+                changed = True
+            if "ASR_API_KEY" in env_values and profile.get("api_key") != summary.asr["api_key"]:
+                profile["api_key"] = summary.asr["api_key"]
+                changed = True
+            if "ASR_HOST" in env_values and profile.get("base_url") != summary.asr["host"]:
+                profile["base_url"] = summary.asr["host"]
+                changed = True
+            if "ASR_API_VERSION" in env_values and profile.get("api_version") != summary.asr["api_version"]:
+                profile["api_version"] = summary.asr["api_version"]
+                changed = True
+            if "ASR_MODEL" in env_values:
+                if model.get("model") != summary.asr["model"]:
+                    model["model"] = summary.asr["model"]
+                    changed = True
+                if summary.asr["model"] and model.get("name") != summary.asr["model"]:
+                    model["name"] = summary.asr["model"]
+                    changed = True
 
         return changed
 

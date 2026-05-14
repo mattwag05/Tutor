@@ -681,8 +681,54 @@ class ConfigTestRunner:
         run.emit(
             "info",
             f"/models unavailable (HTTP {list_response.status_code}); "
-            "falling back to paid /images/generations probe.",
+            "falling back to paid generation probe.",
         )
+
+        # OpenRouter image models use /chat/completions, not /images/generations
+        # (gotcha #65 in CLAUDE.md).
+        if "openrouter" in binding:
+            url = f"{base_url}/chat/completions"
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+                **extra_headers,
+            }
+            payload = {
+                "model": model_id,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": "Generate a 256x256 solid blue square. Return only the image, no text.",
+                    }
+                ],
+                "max_tokens": 1000,
+            }
+            run.emit("info", f"POST {url} (OpenRouter chat/completions probe)")
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                response = await client.post(url, headers=headers, json=payload)
+            if response.status_code >= 400:
+                body_preview = (response.text or "")[:400]
+                raise ValueError(
+                    f"Image provider returned HTTP {response.status_code}: {body_preview}"
+                )
+            try:
+                result = response.json()
+            except Exception as exc:
+                raise ValueError(
+                    f"Image provider returned non-JSON response: {response.text[:400]}"
+                ) from exc
+            choices = result.get("choices") or []
+            if not choices:
+                raise ValueError(
+                    f"Image provider returned no choices. Response: {response.text[:400]}"
+                )
+            content = choices[0].get("message", {}).get("content", "")
+            run.emit(
+                "response",
+                f"OpenRouter image generation succeeded ({len(content)} chars in response).",
+            )
+            return
+
         url = f"{base_url}/images/generations"
         headers = {
             "Authorization": f"Bearer {api_key}",

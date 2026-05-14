@@ -31,6 +31,27 @@ ENV_KEY_ORDER = (
     "COHERE_API_KEY",
     "JINA_API_KEY",
     "GEMINI_API_KEY",
+    "IMAGE_BINDING",
+    "IMAGE_MODEL",
+    "IMAGE_API_KEY",
+    "IMAGE_HOST",
+    "IMAGE_API_VERSION",
+    "TTS_BINDING",
+    "TTS_MODEL",
+    "TTS_API_KEY",
+    "TTS_URL",
+    "TTS_API_VERSION",
+    "TTS_VOICE",
+    "ASR_BINDING",
+    "ASR_MODEL",
+    "ASR_API_KEY",
+    "ASR_HOST",
+    "ASR_API_VERSION",
+    "VIDEO_BINDING",
+    "VIDEO_MODEL",
+    "VIDEO_API_KEY",
+    "VIDEO_HOST",
+    "VIDEO_API_VERSION",
     "SEARCH_PROVIDER",
     "SEARCH_API_KEY",
     "SEARCH_BASE_URL",
@@ -76,6 +97,10 @@ class ConfigSummary:
     frontend_port: int
     llm: dict[str, str]
     embedding: dict[str, str]
+    image: dict[str, str]
+    tts: dict[str, str]
+    asr: dict[str, str]
+    video: dict[str, str]
     search: dict[str, str]
 
 
@@ -133,6 +158,36 @@ class EnvStore:
                     "EMBEDDING_API_VERSION", os.getenv("EMBEDDING_API_VERSION", "")
                 ),
             },
+            image={
+                "binding": values.get("IMAGE_BINDING", os.getenv("IMAGE_BINDING", "openai-image")),
+                "model": values.get("IMAGE_MODEL", os.getenv("IMAGE_MODEL", "")),
+                "api_key": values.get("IMAGE_API_KEY", os.getenv("IMAGE_API_KEY", "")),
+                "host": values.get("IMAGE_HOST", os.getenv("IMAGE_HOST", "")),
+                "api_version": values.get("IMAGE_API_VERSION", os.getenv("IMAGE_API_VERSION", "")),
+            },
+            tts={
+                "binding": values.get("TTS_BINDING", os.getenv("TTS_BINDING", "openai-tts")),
+                "model": values.get("TTS_MODEL", os.getenv("TTS_MODEL", "")),
+                "api_key": values.get("TTS_API_KEY", os.getenv("TTS_API_KEY", "")),
+                "host": values.get("TTS_URL", os.getenv("TTS_URL", "")),
+                "url": values.get("TTS_URL", os.getenv("TTS_URL", "")),
+                "api_version": values.get("TTS_API_VERSION", os.getenv("TTS_API_VERSION", "")),
+                "voice": values.get("TTS_VOICE", os.getenv("TTS_VOICE", "")),
+            },
+            asr={
+                "binding": values.get("ASR_BINDING", os.getenv("ASR_BINDING", "openai-asr")),
+                "model": values.get("ASR_MODEL", os.getenv("ASR_MODEL", "")),
+                "api_key": values.get("ASR_API_KEY", os.getenv("ASR_API_KEY", "")),
+                "host": values.get("ASR_HOST", os.getenv("ASR_HOST", "")),
+                "api_version": values.get("ASR_API_VERSION", os.getenv("ASR_API_VERSION", "")),
+            },
+            video={
+                "binding": values.get("VIDEO_BINDING", os.getenv("VIDEO_BINDING", "openai-video")),
+                "model": values.get("VIDEO_MODEL", os.getenv("VIDEO_MODEL", "")),
+                "api_key": values.get("VIDEO_API_KEY", os.getenv("VIDEO_API_KEY", "")),
+                "host": values.get("VIDEO_HOST", os.getenv("VIDEO_HOST", "")),
+                "api_version": values.get("VIDEO_API_VERSION", os.getenv("VIDEO_API_VERSION", "")),
+            },
             search={
                 "provider": values.get("SEARCH_PROVIDER", os.getenv("SEARCH_PROVIDER", "")),
                 "api_key": values.get("SEARCH_API_KEY", os.getenv("SEARCH_API_KEY", "")),
@@ -174,10 +229,18 @@ class EnvStore:
         ports = draft.get("ports")
         llm = draft.get("llm")
         embedding = draft.get("embedding")
+        image = draft.get("image")
+        tts = draft.get("tts")
+        asr = draft.get("asr")
+        video = draft.get("video")
         search = draft.get("search")
         ports_map = ports if isinstance(ports, dict) else {}
         llm_map = llm if isinstance(llm, dict) else {}
         embedding_map = embedding if isinstance(embedding, dict) else {}
+        image_map = image if isinstance(image, dict) else {}
+        tts_map = tts if isinstance(tts, dict) else {}
+        asr_map = asr if isinstance(asr, dict) else {}
+        video_map = video if isinstance(video, dict) else {}
         search_map = search if isinstance(search, dict) else {}
         return {
             "BACKEND_PORT": str(ports_map.get("backend") or 8001),
@@ -196,6 +259,27 @@ class EnvStore:
                 embedding_map.get("send_dimensions")
             ),
             "EMBEDDING_API_VERSION": str(embedding_map.get("api_version") or ""),
+            "IMAGE_BINDING": str(image_map.get("binding") or "openai-image"),
+            "IMAGE_MODEL": str(image_map.get("model") or ""),
+            "IMAGE_API_KEY": str(image_map.get("api_key") or ""),
+            "IMAGE_HOST": str(image_map.get("host") or ""),
+            "IMAGE_API_VERSION": str(image_map.get("api_version") or ""),
+            "TTS_BINDING": str(tts_map.get("binding") or "openai-tts"),
+            "TTS_MODEL": str(tts_map.get("model") or ""),
+            "TTS_API_KEY": str(tts_map.get("api_key") or ""),
+            "TTS_URL": str(tts_map.get("url") or ""),
+            "TTS_API_VERSION": str(tts_map.get("api_version") or ""),
+            "TTS_VOICE": str(tts_map.get("voice") or ""),
+            "ASR_BINDING": str(asr_map.get("binding") or "openai-asr"),
+            "ASR_MODEL": str(asr_map.get("model") or ""),
+            "ASR_API_KEY": str(asr_map.get("api_key") or ""),
+            "ASR_HOST": str(asr_map.get("host") or ""),
+            "ASR_API_VERSION": str(asr_map.get("api_version") or ""),
+            "VIDEO_BINDING": str(video_map.get("binding") or "openai-video"),
+            "VIDEO_MODEL": str(video_map.get("model") or ""),
+            "VIDEO_API_KEY": str(video_map.get("api_key") or ""),
+            "VIDEO_HOST": str(video_map.get("host") or ""),
+            "VIDEO_API_VERSION": str(video_map.get("api_version") or ""),
             "SEARCH_PROVIDER": str(search_map.get("provider") or ""),
             "SEARCH_API_KEY": str(search_map.get("api_key") or ""),
             "SEARCH_BASE_URL": str(search_map.get("base_url") or ""),
@@ -206,12 +290,24 @@ class EnvStore:
         services = catalog.get("services", {})
         llm_service = services.get("llm", {})
         embedding_service = services.get("embedding", {})
+        image_service = services.get("image", {})
+        tts_service = services.get("tts", {})
+        asr_service = services.get("asr", {})
+        video_service = services.get("video", {})
         search_service = services.get("search", {})
 
         llm_profile = self._get_active_profile(llm_service)
         llm_model = self._get_active_model(llm_service, llm_profile)
         embedding_profile = self._get_active_profile(embedding_service)
         embedding_model = self._get_active_model(embedding_service, embedding_profile)
+        image_profile = self._get_active_profile(image_service)
+        image_model = self._get_active_model(image_service, image_profile)
+        tts_profile = self._get_active_profile(tts_service)
+        tts_model = self._get_active_model(tts_service, tts_profile)
+        asr_profile = self._get_active_profile(asr_service)
+        asr_model = self._get_active_model(asr_service, asr_profile)
+        video_profile = self._get_active_profile(video_service)
+        video_model = self._get_active_model(video_service, video_profile)
         search_profile = self._get_active_profile(search_service)
 
         current = self.load()
@@ -232,6 +328,27 @@ class EnvStore:
                 (embedding_model or {}).get("send_dimensions")
             ),
             "EMBEDDING_API_VERSION": str((embedding_profile or {}).get("api_version") or ""),
+            "IMAGE_BINDING": str((image_profile or {}).get("binding") or "openai-image"),
+            "IMAGE_MODEL": str((image_model or {}).get("model") or ""),
+            "IMAGE_API_KEY": str((image_profile or {}).get("api_key") or ""),
+            "IMAGE_HOST": str((image_profile or {}).get("base_url") or ""),
+            "IMAGE_API_VERSION": str((image_profile or {}).get("api_version") or ""),
+            "TTS_BINDING": str((tts_profile or {}).get("binding") or "openai-tts"),
+            "TTS_MODEL": str((tts_model or {}).get("model") or ""),
+            "TTS_API_KEY": str((tts_profile or {}).get("api_key") or ""),
+            "TTS_URL": str((tts_profile or {}).get("base_url") or ""),
+            "TTS_API_VERSION": str((tts_profile or {}).get("api_version") or ""),
+            "TTS_VOICE": str((tts_model or {}).get("voice") or ""),
+            "ASR_BINDING": str((asr_profile or {}).get("binding") or "openai-asr"),
+            "ASR_MODEL": str((asr_model or {}).get("model") or ""),
+            "ASR_API_KEY": str((asr_profile or {}).get("api_key") or ""),
+            "ASR_HOST": str((asr_profile or {}).get("base_url") or ""),
+            "ASR_API_VERSION": str((asr_profile or {}).get("api_version") or ""),
+            "VIDEO_BINDING": str((video_profile or {}).get("binding") or "openai-video"),
+            "VIDEO_MODEL": str((video_model or {}).get("model") or ""),
+            "VIDEO_API_KEY": str((video_profile or {}).get("api_key") or ""),
+            "VIDEO_HOST": str((video_profile or {}).get("base_url") or ""),
+            "VIDEO_API_VERSION": str((video_profile or {}).get("api_version") or ""),
             "SEARCH_PROVIDER": str((search_profile or {}).get("provider") or ""),
             "SEARCH_API_KEY": str((search_profile or {}).get("api_key") or ""),
             "SEARCH_BASE_URL": str((search_profile or {}).get("base_url") or ""),
