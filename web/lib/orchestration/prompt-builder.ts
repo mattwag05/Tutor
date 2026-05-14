@@ -50,6 +50,7 @@ You are NOT a teacher — your responses should be much shorter than the teacher
 interface DiscussionContext {
   topic: string;
   prompt?: string;
+  ragContext?: string;
 }
 
 // ==================== Per-variant string constants ====================
@@ -92,12 +93,15 @@ function buildDiscussionContextSection(
   agentResponses: AgentTurnSummary[] | undefined,
 ): string {
   if (!discussionContext) return '';
+  const ragSection = discussionContext.ragContext
+    ? `\n\n## Knowledge Base Context\n${discussionContext.ragContext}`
+    : '';
   if (agentResponses && agentResponses.length > 0) {
     return `
 
 # Discussion Context
 Topic: "${discussionContext.topic}"
-${discussionContext.prompt ? `Guiding prompt: ${discussionContext.prompt}` : ''}
+${discussionContext.prompt ? `Guiding prompt: ${discussionContext.prompt}` : ''}${ragSection}
 
 You are JOINING an ongoing discussion — do NOT re-introduce the topic or greet the students. The discussion has already started. Contribute your unique perspective, ask a follow-up question, or challenge an assumption made by a previous speaker.`;
   }
@@ -105,7 +109,7 @@ You are JOINING an ongoing discussion — do NOT re-introduce the topic or greet
 
 # Discussion Context
 You are initiating a discussion on the following topic: "${discussionContext.topic}"
-${discussionContext.prompt ? `Guiding prompt: ${discussionContext.prompt}` : ''}
+${discussionContext.prompt ? `Guiding prompt: ${discussionContext.prompt}` : ''}${ragSection}
 
 IMPORTANT: As you are starting this discussion, begin by introducing the topic naturally to the students. Engage them and invite their thoughts. Do not wait for user input - you speak first.`;
 }

@@ -253,6 +253,8 @@ export interface StatelessChatRequest {
     discussionTopic?: string;
     /** Discussion prompt (for agent-initiated discussions) */
     discussionPrompt?: string;
+    /** RAG-retrieved knowledge base context (for KB-grounded discussions) */
+    ragContext?: string;
     /** Which agent should speak first in a discussion */
     triggerAgentId?: string;
     /** Full agent configs for generated (non-default) agents that aren't in the server-side registry */

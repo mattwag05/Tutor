@@ -12,6 +12,7 @@ export interface RoundtableSession {
   sourceId: string;
   createdAt: string;
   agentIds: string[];
+  ragContext?: string;
 }
 
 function sessionPath(id: string): string {

@@ -1249,6 +1249,7 @@ export function useChatSessions(options: UseChatSessionsOptions = {}) {
               sessionType: 'discussion',
               discussionTopic: request.topic,
               discussionPrompt: request.prompt,
+              ragContext: request.ragContext,
               triggerAgentId: agentId,
             },
             userProfile: {

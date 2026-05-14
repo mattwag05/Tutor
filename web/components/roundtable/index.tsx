@@ -37,6 +37,7 @@ export interface DiscussionRequest {
   topic: string;
   prompt?: string;
   agentId?: string; // Agent ID to initiate discussion (default: 'default-1')
+  ragContext?: string; // RAG-retrieved knowledge base context
 }
 
 interface RoundtableProps {

@@ -12,9 +12,10 @@ interface Props {
   sessionId: string;
   topic: string;
   prompt?: string;
+  ragContext?: string;
 }
 
-export function RoundtableStandalone({ sessionId, topic, prompt }: Props) {
+export function RoundtableStandalone({ sessionId, topic, prompt, ragContext }: Props) {
   const router = useRouter();
   const chatRef = useRef<ChatAreaRef>(null);
   const registry = useAgentRegistry();
@@ -30,8 +31,8 @@ export function RoundtableStandalone({ sessionId, topic, prompt }: Props) {
   const handleStart = useCallback(async () => {
     if (started || !chatRef.current) return;
     setStarted(true);
-    await chatRef.current.startDiscussion({ topic, prompt, agentId: participants[0]?.id });
-  }, [started, topic, prompt, participants]);
+    await chatRef.current.startDiscussion({ topic, prompt, agentId: participants[0]?.id, ragContext });
+  }, [started, topic, prompt, ragContext, participants]);
 
   useEffect(() => {
     const timer = setTimeout(handleStart, 500);

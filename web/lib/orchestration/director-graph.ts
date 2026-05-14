@@ -520,6 +520,7 @@ export function buildInitialState(
     ? {
         topic: request.config.discussionTopic,
         prompt: request.config.discussionPrompt,
+        ragContext: request.config.ragContext,
       }
     : null;
 

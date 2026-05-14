@@ -16,6 +16,7 @@ export default async function RoundtablePage({ params }: Props) {
       sessionId={session.id}
       topic={session.topic}
       prompt={session.prompt}
+      ragContext={session.ragContext}
     />
   );
 }
