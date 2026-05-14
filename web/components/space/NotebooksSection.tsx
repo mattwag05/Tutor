@@ -342,6 +342,7 @@ export default function NotebooksSection() {
                       void handleDelete(notebook.id, notebook.name);
                     }}
                     title={t("Delete")}
+                    aria-label={t("Delete")}
                     className="absolute right-1.5 top-1.5 rounded-md p-1.5 text-[var(--muted-foreground)] opacity-0 transition-opacity hover:bg-[var(--destructive)]/10 hover:text-[var(--destructive)] group-hover:opacity-100"
                   >
                     <Trash2 size={12} />

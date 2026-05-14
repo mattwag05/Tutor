@@ -331,6 +331,7 @@ function SelectionSummary({
               type="button"
               onClick={() => onRemove(item.id)}
               title={t("Remove")}
+              aria-label={t("Remove")}
               className="rounded-md p-1.5 text-[var(--muted-foreground)] transition-colors hover:bg-[var(--background)] hover:text-[var(--foreground)]"
             >
               <X className="h-3.5 w-3.5" />

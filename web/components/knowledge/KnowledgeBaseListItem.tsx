@@ -100,6 +100,7 @@ export default function KnowledgeBaseListItem({
                 onSetDefault();
               }}
               title={t("Set default")}
+              aria-label={t("Set default")}
               className="rounded p-1 text-[var(--muted-foreground)] hover:bg-[var(--background)] hover:text-amber-500"
             >
               <Star className="h-3 w-3" />
@@ -112,6 +113,7 @@ export default function KnowledgeBaseListItem({
               onDelete();
             }}
             title={t("Delete")}
+            aria-label={t("Delete")}
             className="rounded p-1 text-[var(--muted-foreground)] hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
           >
             <Trash2 className="h-3 w-3" />

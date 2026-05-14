@@ -754,6 +754,7 @@ export function Roundtable({
                     />
                   </div>
                   <button
+                    aria-label="Send message"
                     onClick={handleSendMessage}
                     disabled={isSendCooldown}
                     className={cn(
@@ -1269,6 +1270,7 @@ export function Roundtable({
                       />
                     </div>
                     <button
+                      aria-label="Send message"
                       onClick={handleSendMessage}
                       disabled={isSendCooldown}
                       className={cn(
@@ -1924,6 +1926,7 @@ export function Roundtable({
 
             {/* Right arrow */}
             <button
+              aria-label="Scroll right"
               onClick={() => {
                 agentScrollRef.current?.scrollBy({
                   left: 80,
@@ -1993,6 +1996,7 @@ export function Roundtable({
               ) : (
                 <>
                   <button
+                    aria-label="Toggle microphone"
                     onClick={(e) => {
                       e.stopPropagation();
                       if (asrEnabled) handleToggleVoice();
@@ -2014,6 +2018,7 @@ export function Roundtable({
                     )}
                   </button>
                   <button
+                    aria-label="Toggle text input"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleToggleInput();

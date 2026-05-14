@@ -133,6 +133,7 @@ export function SceneSidebar({
             <img src="/logo-horizontal.png" alt="OpenMAIC" className="h-6" />
           </button>
           <button
+            aria-label="Collapse sidebar"
             onClick={() => onCollapseChange(true)}
             className="w-7 h-7 shrink-0 rounded-lg flex items-center justify-center bg-gray-100/80 dark:bg-gray-800/80 text-gray-500 dark:text-gray-400 ring-1 ring-black/[0.04] dark:ring-white/[0.06] hover:bg-gray-200/90 dark:hover:bg-gray-700/90 hover:text-gray-700 dark:hover:text-gray-200 active:scale-90 transition-all duration-200"
           >
@@ -415,6 +416,7 @@ export function SceneSidebar({
                               disabled={isRetrying}
                               className="p-1 -ml-1 rounded-md hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors active:scale-95 disabled:opacity-50 disabled:active:scale-100"
                               title={t('generation.retryScene')}
+                              aria-label={t('generation.retryScene')}
                             >
                               <RefreshCw
                                 className={cn('w-3.5 h-3.5', isRetrying && 'animate-spin')}

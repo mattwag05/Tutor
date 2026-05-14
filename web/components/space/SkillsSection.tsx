@@ -429,6 +429,7 @@ export default function SkillsSection() {
                       }
                       className="rounded p-1 text-[var(--muted-foreground)] transition-colors hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
                       title={t("Rename")}
+                      aria-label={t("Rename")}
                     >
                       <Pencil size={12} />
                     </button>
@@ -436,6 +437,7 @@ export default function SkillsSection() {
                       onClick={() => void handleDeleteTag(tag)}
                       className="rounded p-1 text-[var(--muted-foreground)] transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30"
                       title={t("Delete")}
+                      aria-label={t("Delete")}
                     >
                       <Trash2 size={12} />
                     </button>
@@ -564,6 +566,7 @@ export default function SkillsSection() {
                     onClick={() => void openEdit(skill.name)}
                     className="rounded-md p-1.5 text-[var(--muted-foreground)] transition-colors hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
                     title={t("Edit")}
+                    aria-label={t("Edit")}
                   >
                     <Pencil size={13} />
                   </button>
@@ -572,6 +575,7 @@ export default function SkillsSection() {
                     disabled={deleting === skill.name}
                     className="rounded-md p-1.5 text-[var(--muted-foreground)] transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50 dark:hover:bg-red-950/30"
                     title={t("Delete")}
+                    aria-label={t("Delete")}
                   >
                     {deleting === skill.name ? (
                       <Loader2 size={13} className="animate-spin" />

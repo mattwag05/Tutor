@@ -132,6 +132,7 @@ export function PDFSettings({ selectedProviderId }: PDFSettingsProps) {
                     />
                     <button
                       type="button"
+                      aria-label={showApiKey ? "Hide API key" : "Show API key"}
                       onClick={() => setShowApiKey(!showApiKey)}
                       className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     >
@@ -234,17 +235,18 @@ export function PDFSettings({ selectedProviderId }: PDFSettingsProps) {
                     }
                     className="font-mono text-base sm:text-sm pr-10"
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowApiKey(!showApiKey)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  >
-                    {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
+                    <button
+                      type="button"
+                      aria-label={showApiKey ? "Hide API key" : "Show API key"}
+                      onClick={() => setShowApiKey(!showApiKey)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
 
           {/* Test result message */}
           {testMessage && (

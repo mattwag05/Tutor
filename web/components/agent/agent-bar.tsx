@@ -311,6 +311,7 @@ function AgentVoicePill({
                       {canPreview && (
                         <button
                           type="button"
+                          aria-label="Preview voice"
                           onClick={(e) => {
                             e.stopPropagation();
                             handlePreview(provider.providerId, voice.id, group.modelId);
@@ -580,6 +581,7 @@ function TeacherVoicePill({
                       {canPreview && (
                         <button
                           type="button"
+                          aria-label="Preview voice"
                           onClick={(e) => {
                             e.stopPropagation();
                             handlePreview(provider.providerId, voice.id, group.modelId);
@@ -947,6 +949,7 @@ export function AgentBar() {
                 <div className="flex items-center rounded-full bg-muted/50 h-5 shrink-0">
                   <button
                     type="button"
+                    aria-label="Decrease max turns"
                     onClick={(e) => {
                       e.stopPropagation();
                       const v = Math.max(1, parseInt(maxTurns || '1') - 1);
