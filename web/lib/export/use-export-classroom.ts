@@ -46,16 +46,19 @@ export function useExportClassroom() {
       // 3. Collect audio files
       const audioFiles = await collectAudioFiles(scenes);
 
-      // 4. Collect media files (generated images/videos)
+      // 4. Collect chat sessions for this classroom
+      const chatSessions = await db.chatSessions.where('stageId').equals(stage.id).toArray();
+
+      // 5. Collect media files (generated images/videos)
       const mediaFiles = await collectMediaFiles(stage.id);
 
-      // 5. Build audioId → zipPath mapping for manifest
+      // 6. Build audioId → zipPath mapping for manifest
       const audioIdToPath = new Map<string, string>();
       for (const af of audioFiles) {
         audioIdToPath.set(af.record.id, af.zipPath);
       }
 
-      // 6. Build manifest
+      // 7. Build manifest
       const manifestStage: ManifestStage = {
         name: latestName,
         description: stage.description,
@@ -115,7 +118,7 @@ export function useExportClassroom() {
           : {}),
       }));
 
-      // 7. Build mediaIndex
+      // 8. Build mediaIndex
       const mediaIndex: Record<string, MediaIndexEntry> = {};
 
       for (const af of audioFiles) {
@@ -148,7 +151,7 @@ export function useExportClassroom() {
         }
       }
 
-      // 8. Assemble manifest
+      // 9. Assemble manifest
       const manifest: ClassroomManifest = {
         formatVersion: CLASSROOM_ZIP_FORMAT_VERSION,
         exportedAt: new Date().toISOString(),
@@ -161,7 +164,22 @@ export function useExportClassroom() {
 
       zip.file('manifest.json', JSON.stringify(manifest, null, 2));
 
-      // 9. Add media blobs to ZIP
+      // Include chat sessions for roundtable replay preservation
+      if (chatSessions.length > 0) {
+        const chatData = chatSessions.map((s) => ({
+          type: s.type,
+          title: s.title,
+          status: s.status,
+          messages: s.messages,
+          config: s.config,
+          sceneId: s.sceneId,
+          createdAt: s.createdAt,
+          updatedAt: s.updatedAt,
+        }));
+        zip.file('chat-sessions.json', JSON.stringify(chatData, null, 2));
+      }
+
+      // 10. Add media blobs to ZIP
       for (const af of audioFiles) {
         zip.file(af.zipPath, af.record.blob);
       }
@@ -172,7 +190,7 @@ export function useExportClassroom() {
         }
       }
 
-      // 10. Generate and download
+      // 11. Generate and download
       const zipBlob = await zip.generateAsync({ type: 'blob' });
       const safeName = latestName.replace(/[\\/:*?"<>|]/g, '_') || 'classroom';
       saveAs(zipBlob, `${safeName}${CLASSROOM_ZIP_EXTENSION}`);

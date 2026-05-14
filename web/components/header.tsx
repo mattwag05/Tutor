@@ -11,6 +11,7 @@ import {
   FileDown,
   Package,
   Archive,
+  Upload,
   MessageSquare,
 } from 'lucide-react';
 import { useI18n } from '@/lib/hooks/use-i18n';
@@ -24,6 +25,7 @@ import { useStageStore } from '@/lib/store/stage';
 import { useMediaGenerationStore } from '@/lib/store/media-generation';
 import { useExportPPTX } from '@/lib/export/use-export-pptx';
 import { useExportClassroom } from '@/lib/export/use-export-classroom';
+import { useImportClassroom } from '@/lib/import/use-import-classroom';
 import { DiscussButton } from '@/components/ui/DiscussButton';
 
 interface HeaderProps {
@@ -40,6 +42,7 @@ export function Header({ currentSceneTitle }: HeaderProps) {
   // Export
   const { exporting: isExporting, exportPPTX, exportResourcePack } = useExportPPTX();
   const { exporting: isExportingZip, exportClassroomZip } = useExportClassroom();
+  const { importing: isImporting, fileInputRef: importFileRef, triggerFileSelect, handleFileChange } = useImportClassroom();
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const exportRef = useRef<HTMLDivElement>(null);
   const stage = useStageStore((s) => s.stage);
@@ -261,6 +264,30 @@ export function Header({ currentSceneTitle }: HeaderProps) {
                   <div>{t('export.classroomZip')}</div>
                   <div className="text-[11px] text-gray-400 dark:text-gray-500">
                     {t('export.classroomZipDesc')}
+                  </div>
+                </div>
+              </button>
+              <div className="mx-2 my-1 border-t border-gray-200 dark:border-gray-700" />
+              <input
+                ref={importFileRef}
+                type="file"
+                accept=".maic.zip"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+              <button
+                onClick={() => {
+                  setExportMenuOpen(false);
+                  triggerFileSelect();
+                }}
+                disabled={isImporting}
+                className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2.5"
+              >
+                <Upload className="w-4 h-4 text-gray-400 shrink-0" />
+                <div>
+                  <div>{isImporting ? 'Importing…' : 'Import Classroom'}</div>
+                  <div className="text-[11px] text-gray-400 dark:text-gray-500">
+                    Load a .maic.zip file
                   </div>
                 </div>
               </button>

@@ -219,7 +219,36 @@ export function useImportClassroom(onSuccess?: () => void) {
         });
         await db.scenes.bulkPut(sceneRecords);
 
-        // 6. Done
+        // 6. Import chat sessions (roundtable replay preservation)
+        const chatFile = zip.file('chat-sessions.json');
+        if (chatFile) {
+          try {
+            const chatText = await chatFile.async('text');
+            const chatData = JSON.parse(chatText);
+            if (Array.isArray(chatData) && chatData.length > 0) {
+              const chatRecords = chatData.map((s: Record<string, unknown>) => ({
+                id: nanoid(),
+                stageId: newStageId,
+                type: s.type || 'qa',
+                title: s.title || '',
+                status: s.status || 'completed',
+                messages: s.messages || [],
+                config: s.config || {},
+                toolCalls: [],
+                pendingToolCalls: [],
+                createdAt: typeof s.createdAt === 'number' ? s.createdAt : now,
+                updatedAt: typeof s.updatedAt === 'number' ? s.updatedAt : now,
+                sceneId: s.sceneId || undefined,
+              }));
+              await db.chatSessions.bulkPut(chatRecords);
+              log.info(`Imported ${chatRecords.length} chat sessions`);
+            }
+          } catch (chatError) {
+            log.warn('Failed to import chat sessions:', chatError);
+          }
+        }
+
+        // 7. Done
         setPhase('done');
         toast.success(t('import.success'), { id: toastId });
         onSuccess?.();
