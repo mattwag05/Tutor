@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import SpaceSectionHeader from "@/components/space/SpaceSectionHeader";
+import Modal from "@/components/common/Modal";
 import { isValidSkillName, slugifySkillName } from "@/lib/skill-slug";
 import {
   createSkill,
@@ -608,179 +609,166 @@ export default function SkillsSection() {
       )}
 
       {/* Editor modal */}
-      {editor && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          role="dialog"
-          aria-modal="true"
-        >
-          <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--background)] shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-3">
-              <div className="flex items-center gap-2">
-                <Wand2 size={14} className="text-[var(--muted-foreground)]" />
-                <h3 className="text-[14px] font-semibold text-[var(--foreground)]">
-                  {editor.mode === "create" ? t("New skill") : t("Edit skill")}
-                </h3>
-              </div>
-              <button
-                onClick={() => setEditor(null)}
-                className="rounded-md p-1.5 text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
-              >
-                <X size={14} />
-              </button>
-            </div>
-
-            <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
-              <div>
-                <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-[var(--muted-foreground)]">
-                  {t("Name")}
-                </label>
-                <input
-                  value={editor.name}
-                  onChange={(e) =>
-                    setEditor({
-                      ...editor,
-                      name: slugifySkillName(e.target.value),
-                    })
-                  }
-                  placeholder={t("e.g. socratic-math-mentor")}
-                  className={`w-full rounded-lg border bg-[var(--background)] px-3 py-2 text-[13px] outline-none transition-colors focus:border-[var(--foreground)]/25 ${
-                    editorNameInvalid
-                      ? "border-red-400 dark:border-red-600"
-                      : "border-[var(--border)]"
-                  }`}
-                />
-                <p
-                  className={`mt-1 text-[11px] transition-colors ${
-                    editorNameInvalid
-                      ? "text-red-500 dark:text-red-400"
-                      : "text-[var(--muted-foreground)]/70"
-                  }`}
-                >
-                  {t("Lowercase letters, digits, and hyphens only.")}
-                </p>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-[var(--muted-foreground)]">
-                  {t("Description")}
-                </label>
-                <input
-                  value={editor.description}
-                  onChange={(e) =>
-                    setEditor({ ...editor, description: e.target.value })
-                  }
-                  placeholder={t("Short summary used by Auto mode")}
-                  className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-[13px] outline-none transition-colors focus:border-[var(--foreground)]/25"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-[var(--muted-foreground)]">
-                  {t("Tags")}
-                </label>
-                <div className="flex flex-wrap gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] p-2">
-                  {availableTagsForEditor.length === 0 && (
-                    <span className="px-1 text-[11px] italic text-[var(--muted-foreground)]/70">
-                      {t("No tags yet — add one below.")}
-                    </span>
-                  )}
-                  {availableTagsForEditor.map((tag) => {
-                    const active = editor.tags.includes(tag);
-                    return (
-                      <button
-                        key={tag}
-                        type="button"
-                        onClick={() => toggleEditorTag(tag)}
-                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11.5px] transition-colors ${
-                          active
-                            ? "bg-[var(--foreground)] text-[var(--background)]"
-                            : "border border-[var(--border)] bg-[var(--card)] text-[var(--muted-foreground)] hover:border-[var(--foreground)]/30 hover:text-[var(--foreground)]"
-                        }`}
-                      >
-                        {active ? (
-                          <Check size={10} strokeWidth={2.4} />
-                        ) : (
-                          <span className="inline-flex h-1.5 w-1.5 rounded-full bg-current opacity-50" />
-                        )}
-                        {tag}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="mt-2 flex items-center gap-1.5">
-                  <input
-                    value={editorTagDraft}
-                    onChange={(e) => setEditorTagDraft(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        void handleCreateEditorTag();
-                      }
-                    }}
-                    placeholder={t("Add a tag...")}
-                    className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-[12px] text-[var(--foreground)] outline-none placeholder:text-[var(--muted-foreground)]"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => void handleCreateEditorTag()}
-                    disabled={!editorTagDraft.trim()}
-                    className="inline-flex items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--muted)]/40 px-2.5 py-1.5 text-[12px] font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--muted)] disabled:opacity-40"
-                    aria-label="Add">
-                    <Plus size={12} strokeWidth={2.2} />
-                    {t("Add")}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-[var(--muted-foreground)]">
-                  {t("Markdown body")}
-                </label>
-                <textarea
-                  value={editor.content}
-                  onChange={(e) =>
-                    setEditor({ ...editor, content: e.target.value })
-                  }
-                  rows={14}
-                  spellCheck={false}
-                  className="w-full resize-y rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 font-mono text-[12px] leading-relaxed outline-none transition-colors focus:border-[var(--foreground)]/25"
-                />
-                <p className="mt-1 text-[11px] text-[var(--muted-foreground)]/70">
-                  {t(
-                    "YAML frontmatter is optional and is auto-managed for name, description, and tags.",
-                  )}
-                </p>
-              </div>
-
-              {editor.error && (
-                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
-                  {editor.error}
-                </div>
+      <Modal
+        isOpen={!!editor}
+        onClose={() => setEditor(null)}
+        title={editor?.mode === "create" ? t("New skill") : t("Edit skill")}
+        titleIcon={<Wand2 size={14} className="text-[var(--muted-foreground)]" />}
+        width="xl"
+        footer={
+          <div className="flex w-full items-center justify-end gap-2">
+            <button
+              onClick={() => setEditor(null)}
+              className="rounded-md px-3 py-1.5 text-[12px] font-medium text-[var(--muted-foreground)] transition-colors hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
+            >
+              {t("Cancel")}
+            </button>
+            <button
+              onClick={() => void handleSave()}
+              disabled={editor?.saving}
+              className="inline-flex items-center gap-1.5 rounded-md bg-[var(--foreground)] px-3.5 py-1.5 text-[12px] font-medium text-[var(--background)] transition-opacity hover:opacity-90 disabled:opacity-50"
+            >
+              {editor?.saving && (
+                <Loader2 size={12} className="animate-spin" />
               )}
-            </div>
+              {t("Save")}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4 px-1 py-1">
+          <div>
+            <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-[var(--muted-foreground)]">
+              {t("Name")}
+            </label>
+            <input
+              value={editor?.name ?? ""}
+              onChange={(e) =>
+                setEditor((prev) =>
+                  prev ? { ...prev, name: slugifySkillName(e.target.value) } : prev,
+                )
+              }
+              placeholder={t("e.g. socratic-math-mentor")}
+              className={`w-full rounded-lg border bg-[var(--background)] px-3 py-2 text-[13px] outline-none transition-colors focus:border-[var(--foreground)]/25 ${
+                editorNameInvalid
+                  ? "border-red-400 dark:border-red-600"
+                  : "border-[var(--border)]"
+              }`}
+            />
+            <p
+              className={`mt-1 text-[11px] transition-colors ${
+                editorNameInvalid
+                  ? "text-red-500 dark:text-red-400"
+                  : "text-[var(--muted-foreground)]/70"
+              }`}
+            >
+              {t("Lowercase letters, digits, and hyphens only.")}
+            </p>
+          </div>
 
-            <div className="flex items-center justify-end gap-2 border-t border-[var(--border)] px-5 py-3">
+          <div>
+            <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-[var(--muted-foreground)]">
+              {t("Description")}
+            </label>
+            <input
+              value={editor?.description ?? ""}
+              onChange={(e) =>
+                setEditor((prev) =>
+                  prev ? { ...prev, description: e.target.value } : prev,
+                )
+              }
+              placeholder={t("Short summary used by Auto mode")}
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-[13px] outline-none transition-colors focus:border-[var(--foreground)]/25"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-[var(--muted-foreground)]">
+              {t("Tags")}
+            </label>
+            <div className="flex flex-wrap gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] p-2">
+              {availableTagsForEditor.length === 0 && (
+                <span className="px-1 text-[11px] italic text-[var(--muted-foreground)]/70">
+                  {t("No tags yet — add one below.")}
+                </span>
+              )}
+              {availableTagsForEditor.map((tag) => {
+                const active = editor?.tags.includes(tag) ?? false;
+                return (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => toggleEditorTag(tag)}
+                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11.5px] transition-colors ${
+                      active
+                        ? "bg-[var(--foreground)] text-[var(--background)]"
+                        : "border border-[var(--border)] bg-[var(--card)] text-[var(--muted-foreground)] hover:border-[var(--foreground)]/30 hover:text-[var(--foreground)]"
+                    }`}
+                  >
+                    {active ? (
+                      <Check size={10} strokeWidth={2.4} />
+                    ) : (
+                      <span className="inline-flex h-1.5 w-1.5 rounded-full bg-current opacity-50" />
+                    )}
+                    {tag}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-2 flex items-center gap-1.5">
+              <input
+                value={editorTagDraft}
+                onChange={(e) => setEditorTagDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void handleCreateEditorTag();
+                  }
+                }}
+                placeholder={t("Add a tag...")}
+                className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-[12px] text-[var(--foreground)] outline-none placeholder:text-[var(--muted-foreground)]"
+              />
               <button
-                onClick={() => setEditor(null)}
-                className="rounded-md px-3 py-1.5 text-[12px] font-medium text-[var(--muted-foreground)] transition-colors hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
-              >
-                {t("Cancel")}
-              </button>
-              <button
-                onClick={() => void handleSave()}
-                disabled={editor.saving}
-                className="inline-flex items-center gap-1.5 rounded-md bg-[var(--foreground)] px-3.5 py-1.5 text-[12px] font-medium text-[var(--background)] transition-opacity hover:opacity-90 disabled:opacity-50"
-              >
-                {editor.saving && (
-                  <Loader2 size={12} className="animate-spin" />
-                )}
-                {t("Save")}
+                type="button"
+                onClick={() => void handleCreateEditorTag()}
+                disabled={!editorTagDraft.trim()}
+                className="inline-flex items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--muted)]/40 px-2.5 py-1.5 text-[12px] font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--muted)] disabled:opacity-40"
+                aria-label="Add">
+                <Plus size={12} strokeWidth={2.2} />
+                {t("Add")}
               </button>
             </div>
           </div>
+
+          <div>
+            <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-[var(--muted-foreground)]">
+              {t("Markdown body")}
+            </label>
+            <textarea
+              value={editor?.content ?? ""}
+              onChange={(e) =>
+                setEditor((prev) =>
+                  prev ? { ...prev, content: e.target.value } : prev,
+                )
+              }
+              rows={14}
+              spellCheck={false}
+              className="w-full resize-y rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 font-mono text-[12px] leading-relaxed outline-none transition-colors focus:border-[var(--foreground)]/25"
+            />
+            <p className="mt-1 text-[11px] text-[var(--muted-foreground)]/70">
+              {t(
+                "YAML frontmatter is optional and is auto-managed for name, description, and tags.",
+              )}
+            </p>
+          </div>
+
+          {editor?.error && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
+              {editor.error}
+            </div>
+          )}
         </div>
-      )}
+      </Modal>
     </div>
   );
 }
