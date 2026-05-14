@@ -11,6 +11,7 @@ import {
   FileDown,
   Package,
   Archive,
+  MessageSquare,
 } from 'lucide-react';
 import { useI18n } from '@/lib/hooks/use-i18n';
 import { useTheme } from '@/lib/hooks/use-theme';
@@ -23,6 +24,7 @@ import { useStageStore } from '@/lib/store/stage';
 import { useMediaGenerationStore } from '@/lib/store/media-generation';
 import { useExportPPTX } from '@/lib/export/use-export-pptx';
 import { useExportClassroom } from '@/lib/export/use-export-classroom';
+import { DiscussButton } from '@/components/ui/DiscussButton';
 
 interface HeaderProps {
   readonly currentSceneTitle: string;
@@ -40,6 +42,7 @@ export function Header({ currentSceneTitle }: HeaderProps) {
   const { exporting: isExportingZip, exportClassroomZip } = useExportClassroom();
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const exportRef = useRef<HTMLDivElement>(null);
+  const stage = useStageStore((s) => s.stage);
   const scenes = useStageStore((s) => s.scenes);
   const generatingOutlines = useStageStore((s) => s.generatingOutlines);
   const failedOutlines = useStageStore((s) => s.failedOutlines);
@@ -179,6 +182,15 @@ export function Header({ currentSceneTitle }: HeaderProps) {
               <Settings className="w-4 h-4 group-hover:rotate-90 transition-transform duration-500" />
             </button>
           </div>
+
+          <div className="w-[1px] h-4 bg-gray-200 dark:bg-gray-700" />
+
+          <DiscussButton
+            sourceType="classroom"
+            sourceId={stage?.id || ''}
+            topic={stage?.name || currentSceneTitle || 'Classroom discussion'}
+            className="shrink-0 p-2 rounded-full text-gray-400 dark:text-gray-500 hover:bg-white dark:hover:bg-gray-700 hover:text-gray-800 dark:hover:text-gray-200 hover:shadow-sm transition-all"
+          />
         </div>
 
         {/* Export Dropdown */}

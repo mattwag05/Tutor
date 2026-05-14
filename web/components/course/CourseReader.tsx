@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Pencil, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCourseStore } from '@/lib/course/store';
+import { DiscussButton } from '@/components/ui/DiscussButton';
 import type { CourseArtifacts, CourseBlock, CourseCitation, CourseSection } from '@/lib/types/course';
 import { triggerBlobDownload } from '@/lib/utils/blob-download';
 import { CourseTOCDrawer } from './CourseTOCDrawer';
@@ -453,6 +454,12 @@ function ReaderHeader({
       >
         {projecting ? '…' : '▶ Classroom'}
       </button>
+      <DiscussButton
+        sourceType="course"
+        sourceId={courseId}
+        topic={title}
+        className={`hidden sm:flex ${inlineActionClass}`}
+      />
 
       {/* Mobile overflow menu — visible only below sm:. Native <details> avoids
           a click-outside-to-close hook; menu items dismiss the popover on click. */}
@@ -506,6 +513,20 @@ function ReaderHeader({
           >
             {projecting ? '…' : '▶ Classroom'}
           </button>
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={(e) => closeMenu(e)}
+            onKeyDown={(e) => { if (e.key === 'Enter') closeMenu(e); }}
+            className={menuItemClass}
+          >
+            <DiscussButton
+              sourceType="course"
+              sourceId={courseId}
+              topic={title}
+              className="flex w-full items-center gap-2 text-left"
+            />
+          </div>
         </div>
       </details>
     </header>

@@ -8,7 +8,6 @@ import {
   Layers,
   Settings as SettingsIcon,
   Star,
-  Upload,
 } from "lucide-react";
 import type { KnowledgeUploadPolicy } from "@/lib/knowledge-api";
 import {
@@ -18,6 +17,7 @@ import {
 import type { TaskState } from "@/hooks/useKnowledgeProgress";
 import type { HistoryEntry } from "@/hooks/useKnowledgeHistory";
 import KbStatusBadge from "./KbStatusBadge";
+import { DiscussButton } from "@/components/ui/DiscussButton";
 import KbFilesTab from "./KbFilesTab";
 import KbDocumentsSection from "./KbDocumentsSection";
 import KbIndexVersionsSection from "./KbIndexVersionsSection";
@@ -138,6 +138,12 @@ export default function KnowledgeBaseDetail({
                 : ""}
             </p>
           </div>
+          <DiscussButton
+            sourceType="kb"
+            sourceId={kb.name}
+            topic={kb.name}
+            className="shrink-0 flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--card)] px-3 py-1.5 text-xs font-medium text-[var(--muted-foreground)] transition hover:border-[var(--primary)]/40 hover:text-[var(--primary)]"
+          />
         </div>
 
         {/* Section nav */}
