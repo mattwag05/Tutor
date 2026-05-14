@@ -142,6 +142,7 @@ export const ProactiveCard = ({
           }}
           className="absolute -top-2 -right-2 w-6 h-6 bg-white dark:bg-gray-800 shadow-md border border-gray-100 dark:border-gray-700 rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 hover:scale-110 transition-all z-20 group/close touch-manipulation before:absolute before:-inset-2 before:content-['']"
           title={t('proactiveCard.skip')}
+          aria-label={t('proactiveCard.skip')}
         >
           <X className="w-3 h-3 stroke-[2.5]" />
         </button>
@@ -231,6 +232,7 @@ export const ProactiveCard = ({
                   : 'bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 border-gray-100 dark:border-gray-600'
               }`}
               title={isPaused ? t('proactiveCard.resume') : t('proactiveCard.pause')}
+              aria-label={isPaused ? t('proactiveCard.resume') : t('proactiveCard.pause')}
             >
               {isPaused ? (
                 <Play className="w-3 h-3 fill-current" />

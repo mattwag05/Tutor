@@ -673,6 +673,7 @@ export default function QuizViewer({
                 onClick={handleToggleBookmark}
                 disabled={!currentEntryId}
                 title={currentBookmarked ? t("Remove Bookmark") : t("Bookmark")}
+                aria-label={currentBookmarked ? t("Remove Bookmark") : t("Bookmark")}
                 className={`rounded-lg p-1.5 transition-all disabled:opacity-30 ${
                   currentBookmarked
                     ? "scale-110 text-amber-500 dark:text-amber-400"
@@ -689,6 +690,7 @@ export default function QuizViewer({
                 onClick={handleOpenCategoryDropdown}
                 disabled={!currentEntryId}
                 title={t("Add to Category")}
+                aria-label={t("Add to Category")}
                 className="rounded-lg p-1.5 text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)] disabled:opacity-30"
               >
                 <FolderPlus size={16} />

@@ -47,6 +47,7 @@ export function PBLGuidePanel() {
         <button
           className="flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           title={t('pbl.guide.help')}
+          aria-label={t('pbl.guide.help')}
         >
           <HelpCircle className="w-4 h-4" />
         </button>

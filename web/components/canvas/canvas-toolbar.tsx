@@ -387,6 +387,7 @@ export function CanvasToolbar({
                 : 'text-gray-500 dark:text-gray-400',
             )}
             title={whiteboardOpen ? t('whiteboard.minimize') : t('whiteboard.open')}
+            aria-label={whiteboardOpen ? t('whiteboard.minimize') : t('whiteboard.open')}
           >
             <PencilLine className="w-3.5 h-3.5" />
             {!whiteboardOpen && whiteboardElementCount > 0 && (

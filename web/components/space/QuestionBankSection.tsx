@@ -448,6 +448,9 @@ export default function QuestionBankSection() {
                       title={
                         item.bookmarked ? t("Remove Bookmark") : t("Bookmark")
                       }
+                      aria-label={
+                        item.bookmarked ? t("Remove Bookmark") : t("Bookmark")
+                      }
                       className={`rounded-lg p-1.5 transition-colors disabled:opacity-40 ${
                         item.bookmarked
                           ? "text-[var(--primary)]"
@@ -464,6 +467,7 @@ export default function QuestionBankSection() {
                         onClick={() => void handleRemoveFromCategory(item)}
                         disabled={disabled}
                         title={t("Remove from category")}
+                        aria-label={t("Remove from category")}
                         className="rounded-lg p-1.5 text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)] disabled:opacity-40"
                       >
                         <X className="h-4 w-4" />
@@ -473,6 +477,7 @@ export default function QuestionBankSection() {
                       onClick={() => void handleDelete(item)}
                       disabled={disabled}
                       title={t("Delete")}
+                      aria-label={t("Delete")}
                       className="rounded-lg p-1.5 text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)] disabled:opacity-40"
                     >
                       <Trash2 className="h-4 w-4" />

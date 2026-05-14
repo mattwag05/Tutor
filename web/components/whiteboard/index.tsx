@@ -115,6 +115,7 @@ export function Whiteboard({ isOpen, onClose }: WhiteboardProps) {
                       whileTap={{ scale: 0.9 }}
                       className="p-2 text-gray-400 dark:text-gray-500 hover:text-purple-500 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
                       title={t('whiteboard.resetView')}
+                      aria-label={t('whiteboard.resetView')}
                     >
                       <RotateCcw className="w-4 h-4" />
                     </motion.button>
@@ -127,6 +128,7 @@ export function Whiteboard({ isOpen, onClose }: WhiteboardProps) {
                   whileTap={{ scale: 0.9 }}
                   className="p-2 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-40 disabled:pointer-events-none"
                   title={t('whiteboard.clear')}
+                  aria-label={t('whiteboard.clear')}
                 >
                   <motion.div
                     animate={isClearing ? { rotate: [0, -15, 15, -10, 10, 0] } : { rotate: 0 }}
@@ -145,6 +147,7 @@ export function Whiteboard({ isOpen, onClose }: WhiteboardProps) {
                     whileTap={{ scale: 0.9 }}
                     className="relative p-2 text-gray-400 dark:text-gray-500 hover:text-purple-500 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
                     title={t('whiteboard.history')}
+                    aria-label={t('whiteboard.history')}
                   >
                     <History className="w-4 h-4" />
                     {snapshotCount > 0 && (
@@ -161,6 +164,7 @@ export function Whiteboard({ isOpen, onClose }: WhiteboardProps) {
                   onClick={onClose}
                   className="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                   title={t('whiteboard.minimize')}
+                  aria-label={t('whiteboard.minimize')}
                 >
                   <Minimize2 className="w-5 h-5" />
                 </button>

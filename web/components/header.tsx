@@ -81,6 +81,7 @@ export function Header({ currentSceneTitle }: HeaderProps) {
             onClick={() => router.push('/')}
             className="shrink-0 p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
             title={t('generation.backToHome')}
+            aria-label={t('generation.backToHome')}
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
@@ -109,6 +110,7 @@ export function Header({ currentSceneTitle }: HeaderProps) {
               onClick={() => {
                 setThemeOpen(!themeOpen);
               }}
+              aria-label={t('settings.theme')}
               className="p-2 rounded-full text-gray-400 dark:text-gray-500 hover:bg-white dark:hover:bg-gray-700 hover:text-gray-800 dark:hover:text-gray-200 hover:shadow-sm transition-all group"
             >
               {theme === 'light' && <Sun className="w-4 h-4" />}
@@ -180,8 +182,9 @@ export function Header({ currentSceneTitle }: HeaderProps) {
         </div>
 
         {/* Export Dropdown */}
-        <div className="relative" ref={exportRef}>
+          <div className="relative" ref={exportRef}>
           <button
+            aria-label={canExport ? (isExporting || isExportingZip ? t('export.exporting') : t('export.pptx')) : t('share.notReady')}
             onClick={() => {
               if (canExport && !isExporting && !isExportingZip) setExportMenuOpen(!exportMenuOpen);
             }}

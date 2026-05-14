@@ -1014,11 +1014,12 @@ export function SettingsDialog({ open, onOpenChange, initialSection }: SettingsD
                       size="sm"
                       className="h-7 px-2 text-destructive hover:text-destructive"
                       onClick={() => handleDeleteProvider(selectedProviderId)}
+                      aria-label={t('settings.deleteProvider')}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   )}
-                <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)}>
+                <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} aria-label={t('settings.close')}>
                   <X className="h-4 w-4" />
                 </Button>
               </div>
