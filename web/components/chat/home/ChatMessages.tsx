@@ -528,6 +528,7 @@ export const SpaceContextChips = memo(function SpaceContextChips({
           <button
             onClick={() => onRemoveHistory(session.sessionId)}
             className="shrink-0 opacity-60 transition hover:opacity-100"
+            aria-label={t("Remove")}
           >
             <X size={12} />
           </button>
@@ -546,6 +547,7 @@ export const SpaceContextChips = memo(function SpaceContextChips({
           <button
             onClick={() => onRemoveBookReference(book.bookId)}
             className="shrink-0 opacity-60 transition hover:opacity-100"
+            aria-label={t("Remove")}
           >
             <X size={12} />
           </button>
@@ -564,6 +566,7 @@ export const SpaceContextChips = memo(function SpaceContextChips({
           <button
             onClick={() => onRemoveNotebook(group.notebookId)}
             className="shrink-0 opacity-60 transition hover:opacity-100"
+            aria-label={t("Remove")}
           >
             <X size={12} />
           </button>
@@ -584,6 +587,7 @@ export const SpaceContextChips = memo(function SpaceContextChips({
           <button
             onClick={() => onRemoveQuestion(entry.id)}
             className="shrink-0 opacity-60 transition hover:opacity-100"
+            aria-label={t("Remove")}
           >
             <X size={12} />
           </button>
@@ -599,6 +603,7 @@ export const SpaceContextChips = memo(function SpaceContextChips({
           <button
             onClick={onClearSkillsAuto}
             className="shrink-0 opacity-60 transition hover:opacity-100"
+            aria-label={t("Remove")}
           >
             <X size={12} />
           </button>
@@ -617,6 +622,7 @@ export const SpaceContextChips = memo(function SpaceContextChips({
           <button
             onClick={() => onRemoveSkill(skill)}
             className="shrink-0 opacity-60 transition hover:opacity-100"
+            aria-label={t("Remove")}
           >
             <X size={12} />
           </button>
@@ -635,6 +641,7 @@ export const SpaceContextChips = memo(function SpaceContextChips({
           <button
             onClick={() => onRemoveMemoryFile(file)}
             className="shrink-0 opacity-60 transition hover:opacity-100"
+            aria-label={t("Remove")}
           >
             <X size={12} />
           </button>
