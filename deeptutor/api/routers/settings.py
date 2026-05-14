@@ -195,6 +195,7 @@ def _provider_choices() -> dict[str, list[dict[str, str]]]:
     ]
     asr = [
         {"value": "openrouter-asr", "label": "OpenRouter ASR", "base_url": "https://openrouter.ai/api/v1"},
+        {"value": "openai-whisper", "label": "OpenAI-compatible Whisper (local / OpenAI)", "base_url": ""},
         {"value": "browser-native", "label": "Browser Web Speech (no key)", "base_url": ""},
     ]
     image = [

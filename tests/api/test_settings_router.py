@@ -192,7 +192,7 @@ def test_provider_choices_match_slim_allowlist() -> None:
     assert {item["value"] for item in choices["embedding"]} == {"ollama"}
     assert {item["value"] for item in choices["search"]} == {"duckduckgo", "tavily"}
     assert {item["value"] for item in choices["tts"]} == {"openrouter-tts", "openai-tts"}
-    assert {item["value"] for item in choices["asr"]} == {"openrouter-asr", "browser-native"}
+    assert {item["value"] for item in choices["asr"]} == {"openrouter-asr", "openai-whisper", "browser-native"}
     assert {item["value"] for item in choices["image"]} == {"openrouter-image", "comfyui"}
     assert choices["video"] == []  # video service disabled — see services_video_enabled flag
 
