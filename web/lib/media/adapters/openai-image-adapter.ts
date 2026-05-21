@@ -3,97 +3,65 @@
  *
  * Uses the OpenAI Images API.
  * Endpoint: https://api.openai.com/v1/images/generations
+ *
+ * Refactored to use shared openai-compatible base.
  */
 
-import type {
-  ImageGenerationConfig,
-  ImageGenerationOptions,
-  ImageGenerationResult,
-} from '../types';
+import { createOpenAICompatibleAdapter } from './openai-compatible-base';
+import type { ImageGenerationConfig } from '../types';
 
-const DEFAULT_MODEL = 'gpt-image-2';
-const DEFAULT_BASE_URL = 'https://api.openai.com/v1';
-
-function normalizeBaseUrl(baseUrl?: string): string {
-  return (baseUrl || DEFAULT_BASE_URL).replace(/\/$/, '');
-}
-
-function resolveSize(options: ImageGenerationOptions): string {
-  return `${options.width || 1024}x${options.height || 1024}`;
-}
-
-export async function testOpenAIImageConnectivity(
-  config: ImageGenerationConfig,
-): Promise<{ success: boolean; message: string }> {
-  const baseUrl = normalizeBaseUrl(config.baseUrl);
-
-  try {
-    const response = await fetch(
-      `${baseUrl}/models/${encodeURIComponent(config.model || DEFAULT_MODEL)}`,
-      {
-        headers: {
-          Authorization: `Bearer ${config.apiKey}`,
+const adapter = createOpenAICompatibleAdapter({
+  name: 'OpenAI Image',
+  defaultModel: 'gpt-image-2',
+  defaultBaseUrl: 'https://api.openai.com/v1',
+  endpoint: '/images/generations',
+  extraBodyParams: (options) => ({
+    size: `${options.width || 1024}x${options.height || 1024}`,
+  }),
+  // OpenAI uses a GET /models/{model} endpoint for connectivity
+  // (not the standard POST with empty prompt)
+  testConnectivity: async (
+    cfg: ImageGenerationConfig,
+  ): Promise<{ success: boolean; message: string }> => {
+    const baseUrl = (cfg.baseUrl || 'https://api.openai.com/v1').replace(/\/$/, '');
+    const model = cfg.model || 'gpt-image-2';
+    try {
+      const response = await fetch(
+        `${baseUrl}/models/${encodeURIComponent(model)}`,
+        {
+          headers: {
+            Authorization: `Bearer ${cfg.apiKey}`,
+          },
         },
-      },
-    );
-
-    if (response.ok) {
-      return { success: true, message: 'Connected to OpenAI Image' };
-    }
-
-    const text = await response.text().catch(() => response.statusText);
-    if (response.status === 401 || response.status === 403) {
-      return { success: false, message: `OpenAI Image auth failed (${response.status}): ${text}` };
-    }
-    if (response.status === 404) {
+      );
+      if (response.ok) {
+        return { success: true, message: 'Connected to OpenAI Image' };
+      }
+      const text = await response.text().catch(() => response.statusText);
+      if (response.status === 401 || response.status === 403) {
+        return {
+          success: false,
+          message: `OpenAI Image auth failed (${response.status}): ${text}`,
+        };
+      }
+      if (response.status === 404) {
+        return {
+          success: false,
+          message: `OpenAI Image model not found: ${model}`,
+        };
+      }
       return {
         success: false,
-        message: `OpenAI Image model not found: ${config.model || DEFAULT_MODEL}`,
+        message: `OpenAI Image API error (${response.status}): ${text}`,
+      };
+    } catch (err) {
+      return {
+        success: false,
+        message: `OpenAI Image connectivity error: ${err}`,
       };
     }
-    return { success: false, message: `OpenAI Image API error (${response.status}): ${text}` };
-  } catch (err) {
-    return { success: false, message: `OpenAI Image connectivity error: ${err}` };
-  }
-}
+  },
+});
 
-export async function generateWithOpenAIImage(
-  config: ImageGenerationConfig,
-  options: ImageGenerationOptions,
-): Promise<ImageGenerationResult> {
-  const baseUrl = normalizeBaseUrl(config.baseUrl);
-  const width = options.width || 1024;
-  const height = options.height || 1024;
-
-  const response = await fetch(`${baseUrl}/images/generations`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${config.apiKey}`,
-    },
-    body: JSON.stringify({
-      model: config.model || DEFAULT_MODEL,
-      prompt: options.prompt,
-      n: 1,
-      size: resolveSize(options),
-    }),
-  });
-
-  if (!response.ok) {
-    const text = await response.text().catch(() => response.statusText);
-    throw new Error(`OpenAI image generation failed (${response.status}): ${text}`);
-  }
-
-  const data = await response.json();
-  const imageData = data.data?.[0];
-  if (!imageData?.url && !imageData?.b64_json) {
-    throw new Error('OpenAI Image returned empty image response');
-  }
-
-  return {
-    url: imageData.url,
-    base64: imageData.b64_json,
-    width,
-    height,
-  };
-}
+export const testOpenAIImageConnectivity = adapter.testConnectivity;
+export const generateWithOpenAIImage = adapter.generate;

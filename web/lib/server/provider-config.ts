@@ -326,31 +326,80 @@ function resolveCatalogFirstBaseUrl(
 }
 
 // ---------------------------------------------------------------------------
+// Factory helpers — collapses repetitive getServer* / resolve* / resolve*BaseUrl patterns
+// ---------------------------------------------------------------------------
+
+type ProviderRow = { models?: string[]; baseUrl?: string };
+type ProviderRowSimple = { baseUrl?: string };
+
+type GetSectionFn<R> = (config: ServerConfig) => Record<string, R>;
+
+function createGetProviders<R extends ProviderRow | ProviderRowSimple>(
+  sectionKey: keyof ServerConfig,
+  includeModels: boolean,
+): GetSectionFn<R> {
+  return (cfg: ServerConfig) => {
+    const section = cfg[sectionKey] as Record<string, ServerProviderEntry>;
+    const result: Record<string, R> = {};
+    for (const [id, entry] of Object.entries(section)) {
+      const row = {} as R;
+      if (includeModels && entry.models?.length) (row as ProviderRow).models = entry.models;
+      if (entry.baseUrl) (row as ProviderRow).baseUrl = entry.baseUrl;
+      result[id] = row;
+    }
+    return result;
+  };
+}
+
+function createResolveApiKey(
+  sectionKey: keyof ServerConfig,
+  useCatalog: boolean,
+  service?: ProfiledService,
+): (providerId: string, clientKey?: string) => string {
+  return (providerId: string, clientKey?: string) => {
+    if (clientKey) return clientKey;
+    if (useCatalog && service) {
+      return resolveCatalogFirstApiKey(service, providerId, getConfig()[sectionKey] as Record<string, ServerProviderEntry>, clientKey);
+    }
+    return (getConfig()[sectionKey] as Record<string, ServerProviderEntry>)[providerId]?.apiKey || '';
+  };
+}
+
+function createResolveBaseUrl(
+  sectionKey: keyof ServerConfig,
+  useCatalog: boolean,
+  service?: ProfiledService,
+): (providerId: string, clientBaseUrl?: string) => string | undefined {
+  return (providerId: string, clientBaseUrl?: string) => {
+    if (clientBaseUrl) return clientBaseUrl;
+    if (useCatalog && service) {
+      return resolveCatalogFirstBaseUrl(service, providerId, getConfig()[sectionKey] as Record<string, ServerProviderEntry>, clientBaseUrl);
+    }
+    return (getConfig()[sectionKey] as Record<string, ServerProviderEntry>)[providerId]?.baseUrl;
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Public API — LLM
 // ---------------------------------------------------------------------------
 
+const _llmProviders = createGetProviders<ProviderRow>('providers', true);
+const _llmResolveApiKey = createResolveApiKey('providers', false);
+const _llmResolveBaseUrl = createResolveBaseUrl('providers', false);
+
 /** Returns server-configured LLM providers (no apiKeys) */
 export function getServerProviders(): Record<string, { models?: string[]; baseUrl?: string }> {
-  const cfg = getConfig();
-  const result: Record<string, { models?: string[]; baseUrl?: string }> = {};
-  for (const [id, entry] of Object.entries(cfg.providers)) {
-    result[id] = {};
-    if (entry.models && entry.models.length > 0) result[id].models = entry.models;
-    if (entry.baseUrl) result[id].baseUrl = entry.baseUrl;
-  }
-  return result;
+  return _llmProviders(getConfig());
 }
 
 /** Resolve API key: client key > server key > empty string */
 export function resolveApiKey(providerId: string, clientKey?: string): string {
-  if (clientKey) return clientKey;
-  return getConfig().providers[providerId]?.apiKey || '';
+  return _llmResolveApiKey(providerId, clientKey);
 }
 
 /** Resolve base URL: client > server > undefined */
 export function resolveBaseUrl(providerId: string, clientBaseUrl?: string): string | undefined {
-  if (clientBaseUrl) return clientBaseUrl;
-  return getConfig().providers[providerId]?.baseUrl;
+  return _llmResolveBaseUrl(providerId, clientBaseUrl);
 }
 
 /** Resolve proxy URL for a provider (server config only) */
@@ -362,22 +411,20 @@ export function resolveProxy(providerId: string): string | undefined {
 // Public API — TTS
 // ---------------------------------------------------------------------------
 
+const _ttsProviders = createGetProviders<ProviderRowSimple>('tts', false);
+const _ttsResolveApiKey = createResolveApiKey('tts', true, 'tts');
+const _ttsResolveBaseUrl = createResolveBaseUrl('tts', true, 'tts');
+
 export function getServerTTSProviders(): Record<string, { baseUrl?: string }> {
-  const cfg = getConfig();
-  const result: Record<string, { baseUrl?: string }> = {};
-  for (const [id, entry] of Object.entries(cfg.tts)) {
-    result[id] = {};
-    if (entry.baseUrl) result[id].baseUrl = entry.baseUrl;
-  }
-  return result;
+  return _ttsProviders(getConfig());
 }
 
 export function resolveTTSApiKey(providerId: string, clientKey?: string): string {
-  return resolveCatalogFirstApiKey('tts', providerId, getConfig().tts, clientKey);
+  return _ttsResolveApiKey(providerId, clientKey);
 }
 
 export function resolveTTSBaseUrl(providerId: string, clientBaseUrl?: string): string | undefined {
-  return resolveCatalogFirstBaseUrl('tts', providerId, getConfig().tts, clientBaseUrl);
+  return _ttsResolveBaseUrl(providerId, clientBaseUrl);
 }
 
 export interface ActiveTTSConfig {
@@ -435,72 +482,63 @@ export function getActiveTTSConfig(): ActiveTTSConfig | null {
 // Public API — ASR
 // ---------------------------------------------------------------------------
 
+const _asrProviders = createGetProviders<ProviderRowSimple>('asr', false);
+const _asrResolveApiKey = createResolveApiKey('asr', true, 'asr');
+const _asrResolveBaseUrl = createResolveBaseUrl('asr', true, 'asr');
+
 export function getServerASRProviders(): Record<string, { baseUrl?: string }> {
-  const cfg = getConfig();
-  const result: Record<string, { baseUrl?: string }> = {};
-  for (const [id, entry] of Object.entries(cfg.asr)) {
-    result[id] = {};
-    if (entry.baseUrl) result[id].baseUrl = entry.baseUrl;
-  }
-  return result;
+  return _asrProviders(getConfig());
 }
 
 export function resolveASRApiKey(providerId: string, clientKey?: string): string {
-  return resolveCatalogFirstApiKey('asr', providerId, getConfig().asr, clientKey);
+  return _asrResolveApiKey(providerId, clientKey);
 }
 
 export function resolveASRBaseUrl(providerId: string, clientBaseUrl?: string): string | undefined {
-  return resolveCatalogFirstBaseUrl('asr', providerId, getConfig().asr, clientBaseUrl);
+  return _asrResolveBaseUrl(providerId, clientBaseUrl);
 }
 
 // ---------------------------------------------------------------------------
 // Public API — PDF
 // ---------------------------------------------------------------------------
 
+const _pdfProviders = createGetProviders<ProviderRowSimple>('pdf', false);
+const _pdfResolveApiKey = createResolveApiKey('pdf', false);
+const _pdfResolveBaseUrl = createResolveBaseUrl('pdf', false);
+
 export function getServerPDFProviders(): Record<string, { baseUrl?: string }> {
-  const cfg = getConfig();
-  const result: Record<string, { baseUrl?: string }> = {};
-  for (const [id, entry] of Object.entries(cfg.pdf)) {
-    result[id] = {};
-    if (entry.baseUrl) result[id].baseUrl = entry.baseUrl;
-  }
-  return result;
+  return _pdfProviders(getConfig());
 }
 
 export function resolvePDFApiKey(providerId: string, clientKey?: string): string {
-  if (clientKey) return clientKey;
-  return getConfig().pdf[providerId]?.apiKey || '';
+  return _pdfResolveApiKey(providerId, clientKey);
 }
 
 export function resolvePDFBaseUrl(providerId: string, clientBaseUrl?: string): string | undefined {
-  if (clientBaseUrl) return clientBaseUrl;
-  return getConfig().pdf[providerId]?.baseUrl;
+  return _pdfResolveBaseUrl(providerId, clientBaseUrl);
 }
 
 // ---------------------------------------------------------------------------
 // Public API — Image Generation
 // ---------------------------------------------------------------------------
 
+const _imageProviders = createGetProviders<ProviderRow>('image', true);
+const _imageResolveApiKey = createResolveApiKey('image', true, 'image');
+const _imageResolveBaseUrl = createResolveBaseUrl('image', true, 'image');
+
 export function getServerImageProviders(): Record<string, { models?: string[]; baseUrl?: string }> {
-  const cfg = getConfig();
-  const result: Record<string, { models?: string[]; baseUrl?: string }> = {};
-  for (const [id, entry] of Object.entries(cfg.image)) {
-    result[id] = {};
-    if (entry.models && entry.models.length > 0) result[id].models = entry.models;
-    if (entry.baseUrl) result[id].baseUrl = entry.baseUrl;
-  }
-  return result;
+  return _imageProviders(getConfig());
 }
 
 export function resolveImageApiKey(providerId: string, clientKey?: string): string {
-  return resolveCatalogFirstApiKey('image', providerId, getConfig().image, clientKey);
+  return _imageResolveApiKey(providerId, clientKey);
 }
 
 export function resolveImageBaseUrl(
   providerId: string,
   clientBaseUrl?: string,
 ): string | undefined {
-  return resolveCatalogFirstBaseUrl('image', providerId, getConfig().image, clientBaseUrl);
+  return _imageResolveBaseUrl(providerId, clientBaseUrl);
 }
 
 export interface ActiveImageConfig {
@@ -549,40 +587,34 @@ export function getActiveImageConfig(): ActiveImageConfig | null {
 // Public API — Video Generation
 // ---------------------------------------------------------------------------
 
+const _videoProviders = createGetProviders<ProviderRowSimple>('video', false);
+const _videoResolveApiKey = createResolveApiKey('video', true, 'video');
+const _videoResolveBaseUrl = createResolveBaseUrl('video', true, 'video');
+
 export function getServerVideoProviders(): Record<string, { baseUrl?: string }> {
-  const cfg = getConfig();
-  const result: Record<string, { baseUrl?: string }> = {};
-  for (const [id, entry] of Object.entries(cfg.video)) {
-    result[id] = {};
-    if (entry.baseUrl) result[id].baseUrl = entry.baseUrl;
-  }
-  return result;
+  return _videoProviders(getConfig());
 }
 
 export function resolveVideoApiKey(providerId: string, clientKey?: string): string {
-  return resolveCatalogFirstApiKey('video', providerId, getConfig().video, clientKey);
+  return _videoResolveApiKey(providerId, clientKey);
 }
 
 export function resolveVideoBaseUrl(
   providerId: string,
   clientBaseUrl?: string,
 ): string | undefined {
-  return resolveCatalogFirstBaseUrl('video', providerId, getConfig().video, clientBaseUrl);
+  return _videoResolveBaseUrl(providerId, clientBaseUrl);
 }
 
 // ---------------------------------------------------------------------------
 // Public API — Web Search
 // ---------------------------------------------------------------------------
 
-/** Returns server-configured web search providers (no apiKeys exposed) */
+const _webSearchProviders = createGetProviders<ProviderRowSimple>('webSearch', false);
+const _webSearchResolveBaseUrl = createResolveBaseUrl('webSearch', false);
+
 export function getServerWebSearchProviders(): Record<string, { baseUrl?: string }> {
-  const cfg = getConfig();
-  const result: Record<string, { baseUrl?: string }> = {};
-  for (const [id, entry] of Object.entries(cfg.webSearch)) {
-    result[id] = {};
-    if (entry.baseUrl) result[id].baseUrl = entry.baseUrl;
-  }
-  return result;
+  return _webSearchProviders(getConfig());
 }
 
 /**
@@ -609,8 +641,7 @@ export function resolveWebSearchBaseUrl(
   providerId: string,
   clientBaseUrl?: string,
 ): string | undefined {
-  if (clientBaseUrl) return clientBaseUrl;
-  return getConfig().webSearch[providerId]?.baseUrl;
+  return _webSearchResolveBaseUrl(providerId, clientBaseUrl);
 }
 
 export function resolveServerWebSearchProviderId(preferredProviderId?: string): string | undefined {
