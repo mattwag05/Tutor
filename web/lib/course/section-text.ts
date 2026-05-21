@@ -1,24 +1,14 @@
 import type { CourseBlock, CourseSection } from '@/lib/types/course';
+import { stripMarkdown } from '@/lib/utils/strip-markdown';
 
-const TERM_RE = /\{\{term:([^}]+)\}\}/g;
-const CITE_RE = /\{\{cite:[^}]+\}\}/g;
-const MD_BOLD_RE = /\*\*([^*]+)\*\*/g;
-const MD_ITALIC_RE = /\*([^*]+)\*/g;
 const MD_INLINE_LATEX_RE = /\$[^$]+\$/g;
 const MD_BLOCK_LATEX_RE = /\$\$[\s\S]+?\$\$/g;
-const MD_HEADING_RE = /^#{1,6}\s+/gm;
-const MD_LINK_RE = /\[([^\]]+)\]\([^)]+\)/g;
 
+/** Strip markdown + LaTeX + course markers to plain text. */
 export function proseToPlainText(markdown: string): string {
-  return markdown
+  return stripMarkdown(markdown)
     .replace(MD_BLOCK_LATEX_RE, '')
     .replace(MD_INLINE_LATEX_RE, '')
-    .replace(TERM_RE, '$1')
-    .replace(CITE_RE, '')
-    .replace(MD_LINK_RE, '$1')
-    .replace(MD_BOLD_RE, '$1')
-    .replace(MD_ITALIC_RE, '$1')
-    .replace(MD_HEADING_RE, '')
     .replace(/\s+/g, ' ')
     .trim();
 }
