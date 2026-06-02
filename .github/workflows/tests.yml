@@ -45,6 +45,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Cache pip packages
+        if: ${{ !env.ACT }} # skipped under act (no GitHub cache service locally)
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
@@ -89,6 +90,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Cache pip packages
+        if: ${{ !env.ACT }} # skipped under act (no GitHub cache service locally)
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
