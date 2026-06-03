@@ -62,7 +62,7 @@
     "mitt": "^3.0.1",
     "motion": "^12.27.5",
     "nanoid": "^5.1.6",
-    "next": "16.2.3",
+    "next": "16.2.7",
     "next-themes": "^0.4.6",
     "openai": "^4.104.0",
     "partial-json": "^0.1.7",
@@ -99,7 +99,7 @@
     "unpdf": "^1.4.0",
     "use-stick-to-bottom": "^1.1.1",
     "zod": "^4.3.5",
-    "ws": "^8.18.0",
+    "ws": "^8.21.0",
     "zustand": "^5.0.10"
   },
   "devDependencies": {
@@ -116,7 +116,7 @@
     "@types/react-dom": "^19",
     "@types/tinycolor2": "^1.4.6",
     "eslint": "^9",
-    "eslint-config-next": "16.1.2",
+    "eslint-config-next": "16.2.7",
     "prettier": "3.8.1",
     "rollup": "^4.35.0",
     "rollup-plugin-typescript2": "^0.36.0",
@@ -132,9 +132,20 @@
       "unrs-resolver"
     ],
     "overrides": {
+      "brace-expansion": "5.0.6",
+      "@hono/node-server": "1.19.14",
+      "express-rate-limit": "8.5.2",
+      "fast-uri": "3.1.2",
+      "hono": "4.12.18",
+      "ip-address": "10.1.1",
+      "langsmith": "^0.6.0",
+      "path-to-regexp": "8.4.2",
+      "picomatch@<2.3.2": "2.3.2",
+      "picomatch@>=4.0.0 <4.0.4": "4.0.4",
+      "postcss": "^8.5.10",
+      "qs": "6.15.2",
       "uuid": "^14.0.0",
-      "langsmith": "^0.5.19",
-      "postcss": "^8.5.10"
+      "ws": "8.21.0"
     }
   },
   "packageManager": "pnpm@10.28.0+sha512.05df71d1421f21399e053fde567cea34d446fa02c76571441bfc1c7956e98e363088982d940465fd34480d4d90a0668bc12362f8aa88000a64e83d0b0e47be48"
