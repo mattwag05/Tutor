@@ -70,6 +70,12 @@ The durable production image is `ghcr.io/mattwag05/tutor`. Keep compatibility
 service names such as `deeptutor` only where they preserve existing volumes,
 compose state, or integrations.
 
+For Pironman production deploys, use `scripts/deploy_pironman.sh` from the repo
+root and read `docs/deployment.md`. The script pulls the requested GHCR image
+before restarting the compatibility service and verifies the public tailnet
+route. Do not rely on Pironman's base compose file by itself; it may lag behind
+the repo and should be overridden by the Tutor image deploy file.
+
 ### Attribution
 
 Tutor builds on DeepTutor (`HKUDS/DeepTutor`) for the agent-native backend,

@@ -509,14 +509,19 @@ The full stack runs on the Pironman (100.126.176.86) via Docker Compose, fronted
 
 **Deploy published image:**
 ```bash
-ssh pironman 'cd /home/matthewwagner/homelab/docker/compose/deeptutor && \
-  docker compose pull deeptutor && \
-  docker compose up -d deeptutor'
+scripts/deploy_pironman.sh
 ```
 
-For emergency local builds, build in `/home/matthewwagner/Projects/Tutor`,
-tag the image explicitly, and use a temporary compose override only until the
-GHCR image is available.
+To deploy a pinned image:
+```bash
+TUTOR_IMAGE=ghcr.io/mattwag05/tutor:sha-<short> scripts/deploy_pironman.sh
+```
+
+The runbook is in `docs/deployment.md`. Pironman's base compose file may lag
+behind the repo; the deploy script owns the Tutor image override and verifies
+health plus the public `tutor.tail6e035b.ts.net` route. For emergency local
+builds, build in `/home/matthewwagner/Projects/Tutor`, tag the image explicitly,
+and use a temporary compose override only until the GHCR image is pullable.
 
 ---
 

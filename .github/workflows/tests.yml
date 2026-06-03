@@ -26,6 +26,11 @@ on:
       - "pyproject.toml"
       - ".github/workflows/tests.yml"
 
+env:
+  # GitHub is moving JavaScript actions from Node 20 to Node 24. Opt in now so
+  # this workflow fails early if any action is not Node 24 ready.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   import-check:
     name: Import Check (Python ${{ matrix.python-version }})

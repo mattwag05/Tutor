@@ -99,6 +99,13 @@ docker pull ghcr.io/mattwag05/tutor:latest
 Use `docker-compose.ghcr.yml` for a pull-based deployment. Release tags, the
 `main` tag, and short SHA tags are produced by `.github/workflows/docker-release.yml`.
 
+For the production Pironman deployment, use the guarded deploy script and
+runbook in [`docs/deployment.md`](docs/deployment.md):
+
+```bash
+scripts/deploy_pironman.sh
+```
+
 ## Validation
 
 Run these before shipping product changes:

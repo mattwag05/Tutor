@@ -23,6 +23,11 @@ permissions:
   contents: read
   packages: write
 
+env:
+  # GitHub is moving JavaScript actions from Node 20 to Node 24. Opt in now so
+  # this release workflow fails early if any action is not Node 24 ready.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   build-and-push:
     name: Build and Push Multi-Platform Docker Image
