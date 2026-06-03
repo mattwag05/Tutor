@@ -1,5 +1,5 @@
 /**
- * Type definitions for DeepTutor API integration.
+ * Type definitions for Tutor API integration.
  */
 
 // ==================== Knowledge Base Types ====================

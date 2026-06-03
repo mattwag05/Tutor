@@ -1,5 +1,5 @@
 /**
- * DeepTutor API Client
+ * Tutor API Client
  *
  * Provides typed wrappers for DeepTutor's REST and WebSocket APIs.
  * Handles connection errors gracefully — returns specific error types
@@ -70,7 +70,7 @@ async function apiGet<T>(path: string, timeout?: number): Promise<T> {
 
   if (!response.ok) {
     throw new DeepTutorAPIError(
-      `DeepTutor API error: ${response.status} ${response.statusText}`,
+      `Tutor API error: ${response.status} ${response.statusText}`,
       response.status,
     );
   }
@@ -101,7 +101,7 @@ async function apiPost<T>(
   const data = (await response.json()) as T;
   if (!response.ok) {
     throw new DeepTutorAPIError(
-      `DeepTutor API error: ${response.status} ${response.statusText}`,
+      `Tutor API error: ${response.status} ${response.statusText}`,
       response.status,
     );
   }
@@ -117,10 +117,10 @@ export async function checkHealth(): Promise<boolean> {
 
   try {
     await fetchWithTimeout(`${config.baseUrl}/api/v1/knowledge/health`, {}, 5_000);
-    log.info('DeepTutor health check passed');
+    log.info('Tutor health check passed');
     return true;
   } catch {
-    log.warn('DeepTutor health check failed — integration features will use fallback behavior');
+    log.warn('Tutor health check failed — integration features will use fallback behavior');
     return false;
   }
 }
