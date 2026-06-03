@@ -19,7 +19,7 @@ _setup_logger = None
 DEFAULT_INTERFACE_SETTINGS = {
     "theme": "light",
     "language": "en",
-    "sidebar_description": "✨ Data Intelligence Lab @ HKU",
+    "sidebar_description": "Open-source course builder",
     "sidebar_nav_order": {
         "start": ["/", "/history", "/knowledge", "/notebook"],
         "learnResearch": ["/question", "/solver", "/research", "/co_writer"],

@@ -1,7 +1,7 @@
 # ============================================
-# DeepTutor Multi-Stage Dockerfile
+# Tutor Multi-Stage Dockerfile
 # ============================================
-# This Dockerfile builds a production-ready image for DeepTutor
+# This Dockerfile builds a production-ready image for Tutor
 # containing both the FastAPI backend and Next.js frontend
 #
 # Build: docker compose build
@@ -112,8 +112,8 @@ FROM python:3.11-slim AS production
 ARG APP_VERSION=""
 
 # Labels
-LABEL maintainer="DeepTutor Team" \
-      description="DeepTutor: AI-Powered Personalized Learning Assistant" \
+LABEL maintainer="Tutor Project" \
+      description="Tutor: Open-source AI course builder and learning companion" \
       version="1.0.0"
 
 # Set environment variables
@@ -230,7 +230,7 @@ set -e
 
 BACKEND_PORT=${BACKEND_PORT:-8001}
 
-echo "[Backend]  🚀 Starting FastAPI backend on port ${BACKEND_PORT}..."
+echo "[Backend] Starting Tutor API on port ${BACKEND_PORT}..."
 
 # Run uvicorn directly - the application's logging system already handles:
 # 1. Console output (visible in docker logs)
@@ -255,24 +255,24 @@ FRONTEND_PORT=${FRONTEND_PORT:-3782}
 if [ -n "$NEXT_PUBLIC_API_BASE_EXTERNAL" ]; then
     # Explicit external URL for cloud deployments
     API_BASE="$NEXT_PUBLIC_API_BASE_EXTERNAL"
-    echo "[Frontend] 📌 Using external API URL: ${API_BASE}"
+    echo "[Frontend] Using external API URL: ${API_BASE}"
 elif [ -n "$NEXT_PUBLIC_API_BASE" ]; then
     # Custom API base URL
     API_BASE="$NEXT_PUBLIC_API_BASE"
-    echo "[Frontend] 📌 Using custom API URL: ${API_BASE}"
+    echo "[Frontend] Using custom API URL: ${API_BASE}"
 else
     # Default: localhost with configured backend port
     # Note: This only works for local development, not cloud deployments
     API_BASE="http://localhost:${BACKEND_PORT}"
-    echo "[Frontend] 📌 Using default API URL: ${API_BASE}"
-    echo "[Frontend] ⚠️  For cloud deployment, set NEXT_PUBLIC_API_BASE_EXTERNAL to your server's public URL"
+    echo "[Frontend] Using default API URL: ${API_BASE}"
+    echo "[Frontend] For cloud deployment, set NEXT_PUBLIC_API_BASE_EXTERNAL to your server's public URL"
     echo "[Frontend]    Example: -e NEXT_PUBLIC_API_BASE_EXTERNAL=https://your-server.com:${BACKEND_PORT}"
 fi
 
 OPENMAIC_URL="${NEXT_PUBLIC_OPENMAIC_URL:-https://openmaic.tail6e035b.ts.net}"
-echo "[Frontend] 📌 OpenMAIC classroom URL: ${OPENMAIC_URL}"
+echo "[Frontend] OpenMAIC archive URL: ${OPENMAIC_URL}"
 
-echo "[Frontend] 🚀 Starting Next.js frontend on port ${FRONTEND_PORT}..."
+echo "[Frontend] Starting Tutor web on port ${FRONTEND_PORT}..."
 
 # Replace placeholder in built Next.js files
 # This is necessary because NEXT_PUBLIC_* vars are inlined at build time
@@ -294,38 +294,38 @@ RUN cat > /app/entrypoint.sh <<'EOF'
 set -e
 
 echo "============================================"
-echo "🚀 Starting DeepTutor"
+echo "Starting Tutor"
 echo "============================================"
 
 # Set default ports if not provided
 export BACKEND_PORT=${BACKEND_PORT:-8001}
 export FRONTEND_PORT=${FRONTEND_PORT:-3782}
 
-echo "📌 Backend Port: ${BACKEND_PORT}"
-echo "📌 Frontend Port: ${FRONTEND_PORT}"
+echo "Backend Port: ${BACKEND_PORT}"
+echo "Frontend Port: ${FRONTEND_PORT}"
 
 # Check for required environment variables
 if [ -z "$LLM_API_KEY" ]; then
-    echo "⚠️  Warning: LLM_API_KEY not set"
+    echo "Warning: LLM_API_KEY not set"
     echo "   Please provide LLM configuration via environment variables or .env file"
 fi
 
 if [ -z "$LLM_MODEL" ]; then
-    echo "⚠️  Warning: LLM_MODEL not set"
+    echo "Warning: LLM_MODEL not set"
     echo "   Please configure LLM_MODEL in your .env file"
 fi
 
 # Initialize user data directories if empty
-echo "📁 Checking data directories..."
+echo "Checking data directories..."
 echo "   Ensuring runtime settings and workspace layout..."
 python -c "
 from pathlib import Path
 from deeptutor.services.setup import init_user_directories
 init_user_directories(Path('/app'))
-" 2>/dev/null || echo "   ⚠️ Directory initialization skipped (will be created on first use)"
+" 2>/dev/null || echo "   Directory initialization skipped (will be created on first use)"
 
 echo "============================================"
-echo "📦 Configuration loaded from:"
+echo "Configuration loaded from:"
 echo "   - Environment variables (.env file)"
 echo "   - data/user/settings/main.yaml"
 echo "   - data/user/settings/agents.yaml"

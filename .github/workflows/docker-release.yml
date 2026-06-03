@@ -1,18 +1,23 @@
 name: Docker Release
 
-# Triggered when a GitHub Release is published.
 # Builds a multi-platform Docker image and pushes it to GitHub Container Registry (GHCR).
 #
-# Image: ghcr.io/hkuds/deeptutor
-# Tags:
-#   - Version tag stripped of 'v' prefix (e.g. release v1.2.3 → image tag 1.2.3)
-#   - latest (always points to the most recently published release)
+# Triggers:
+#   - push to main: publishes main, sha-<short>, and latest
+#   - version tag / release: publishes semantic version tags
+#   - workflow_dispatch: manual rebuild
 #
+# Image: ghcr.io/mattwag05/tutor
 # Platforms: linux/amd64, linux/arm64
 
 on:
+  push:
+    branches: [main]
+    tags:
+      - "v*.*.*"
   release:
     types: [published]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -49,10 +54,13 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/hkuds/deeptutor
+          images: ghcr.io/mattwag05/tutor
           tags: |
+            type=ref,event=branch
+            type=ref,event=tag
             type=semver,pattern={{version}}
-            type=raw,value=latest
+            type=sha,format=short,prefix=sha-
+            type=raw,value=latest,enable=${{ github.event_name == 'release' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
 
       - name: Build and push
         uses: docker/build-push-action@v6

@@ -88,6 +88,17 @@ npm run dev
 The development frontend defaults to `http://localhost:3000` unless the start
 scripts choose another port.
 
+## Docker Image
+
+Tutor publishes a multi-platform production image to GitHub Container Registry:
+
+```bash
+docker pull ghcr.io/mattwag05/tutor:latest
+```
+
+Use `docker-compose.ghcr.yml` for a pull-based deployment. Release tags, the
+`main` tag, and short SHA tags are produced by `.github/workflows/docker-release.yml`.
+
 ## Validation
 
 Run these before shipping product changes:

@@ -36,8 +36,8 @@ _ALLOWED_MSG_KEYS = frozenset(
 _ALNUM = string.ascii_letters + string.digits
 
 _DEFAULT_OPENROUTER_HEADERS = {
-    "HTTP-Referer": "https://github.com/HKUDS/DeepTutor",
-    "X-OpenRouter-Title": "DeepTutor",
+    "HTTP-Referer": "https://github.com/mattwag05/Tutor",
+    "X-OpenRouter-Title": "Tutor",
 }
 
 

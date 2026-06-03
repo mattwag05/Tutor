@@ -64,6 +64,12 @@ Tutor's default web surface is a Tutor-native course creator and reader:
 First-class formats are `lesson`, `podcast`, `flashcards`, `studyGuide`,
 `quiz`, and `diagram`.
 
+### Deployment Image
+
+The durable production image is `ghcr.io/mattwag05/tutor`. Keep compatibility
+service names such as `deeptutor` only where they preserve existing volumes,
+compose state, or integrations.
+
 ### Attribution
 
 Tutor builds on DeepTutor (`HKUDS/DeepTutor`) for the agent-native backend,

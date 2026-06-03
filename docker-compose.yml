@@ -1,7 +1,7 @@
 # ============================================
-# DeepTutor Docker Compose Configuration
+# Tutor Docker Compose Configuration
 # ============================================
-# This file provides orchestration for DeepTutor services
+# This file provides orchestration for Tutor services
 #
 # Usage:
 #   Production:  docker compose up -d
@@ -42,7 +42,7 @@ services:
       - NET_ADMIN
 
   # ============================================
-  # All-in-One DeepTutor Service
+  # All-in-One Tutor Service
   # ============================================
   deeptutor:
     build:

@@ -58,7 +58,7 @@ DEFAULT_FEATURE_FLAGS = {
 DEFAULT_UI_SETTINGS = {
     "theme": "light",
     "language": "en",
-    "sidebar_description": "✨ Data Intelligence Lab @ HKU",
+    "sidebar_description": "Open-source course builder",
     "sidebar_nav_order": DEFAULT_SIDEBAR_NAV_ORDER,
     "features": DEFAULT_FEATURE_FLAGS,
 }
@@ -430,7 +430,7 @@ async def complete_tour(payload: TourCompletePayload | None = None):
 
     return {
         "status": "completed",
-        "message": "Configuration saved. DeepTutor will restart shortly.",
+        "message": "Configuration saved. Tutor will restart shortly.",
         "launch_at": launch_at,
         "redirect_at": redirect_at,
         "env": rendered,

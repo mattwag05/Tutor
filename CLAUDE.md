@@ -2,7 +2,7 @@
 
 AI tutoring platform — multi-agent RAG architecture, Python/FastAPI backend, Next.js frontend.
 
-> **Naming:** User-facing project name is **Tutor** (folder `~/Projects/Tutor/`, deployed at `tutor.tail6e035b.ts.net`). Internal package name is still `deeptutor` (Python module, Docker image `deeptutor-fork`, GitHub repo `mattwag05/Tutor`, Pironman compose dir `~/homelab/deeptutor/`). Don't rename code paths — they're load-bearing across upstream sync, Dockerfiles, and compose.
+> **Naming:** User-facing project name is **Tutor** (folder `~/Projects/Tutor/`, deployed at `tutor.tail6e035b.ts.net`). Internal package name is still `deeptutor` (Python module, compatibility service/container names, GitHub repo `mattwag05/Tutor`). The durable production image is `ghcr.io/mattwag05/tutor`. Don't rename code paths — they're load-bearing across upstream sync, Dockerfiles, and compose.
 
 > **Attribution:** Tutor builds on DeepTutor (`HKUDS/DeepTutor`) for the
 > agent-native backend, RAG, provider routing, CLI/API compatibility, and
@@ -494,8 +494,9 @@ Five places must be updated to wire in a new module (e.g. `mymodule`):
 The full stack runs on the Pironman (100.126.176.86) via Docker Compose, fronted by the existing `caddy-tailscale` container (no per-service Tailscale sidecar — Tutor binds to `127.0.0.1:*` and Caddy proxies HTTPS).
 
 **Host:** Pironman (Debian 13, ARM64, 16GB RAM, NVMe)
-**Path:** `/home/matthewwagner/homelab/deeptutor/`
-**Active compose:** `docker-compose.pironman.yml` (untracked, local-only override of `docker-compose.yml`)
+**App checkout:** `/home/matthewwagner/Projects/Tutor/`
+**Active compose:** `/home/matthewwagner/homelab/docker/compose/deeptutor/compose.yaml`
+**Image:** `ghcr.io/mattwag05/tutor:latest` (or a pinned `sha-<short>` tag)
 **Access:** `ssh pironman` (key auth as `matthewwagner`)
 
 **Live URLs** (served by `caddy-tailscale` against host loopback — see gotcha #12):
@@ -506,13 +507,16 @@ The full stack runs on the Pironman (100.126.176.86) via Docker Compose, fronted
 
 **Containers:** `deeptutor` only (caddy-tailscale runs separately under `~/homelab/caddy/pironman/`)
 
-**Rebuild & deploy:**
+**Deploy published image:**
 ```bash
-ssh pironman 'cd /home/matthewwagner/homelab/deeptutor && \
-  git pull origin main && \
-  docker compose -f docker-compose.pironman.yml build deeptutor && \
-  docker compose -f docker-compose.pironman.yml up -d deeptutor'
+ssh pironman 'cd /home/matthewwagner/homelab/docker/compose/deeptutor && \
+  docker compose pull deeptutor && \
+  docker compose up -d deeptutor'
 ```
+
+For emergency local builds, build in `/home/matthewwagner/Projects/Tutor`,
+tag the image explicitly, and use a temporary compose override only until the
+GHCR image is available.
 
 ---
 
@@ -524,7 +528,7 @@ The standalone OpenMAIC Docker service (`services/openmaic/`) has been decommiss
 
 | Service | Container port | Host loopback | Caddy reverse_proxy |
 |---------|----------------|---------------|---------------------|
-| Tutor Backend (uvicorn) | 8001 | 127.0.0.1:8001 | `tailscale/deeptutor-api`, `tailscale/tutor /api/v1/*` |
-| Tutor Frontend (Next.js) | 3782 | 127.0.0.1:3782 | `tailscale/deeptutor`, `tailscale/tutor` (all paths) |
+| Tutor Backend (uvicorn) | 8001 | 127.0.0.1:8001 | `tailscale/tutor /api/v1/*` |
+| Tutor Frontend (Next.js) | 3782 | 127.0.0.1:3782 | `tailscale/tutor` (all paths) |
 
 The `services/openmaic/` source tree is preserved in the repo as an archive but is no longer built or deployed.

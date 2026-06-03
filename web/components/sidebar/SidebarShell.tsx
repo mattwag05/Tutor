@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useAppShell } from "@/context/AppShellContext";
 import {
   BookOpen,
@@ -60,7 +60,7 @@ const BOTTOM_NAV: NavEntry[] = [
 ];
 
 const DEFAULT_SESSION_VIEWPORT_CLASS_NAME = "max-h-[112px]";
-const GITHUB_REPO_URL = "https://github.com/HKUDS/Tutor";
+const GITHUB_REPO_URL = "https://github.com/mattwag05/Tutor";
 
 interface SidebarShellProps {
   sessions?: SessionSummary[];
@@ -101,18 +101,22 @@ export function SidebarShell({
     router.push("/chat");
   };
 
-  const [moreOpen, setMoreOpen] = useState(false);
-
-  // Close the sheet on route change.
-  useEffect(() => { setMoreOpen(false); }, [pathname]);
+  const [moreState, setMoreState] = useState({ open: false, pathname });
+  const moreOpen = moreState.open && moreState.pathname === pathname;
+  const openMore = useCallback(() => {
+    setMoreState({ open: true, pathname });
+  }, [pathname]);
+  const closeMore = useCallback(() => {
+    setMoreState((state) => (state.open ? { ...state, open: false } : state));
+  }, []);
 
   // Close on Escape (matches the dialog dismissal pattern users expect).
   useEffect(() => {
     if (!moreOpen) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setMoreOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") closeMore(); };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [moreOpen]);
+  }, [closeMore, moreOpen]);
 
   // Items already exposed in the bottom nav — don't repeat them in the sheet.
   const bottomHrefs = new Set(BOTTOM_NAV.map((b) => b.href));
@@ -145,7 +149,7 @@ export function SidebarShell({
       })}
       <button
         type="button"
-        onClick={() => setMoreOpen(true)}
+        onClick={openMore}
         aria-label={t("More") as string}
         className="flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)]"
       >
@@ -156,7 +160,7 @@ export function SidebarShell({
     {moreOpen && (
       <div
         className="fixed inset-0 z-[60] flex flex-col bg-black/50 sm:hidden"
-        onClick={() => setMoreOpen(false)}
+        onClick={closeMore}
         role="presentation"
       >
         <div
@@ -171,7 +175,7 @@ export function SidebarShell({
             <span className="text-[13px] font-medium text-[var(--foreground)]">{t("More")}</span>
             <button
               type="button"
-              onClick={() => setMoreOpen(false)}
+              onClick={closeMore}
               aria-label={t("Close") as string}
               className="-mr-2 flex h-11 w-11 touch-manipulation items-center justify-center rounded-md text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
             >

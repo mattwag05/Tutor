@@ -596,8 +596,8 @@ class ConfigTestRunner:
             import base64
 
             headers["Content-Type"] = "application/json"
-            headers.setdefault("HTTP-Referer", "https://github.com/HKUDS/DeepTutor")
-            headers.setdefault("X-Title", "DeepTutor")
+            headers.setdefault("HTTP-Referer", "https://github.com/mattwag05/Tutor")
+            headers.setdefault("X-Title", "Tutor")
             payload = {
                 "model": model_id,
                 "input_audio": {
