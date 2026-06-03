@@ -16,7 +16,7 @@ import {
 } from './types';
 import { createLogger } from '@/lib/logger';
 
-const log = createLogger('DeepTutor');
+const log = createLogger('Tutor');
 
 // ==================== Configuration ====================
 

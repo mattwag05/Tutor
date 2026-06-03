@@ -1,8 +1,8 @@
 /**
  * Quiz attempt proxy.
  *
- * POST forwards a single attempt to DeepTutor's unified store; GET passes
- * filters through unchanged. Both degrade gracefully when DeepTutor is
+ * POST forwards a single attempt to Tutor's unified store; GET passes
+ * filters through unchanged. Both degrade gracefully when Tutor is
  * unavailable so the classroom UX never blocks on it.
  */
 
@@ -23,7 +23,7 @@ const VALID_SOURCES: ReadonlySet<QuizSource> = new Set(['book', 'classroom', 'co
 export async function POST(request: NextRequest) {
   if (!isDeepTutorEnabled()) {
     return NextResponse.json(
-      { available: false, message: 'DeepTutor integration is disabled' },
+      { available: false, message: 'Tutor integration is disabled' },
       { status: 503 },
     );
   }
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     const record = await recordQuizAttempt(payload);
     if (record === null) {
       return NextResponse.json(
-        { available: false, message: 'DeepTutor unavailable' },
+        { available: false, message: 'Tutor unavailable' },
         { status: 503 },
       );
     }

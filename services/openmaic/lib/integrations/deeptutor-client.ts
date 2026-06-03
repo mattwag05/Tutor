@@ -1,7 +1,7 @@
 /**
  * Tutor API Client
  *
- * Provides typed wrappers for DeepTutor's REST and WebSocket APIs.
+ * Provides typed wrappers for Tutor's REST and WebSocket APIs.
  * Handles connection errors gracefully — returns specific error types
  * that callers can check to trigger fallback behavior.
  */
@@ -16,7 +16,7 @@ import {
 } from './types';
 import { createLogger } from '@/lib/logger';
 
-const log = createLogger('DeepTutor');
+const log = createLogger('Tutor');
 
 // ==================== Configuration ====================
 
@@ -57,7 +57,7 @@ async function fetchWithTimeout(
       throw new DeepTutorUnavailableError(`Request to ${url} timed out after ${timeout}ms`);
     }
     throw new DeepTutorUnavailableError(
-      `Failed to connect to DeepTutor at ${config.baseUrl}: ${error instanceof Error ? error.message : String(error)}`,
+      `Failed to connect to Tutor at ${config.baseUrl}: ${error instanceof Error ? error.message : String(error)}`,
     );
   } finally {
     clearTimeout(timer);
@@ -146,7 +146,7 @@ export async function getKnowledgeBase(kbName: string): Promise<KnowledgeBaseDet
     );
   } catch (error) {
     if (error instanceof DeepTutorUnavailableError) {
-      log.warn(`DeepTutor unavailable for KB details: ${kbName}`);
+      log.warn(`Tutor unavailable for KB details: ${kbName}`);
       return null;
     }
     throw error;
@@ -193,7 +193,7 @@ export async function recordQuizAttempt(
     return body;
   } catch (error) {
     if (error instanceof DeepTutorUnavailableError) {
-      log.warn(`Skipping quiz-attempt write — DeepTutor unavailable: ${error.message}`);
+      log.warn(`Skipping quiz-attempt write — Tutor unavailable: ${error.message}`);
       return null;
     }
     throw error;
@@ -224,7 +224,7 @@ export async function listQuizAttempts(
     return await apiGet<QuizAttemptRecord[]>(path);
   } catch (error) {
     if (error instanceof DeepTutorUnavailableError) {
-      log.warn(`Skipping quiz-attempt list — DeepTutor unavailable: ${error.message}`);
+      log.warn(`Skipping quiz-attempt list — Tutor unavailable: ${error.message}`);
       return [];
     }
     throw error;
@@ -265,7 +265,7 @@ export async function queryKnowledgeBase(
   options?: { timeout?: number; topK?: number },
 ): Promise<{ answer: string; sources: RAGQueryResult[] }> {
   if (!config.enabled) {
-    throw new DeepTutorUnavailableError('DeepTutor integration is disabled');
+    throw new DeepTutorUnavailableError('Tutor integration is disabled');
   }
 
   if (!query || !query.trim()) {
@@ -368,11 +368,11 @@ export function clearRagContextCache(): void {
 }
 
 /**
- * Fetch RAG context from DeepTutor and format it for injection into
+ * Fetch RAG context from Tutor and format it for injection into
  * OpenMAIC's outline generation pipeline.
  *
  * Returns formatted string suitable for the `researchContext` parameter,
- * or null if DeepTutor is unavailable or returns no useful metadata.
+ * or null if Tutor is unavailable or returns no useful metadata.
  *
  * If the payload exceeds MAX_RAG_CONTEXT_CHARS it is truncated with a
  * visible marker (spec Q5).
@@ -433,7 +433,7 @@ export async function getRAGContextForGeneration(
     return result;
   } catch (error) {
     if (error instanceof DeepTutorUnavailableError) {
-      log.warn(`DeepTutor unavailable for RAG context: ${error.message}`);
+      log.warn(`Tutor unavailable for RAG context: ${error.message}`);
       // Don't cache transient errors — let the next request retry.
       return null;
     }

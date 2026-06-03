@@ -1,8 +1,8 @@
 /**
  * Knowledge Bases API
  *
- * Proxy endpoint to list available DeepTutor knowledge bases.
- * Returns an empty array if DeepTutor is unavailable (graceful degradation).
+ * Proxy endpoint to list available Tutor knowledge bases.
+ * Returns an empty array if Tutor is unavailable (graceful degradation).
  */
 
 import { NextResponse } from 'next/server';
@@ -13,7 +13,7 @@ export async function GET() {
     return NextResponse.json({
       available: false,
       knowledgeBases: [],
-      message: 'DeepTutor integration is disabled',
+      message: 'Tutor integration is disabled',
     });
   }
 
@@ -47,7 +47,7 @@ export async function GET() {
     return NextResponse.json({
       available: false,
       knowledgeBases: [],
-      message: 'DeepTutor is currently unavailable',
+      message: 'Tutor is currently unavailable',
     });
   }
 }
