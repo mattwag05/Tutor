@@ -102,8 +102,8 @@ export function VersionBadge({ collapsed = false }: VersionBadgeProps) {
     const href =
       latest?.url ??
       (latestNorm
-        ? `https://github.com/HKUDS/DeepTutor/releases/tag/${latestNorm}`
-        : "https://github.com/HKUDS/DeepTutor/releases");
+        ? `https://github.com/mattwag05/Tutor/releases/tag/${latestNorm}`
+        : "https://github.com/mattwag05/Tutor/releases");
 
     let tooltip: string;
     if (status === "latest" && displayTag) {

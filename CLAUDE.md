@@ -2,10 +2,16 @@
 
 AI tutoring platform — multi-agent RAG architecture, Python/FastAPI backend, Next.js frontend.
 
-> **Naming:** User-facing project name is **Tutor** (folder `~/Projects/Tutor/`, deployed at `tutor.tail6e035b.ts.net`). Internal package name is still `deeptutor` (Python module, Docker image `deeptutor-fork`, GitHub repo `mattwag05/DeepTutor`, Pironman compose dir `~/homelab/deeptutor/`). Don't rename code paths — they're load-bearing across upstream sync, Dockerfiles, and compose.
+> **Naming:** User-facing project name is **Tutor** (folder `~/Projects/Tutor/`, deployed at `tutor.tail6e035b.ts.net`). Internal package name is still `deeptutor` (Python module, Docker image `deeptutor-fork`, GitHub repo `mattwag05/Tutor`, Pironman compose dir `~/homelab/deeptutor/`). Don't rename code paths — they're load-bearing across upstream sync, Dockerfiles, and compose.
+
+> **Attribution:** Tutor builds on DeepTutor (`HKUDS/DeepTutor`) for the
+> agent-native backend, RAG, provider routing, CLI/API compatibility, and
+> learning-runtime concepts. It also retains OpenMAIC (`THU-MAIC/OpenMAIC`)
+> under `services/openmaic/` as a classroom-generation, export, media, and
+> visualization progenitor/archive.
 
 **Status:** 🔨 In Development (last upstream merge 2026-04-30 → v1.3.7; v1.5.0 catalog covers all 7 provider modalities + feature flags 2026-05-06; **v1.6.0** OpenRouter as first-class TTS/ASR/image provider 2026-05-07; **v1.6.1** mobile UX sweep — iOS focus-zoom, h-dvh, hover-reveal touch, 44px tap targets, interactiveWidget 2026-05-07; **v1.6.2** Course Builder card-mode reader — one section at a time, sticky in-section progress bar, depth-derived density tiers 2026-05-07)
-**Repo:** https://github.com/mattwag05/DeepTutor.git
+**Repo:** https://github.com/mattwag05/Tutor.git
 **Upstream:** https://github.com/HKUDS/DeepTutor (main at 445e762)
 **Deployed:** https://tutor.tail6e035b.ts.net (Pironman — 100.126.176.86, unified URL post-2026-05-06)
 
@@ -102,7 +108,7 @@ web/
 │   ├── pbl/                 # Project-based learning + MCP agents
 │   ├── prompts/             # Prompt loader + templates
 │   ├── ai/                  # callLLM / streamLLM wrappers; manifest/ — Manifest tier-based profile router (C.1)
-│   ├── integrations/        # DeepTutor client (health, KB, RAG)
+│   ├── integrations/        # Tutor client (health, KB, RAG)
 │   ├── server/              # Server-only utilities: resolve-profile.ts (Manifest→model), tts/, course-storage.ts
 │   ├── types/               # Shared renderer types (action, slides, stage, widgets)
 │   └── utils/               # Shared utilities: strip-markdown.ts, blob-download.ts
@@ -187,7 +193,7 @@ npm run audit          # Playwright UI audit (requires next start)
 
 14. **Artifact endpoints need long curl timeouts** — `/api/generate/course-{flashcards,study-guide,final-exam}` make non-streaming LLM calls that take 60–180s. When testing via curl, use `--max-time 180` minimum or you'll get an empty body and a misleading "JSON parse" error.
 
-15. **`gh` OAuth token lacks `workflow` scope** (verified 2026-05-04) — `git push origin main` fails with `! [remote rejected] main -> main (refusing to allow an OAuth App to create or update workflow .github/workflows/tests.yml without 'workflow' scope)` whenever the push range touches a `.github/workflows/*.yml` file (e.g. after an upstream HKUDS sync that picks up CI changes). Two workarounds: (a) push once via SSH URL: `git push git@github.com:mattwag05/DeepTutor.git main` — the SSH key is already on the GitHub account and bypasses the OAuth scope check; (b) refresh the token: `gh auth refresh -h github.com -s workflow` (interactive device flow). Don't permanently switch the remote to SSH unless you also want to use SSH for fetch — option (a) is the targeted fix. After pushing via SSH URL, run `git fetch origin` to sync the tracking ref; otherwise `git status` will falsely show "ahead of 'origin/main'".
+15. **`gh` OAuth token lacks `workflow` scope** (verified 2026-05-04) — `git push origin main` fails with `! [remote rejected] main -> main (refusing to allow an OAuth App to create or update workflow .github/workflows/tests.yml without 'workflow' scope)` whenever the push range touches a `.github/workflows/*.yml` file (e.g. after an upstream HKUDS sync that picks up CI changes). Two workarounds: (a) push once via SSH URL: `git push git@github.com:mattwag05/Tutor.git main` — the SSH key is already on the GitHub account and bypasses the OAuth scope check; (b) refresh the token: `gh auth refresh -h github.com -s workflow` (interactive device flow). Don't permanently switch the remote to SSH unless you also want to use SSH for fetch — option (a) is the targeted fix. After pushing via SSH URL, run `git fetch origin` to sync the tracking ref; otherwise `git status` will falsely show "ahead of 'origin/main'".
 
 16. **i18n locales for `web/` are 2 files** at `web/locales/{en,zh}/app.json` — NOT 4 like OpenMAIC. Keys are flat dot-notation strings (`"quiz.title": "Quiz"` — `keySeparator: false`), NOT nested objects. Values are translations. The parity script `web/scripts/i18n_parity.mjs` MUST be run from inside `web/` (`cd web && node scripts/i18n_parity.mjs`); from project root it errors with "Missing locales roots" because it resolves `locales/` relative to cwd.
 
@@ -203,7 +209,7 @@ npm run audit          # Playwright UI audit (requires next start)
 
 22. **Cleaning up `.claude/worktrees/` after squash-merge PRs** — claude-spawned worktrees accumulate; their branches look "unmerged" to `git merge-base --is-ancestor` because squash creates new SHAs on `main`. Verify a worktree branch shipped by matching commit subjects in `git log origin/main` AND confirming the change is duplicated in main's tree, then: `git worktree remove [--force] .claude/worktrees/<name> && git branch -D claude/<name>`. Use `--force` if the worktree has uncommitted changes — common stray is `web/next-env.d.ts` flipping between `./.next/types/routes.d.ts` (build) and `./.next/dev/types/routes.d.ts` (dev server), a Next.js artifact safe to discard.
 
-23. **`gh` defaults to upstream (HKUDS) when two remotes exist.** `gh pr create`, `gh run list`, `gh pr checks`, etc. target the remote `gh repo view` resolves — which is `HKUDS/DeepTutor` in this repo. Always pass `-R mattwag05/DeepTutor` explicitly, and use `--head mattwag05:<branch>` on `gh pr create` so GitHub doesn't confuse same-named branches across forks.
+23. **`gh` defaults to upstream (HKUDS) when two remotes exist.** `gh pr create`, `gh run list`, `gh pr checks`, etc. target the remote `gh repo view` resolves — which is `HKUDS/DeepTutor` in this repo. Always pass `-R mattwag05/Tutor` explicitly, and use `--head mattwag05:<branch>` on `gh pr create` so GitHub doesn't confuse same-named branches across forks.
 
 24. **`git add` with Next.js bracket paths requires quotes.** `git add services/openmaic/app/classroom/[id]/page.tsx` fails (zsh glob expansion). Use `"services/openmaic/app/classroom/[id]/page.tsx"` with double quotes.
 
@@ -319,7 +325,7 @@ The global PreToolUse security hook flags two safe-in-this-repo patterns. Both h
 
 ## Course Builder
 
-The Course Builder (Oboe.com-style article reader) now lives in `web/`. Entry points:
+The Tutor-native Course Builder now lives in `web/`. Entry points:
 - `web/app/course/page.tsx` — landing (topic input + outline streaming)
 - `web/app/course/[id]/page.tsx` — article-reader viewer
 - `web/lib/generation/prompts/templates/course-{outline,section}/` — prompts
@@ -334,7 +340,7 @@ The Course Builder (Oboe.com-style article reader) now lives in `web/`. Entry po
 
 **Inline destructive-confirm pattern:** for card-level destructive actions (delete a course, etc.), the codebase prefers a two-state inline confirm (Trash icon → `Delete | Cancel` bar in place of the icon) over a modal `<AlertDialog>`. State shape: `confirmingId` + `pendingId` at the list level; expand small button hit zones with `before:absolute before:-inset-2 before:content-['']` (gotcha #56). Reference: `web/components/course/CourseHistoryGrid.tsx`.
 
-Classrooms can be projected to a course via the "📖 Course" button (calls `POST /api/project/classroom-to-course`, which materializes scenes as course sections). Parallel to the slide-based classroom.
+Classrooms can be projected to a course via the "Course" button (calls `POST /api/project/classroom-to-course`, which materializes scenes as course sections). Parallel to the slide-based classroom.
 
 **Course artifacts (all shipped B.5, 2026-05-05):**
 - **PDF export** — `web/lib/server/course-pdf.ts` (Playwright render), route `web/app/api/export/course-pdf/route.ts`. Requires `playwright` and `pdf-lib` in `web/`.
@@ -420,7 +426,7 @@ As of 2026-05-07 the patterns `* 2`, `* 2.ts`, `* 2.tsx`, etc. are gitignored, s
 
 ## Upstream Sync Procedure
 
-**DeepTutor upstream:** `git fetch upstream && git merge upstream/main` — accept upstream deletion of `docs/roadmap.md` and `docs/guide/docker-start.md` (fork customization notes live in `AGENTS.md` / `CLAUDE.md` instead, not in the docs tree).
+**HKUDS upstream:** `git fetch upstream && git merge upstream/main` — accept upstream deletion of `docs/roadmap.md` and `docs/guide/docker-start.md` (fork customization notes live in `AGENTS.md` / `CLAUDE.md` instead, not in the docs tree).
 
 **OpenMAIC upstream** — Archive-only post-B.4 (retired 2026-05-05). No further upstream syncs needed or possible.
 
@@ -429,7 +435,7 @@ As of 2026-05-07 the patterns `* 2`, `* 2.ts`, `* 2.tsx`, etc. are gitignored, s
 ## Remotes
 
 ```
-origin    https://github.com/mattwag05/DeepTutor.git  (GitHub, canonical)
+origin    https://github.com/mattwag05/Tutor.git  (GitHub, canonical)
 upstream  https://github.com/HKUDS/DeepTutor.git      (HKUDS original)
 ```
 
@@ -450,7 +456,7 @@ git merge upstream/main
 
 ## Task Tracking
 
-> Remote sessions: `BEADS_DIR=/Users/matthewwagner/Projects/DeepTutor/.beads bd <cmd>`
+> Remote sessions: `BEADS_DIR=/Users/matthewwagner/Projects/Tutor/.beads bd <cmd>`
 
 ---
 
@@ -485,7 +491,7 @@ Five places must be updated to wire in a new module (e.g. `mymodule`):
 
 ## Production Deployment (Pironman)
 
-The full stack runs on the Pironman (100.126.176.86) via Docker Compose, fronted by the existing `caddy-tailscale` container (no per-service Tailscale sidecar — DeepTutor binds to `127.0.0.1:*` and Caddy proxies HTTPS).
+The full stack runs on the Pironman (100.126.176.86) via Docker Compose, fronted by the existing `caddy-tailscale` container (no per-service Tailscale sidecar — Tutor binds to `127.0.0.1:*` and Caddy proxies HTTPS).
 
 **Host:** Pironman (Debian 13, ARM64, 16GB RAM, NVMe)
 **Path:** `/home/matthewwagner/homelab/deeptutor/`
@@ -518,7 +524,7 @@ The standalone OpenMAIC Docker service (`services/openmaic/`) has been decommiss
 
 | Service | Container port | Host loopback | Caddy reverse_proxy |
 |---------|----------------|---------------|---------------------|
-| DeepTutor Backend (uvicorn) | 8001 | 127.0.0.1:8001 | `tailscale/deeptutor-api`, `tailscale/tutor /api/v1/*` |
-| DeepTutor Frontend (Next.js) | 3782 | 127.0.0.1:3782 | `tailscale/deeptutor`, `tailscale/tutor` (all paths) |
+| Tutor Backend (uvicorn) | 8001 | 127.0.0.1:8001 | `tailscale/deeptutor-api`, `tailscale/tutor /api/v1/*` |
+| Tutor Frontend (Next.js) | 3782 | 127.0.0.1:3782 | `tailscale/deeptutor`, `tailscale/tutor` (all paths) |
 
 The `services/openmaic/` source tree is preserved in the repo as an archive but is no longer built or deployed.

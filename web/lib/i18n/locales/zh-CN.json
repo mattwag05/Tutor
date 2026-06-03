@@ -37,9 +37,9 @@
     "interactiveModeHint": "开启深度交互模式，生成更多互动内容",
     "interactiveModeLabel": "深度交互",
     "knowledgeBase": "知识库",
-    "knowledgeBaseHint": "使用 DeepTutor 知识库增强课程内容",
+    "knowledgeBaseHint": "使用 Tutor 知识库增强课程内容",
     "knowledgeBaseNone": "不使用知识库",
-    "knowledgeBaseUnavailable": "DeepTutor 知识库不可用",
+    "knowledgeBaseUnavailable": "Tutor 知识库不可用",
     "knowledgeBaseLoading": "加载知识库...",
     "languageHint": "课程将以此语言生成"
   },

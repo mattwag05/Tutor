@@ -221,8 +221,10 @@ export function getCatalogThinkingCapability(
   return THINKING_CAPABILITIES[getModelMetadataKey(providerId, modelId)];
 }
 
-export function applyModelMetadata(providers: Record<ProviderId, ProviderConfig>): void {
+export function applyModelMetadata(providers?: Record<ProviderId, ProviderConfig>): void {
+  if (!providers) return;
   for (const provider of Object.values(providers)) {
+    if (!provider || !Array.isArray(provider.models)) continue;
     for (const model of provider.models) {
       const thinking = getCatalogThinkingCapability(provider.id, model.id);
       if (thinking) {

@@ -11,6 +11,7 @@ import { formatPersonalization } from '@/lib/generation/format-personalization';
 import type {
   CourseBlock,
   CourseCitation,
+  CourseGenerationPreferences,
   CoursePersonalization,
   CourseSection,
   Language,
@@ -33,6 +34,21 @@ interface OutlineSummary {
   description?: string;
 }
 
+function formatGenerationPreferences(
+  preferences: CourseGenerationPreferences | undefined,
+): string {
+  if (!preferences) return '';
+  return [
+    '',
+    'Creator controls:',
+    `Primary focus: ${preferences.focus}`,
+    `Requested length: ${preferences.length}`,
+    `Complexity: ${preferences.complexity}`,
+    `Initial format: ${preferences.initialFormat}`,
+    `Selected formats: ${preferences.selectedFormats.join(', ')}`,
+  ].join('\n');
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as {
@@ -43,6 +59,7 @@ export async function POST(req: NextRequest) {
       section?: { id: string; order: number; title: string; description?: string };
       knowledgeBase?: string;
       personalization?: CoursePersonalization;
+      generationPreferences?: CourseGenerationPreferences;
     };
 
     if (!body.topic || !body.section?.title) {
@@ -74,7 +91,12 @@ export async function POST(req: NextRequest) {
       .map((s) => `${s.order}. ${s.title}${s.description ? ` — ${s.description}` : ''}`)
       .join('\n');
 
-    const personalization = formatPersonalization(body.personalization);
+    const personalization = [
+      formatPersonalization(body.personalization),
+      formatGenerationPreferences(body.generationPreferences),
+    ]
+      .filter(Boolean)
+      .join('\n');
 
     const prompts = buildPrompt(PROMPT_IDS.COURSE_SECTION, {
       courseTitle: body.courseTitle || body.topic,

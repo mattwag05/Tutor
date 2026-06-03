@@ -2,13 +2,13 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "DeepTutor",
+    name: "Tutor",
     short_name: "Tutor",
-    description: "AI-powered tutoring platform",
+    description: "Open-source AI lessons that keep you thinking",
     start_url: "/",
     display: "standalone",
-    background_color: "#faf9f6",
-    theme_color: "#b0501e",
+    background_color: "#ffffff",
+    theme_color: "#111111",
     icons: [
       {
         src: "/icons/icon-192x192.png",

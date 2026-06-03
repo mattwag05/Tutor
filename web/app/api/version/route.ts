@@ -23,7 +23,7 @@ export const runtime = "nodejs";
 const LATEST_REVALIDATE_SECONDS = 3600;
 const LATEST_FALLBACK_CACHE_SECONDS = 300;
 
-const DEFAULT_REPO = "HKUDS/DeepTutor";
+const DEFAULT_REPO = "mattwag05/Tutor";
 
 interface GithubRelease {
   tag_name: string;

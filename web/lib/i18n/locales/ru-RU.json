@@ -37,9 +37,9 @@
     "interactiveModeHint": "Включить интерактивный режим для более практического контента",
     "interactiveModeLabel": "Интерактивный режим",
     "knowledgeBase": "База знаний",
-    "knowledgeBaseHint": "Обогатить содержание курса с помощью базы знаний DeepTutor",
+    "knowledgeBaseHint": "Обогатить содержание курса с помощью базы знаний Tutor",
     "knowledgeBaseNone": "Без базы знаний",
-    "knowledgeBaseUnavailable": "База знаний DeepTutor недоступна",
+    "knowledgeBaseUnavailable": "База знаний Tutor недоступна",
     "knowledgeBaseLoading": "Загрузка баз знаний...",
     "languageHint": "Курс будет сгенерирован на этом языке"
   },

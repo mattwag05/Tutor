@@ -17,7 +17,12 @@ import { createLogger } from '@/lib/logger';
 import { SSE_HEARTBEAT_INTERVAL_MS, MAX_STREAM_RETRIES } from '@/lib/constants/generation';
 import { formatStudentProfile } from '@/lib/generation/format-student-profile';
 import { formatPersonalization } from '@/lib/generation/format-personalization';
-import type { CourseSection, CoursePersonalization, Language } from '@/lib/types/course';
+import type {
+  CourseGenerationPreferences,
+  CoursePersonalization,
+  CourseSection,
+  Language,
+} from '@/lib/types/course';
 
 const log = createLogger('CourseOutlineStream');
 
@@ -116,6 +121,21 @@ function extractCourseTitle(buffer: string): string | undefined {
   return match?.[1];
 }
 
+function formatGenerationPreferences(
+  preferences: CourseGenerationPreferences | undefined,
+): string {
+  if (!preferences) return '';
+  return [
+    '',
+    'Creator controls:',
+    `Primary focus: ${preferences.focus}`,
+    `Requested length: ${preferences.length}`,
+    `Complexity: ${preferences.complexity}`,
+    `Initial format: ${preferences.initialFormat}`,
+    `Selected formats: ${preferences.selectedFormats.join(', ')}`,
+  ].join('\n');
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as {
@@ -125,6 +145,7 @@ export async function POST(req: NextRequest) {
       userNickname?: string;
       userBio?: string;
       personalization?: CoursePersonalization;
+      generationPreferences?: CourseGenerationPreferences;
     };
 
     if (!body.topic || typeof body.topic !== 'string' || body.topic.trim().length === 0) {
@@ -135,7 +156,7 @@ export async function POST(req: NextRequest) {
     const language: Language = body.language || 'en-US';
     const topic = body.topic.trim();
 
-    // Optional RAG enrichment from a DeepTutor knowledge base
+    // Optional RAG enrichment from a Tutor knowledge base
     let researchContext = language === 'zh-CN' ? '无' : 'None';
     if (body.knowledgeBase && isDeepTutorEnabled()) {
       try {
@@ -145,13 +166,18 @@ export async function POST(req: NextRequest) {
           log.info(`Enriched course outline with RAG from KB "${body.knowledgeBase}"`);
         }
       } catch (error) {
-        log.warn(`DeepTutor RAG enrichment failed, proceeding without: ${error}`);
+        log.warn(`Tutor RAG enrichment failed, proceeding without: ${error}`);
       }
     }
 
     const userProfile = formatStudentProfile(body, 'inline');
 
-    const personalization = formatPersonalization(body.personalization);
+    const personalization = [
+      formatPersonalization(body.personalization),
+      formatGenerationPreferences(body.generationPreferences),
+    ]
+      .filter(Boolean)
+      .join('\n');
 
     const prompts = buildPrompt(PROMPT_IDS.COURSE_OUTLINE, {
       topic,

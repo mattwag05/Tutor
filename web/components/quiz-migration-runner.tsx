@@ -9,7 +9,7 @@ const log = createLogger('QuizMigrationRunner');
 
 /**
  * One-shot migration runner mounted from the root layout. Walks any
- * pre-existing localStorage quiz results into DeepTutor's unified store
+ * pre-existing localStorage quiz results into Tutor's unified store
  * on first load (sentinel-guarded so subsequent loads no-op). Renders
  * nothing — purely a side-effect component.
  */

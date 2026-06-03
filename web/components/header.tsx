@@ -173,7 +173,7 @@ export function Header({ currentSceneTitle }: HeaderProps) {
 
           <div className="w-[1px] h-4 bg-gray-200 dark:bg-gray-700" />
 
-          {/* Cross-app navigation: /settings is served by the DeepTutor
+          {/* Cross-app navigation: /settings is served by the Tutor
               frontend, so use a full page load (router.push would 404 here). */}
           <div className="relative">
             <button

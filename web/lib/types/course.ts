@@ -85,6 +85,22 @@ export interface MultipleChoiceQuizBlock extends BaseBlock {
   explanation: string;
 }
 
+export type CourseFormat =
+  | 'lesson'
+  | 'podcast'
+  | 'flashcards'
+  | 'studyGuide'
+  | 'quiz'
+  | 'diagram';
+
+export interface CourseGenerationPreferences {
+  focus: 'learning' | 'reviewing';
+  length: 'short' | 'medium' | 'long';
+  complexity: 'beginner' | 'intermediate' | 'advanced';
+  initialFormat: CourseFormat;
+  selectedFormats: CourseFormat[];
+}
+
 // ==================== Sections ====================
 
 export interface CourseSection {
@@ -159,6 +175,13 @@ export interface CourseArtifacts {
     questions?: Array<FillBlankQuizBlock | MultipleChoiceQuizBlock>;
     error?: string;
   };
+  diagram?: {
+    status: 'pending' | 'generating' | 'ready' | 'error';
+    title?: string;
+    mermaid?: string;
+    explanation?: string;
+    error?: string;
+  };
 }
 
 export interface CourseProgress {
@@ -183,10 +206,12 @@ export interface Course {
   language: Language;
   /** ISO8601 timestamp. */
   createdAt: string;
-  /** Optional DeepTutor KB name used for RAG citations. */
+  /** Optional Tutor KB name used for RAG citations. */
   knowledgeBase?: string;
   /** Reader depth, audience, and prose style chosen at creation time. */
   personalization?: CoursePersonalization;
+  /** Tutor creator controls and requested output formats. */
+  generationPreferences?: CourseGenerationPreferences;
   /** Top-level sections. Rendered linearly in the reader. */
   sections: CourseSection[];
   /** Citation store — block markers like {{cite:src_1}} resolve here. */

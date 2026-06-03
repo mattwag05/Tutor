@@ -1,8 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { nanoid } from 'nanoid';
 import { apiError, API_ERROR_CODES } from '@/lib/server/api-response';
-import { listCourses, writeCourse, readCourse, type CourseSummary } from '@/lib/server/course-storage';
-import type { Course, CoursePersonalization, CourseSection, Language } from '@/lib/types/course';
+import {
+  isValidCourseId,
+  listCourses,
+  writeCourse,
+  readCourse,
+  type CourseSummary,
+} from '@/lib/server/course-storage';
+import type {
+  Course,
+  CourseCitation,
+  CourseGenerationPreferences,
+  CoursePersonalization,
+  CourseSection,
+  Language,
+} from '@/lib/types/course';
 
 export async function GET() {
   const summaries = await listCourses();
@@ -18,7 +31,9 @@ export async function POST(req: NextRequest) {
     language?: Language;
     knowledgeBase?: string;
     personalization?: CoursePersonalization;
+    generationPreferences?: CourseGenerationPreferences;
     sections?: CourseSection[];
+    citations?: Record<string, CourseCitation>;
   };
   try {
     body = await req.json();
@@ -31,6 +46,9 @@ export async function POST(req: NextRequest) {
   }
 
   const id = body.id || nanoid();
+  if (!isValidCourseId(id)) {
+    return apiError(API_ERROR_CODES.INVALID_REQUEST, 400, 'Invalid course id');
+  }
 
   // Reject collisions — caller should re-try with a fresh id
   const existing = await readCourse(id);
@@ -46,8 +64,9 @@ export async function POST(req: NextRequest) {
     createdAt: new Date().toISOString(),
     knowledgeBase: body.knowledgeBase,
     personalization: body.personalization,
+    generationPreferences: body.generationPreferences,
     sections: body.sections || [],
-    citations: {},
+    citations: body.citations || {},
     progress: { sections: {} },
   };
 

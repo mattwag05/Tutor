@@ -37,9 +37,9 @@
     "interactiveModeHint": "Enable interactive-first mode for more hands-on content",
     "interactiveModeLabel": "Interactive Mode",
     "knowledgeBase": "Knowledge Base",
-    "knowledgeBaseHint": "Enrich course content with DeepTutor knowledge base",
+    "knowledgeBaseHint": "Enrich course content with Tutor knowledge base",
     "knowledgeBaseNone": "No knowledge base",
-    "knowledgeBaseUnavailable": "DeepTutor knowledge base unavailable",
+    "knowledgeBaseUnavailable": "Tutor knowledge base unavailable",
     "knowledgeBaseLoading": "Loading knowledge bases...",
     "languageHint": "Course will be generated in this language"
   },

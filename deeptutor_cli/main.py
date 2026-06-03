@@ -26,7 +26,7 @@ configure_logging()
 
 app = typer.Typer(
     name="deeptutor",
-    help="DeepTutor CLI – agent-first interface for capabilities, tools, and knowledge.",
+    help="Tutor CLI – agent-first interface for capabilities, tools, and knowledge.",
     no_args_is_help=True,
     add_completion=False,
 )
@@ -113,7 +113,7 @@ def serve(
     port: int = typer.Option(get_backend_port(), help="Port number."),
     reload: bool = typer.Option(False, help="Enable auto-reload for development."),
 ) -> None:
-    """Start the DeepTutor API server."""
+    """Start the Tutor API server."""
     import asyncio
     import sys
 

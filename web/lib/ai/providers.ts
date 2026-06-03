@@ -51,13 +51,19 @@ export type { ProviderId, ProviderConfig, ModelInfo, ModelConfig };
 
 import providerData from './providers.json';
 
+type ProviderDataShape = {
+  providers?: Record<ProviderId, ProviderConfig>;
+  monoLogoProviders?: string[];
+} & Record<string, unknown>;
+
+const rawProviderData = providerData as unknown as ProviderDataShape;
+
 export const MONO_LOGO_PROVIDERS: ReadonlySet<string> = new Set(
-  (providerData as unknown as { monoLogoProviders: string[] }).monoLogoProviders,
+  Array.isArray(rawProviderData.monoLogoProviders) ? rawProviderData.monoLogoProviders : [],
 );
 
-export const PROVIDERS: Record<ProviderId, ProviderConfig> = (
-  providerData as unknown as { providers: Record<ProviderId, ProviderConfig> }
-).providers;
+export const PROVIDERS: Record<ProviderId, ProviderConfig> = (rawProviderData.providers ??
+  rawProviderData) as Record<ProviderId, ProviderConfig>;
 ;
 
 applyModelMetadata(PROVIDERS);

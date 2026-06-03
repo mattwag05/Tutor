@@ -23,6 +23,7 @@ export type PromptId =
   | 'course-flashcards'
   | 'course-study-guide'
   | 'course-final-exam'
+  | 'course-diagram'
   | 'podcast-solo'
   | 'podcast-conversational';
 

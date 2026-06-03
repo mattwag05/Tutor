@@ -1,15 +1,19 @@
-# DeepTutor — Agent-Native Architecture
+# Tutor — Agent-Native Learning Architecture
 
 ## Overview
 
-DeepTutor is an **agent-native** intelligent learning companion built around
-a two-layer plugin model (Tools + Capabilities) with three entry points:
-CLI, WebSocket API, and Python SDK.
+Tutor is an open-source learning companion focused on one polished creation
+loop: prompt -> choose format -> generate a course -> read, review sources,
+ask questions, and add another format.
+
+Internal compatibility names remain in place. The Python package, CLI command,
+and backend module path are still `deeptutor`; do not rename those paths unless
+the migration is explicitly in scope.
 
 ## Architecture
 
 ```
-Entry Points:  CLI (Typer)  |  WebSocket /api/v1/ws  |  Python SDK
+Entry Points:  Web Creator  |  CLI (Typer)  |  WebSocket /api/v1/ws
                     ↓                   ↓                   ↓
               ┌─────────────────────────────────────────────────┐
               │              ChatOrchestrator                    │
@@ -46,6 +50,28 @@ Multi-step agent pipelines that take over the conversation:
 | `chat`           | responding (default, tool-augmented)           |
 | `deep_solve`     | planning → reasoning → writing                 |
 | `deep_question`  | ideation → evaluation → generation → validation |
+
+### Primary Product Surface
+
+Tutor's default web surface is a Tutor-native course creator and reader:
+
+| Surface | Purpose |
+| --- | --- |
+| `web/components/course/TutorCreator.tsx` | Prompt, settings, format selection |
+| `web/components/course/CourseReader.tsx` | Lesson reader, sources, formats, questions |
+| `web/app/api/generate/course-*` | Course sections and artifacts |
+
+First-class formats are `lesson`, `podcast`, `flashcards`, `studyGuide`,
+`quiz`, and `diagram`.
+
+### Attribution
+
+Tutor builds on DeepTutor (`HKUDS/DeepTutor`) for the agent-native backend,
+RAG tooling, provider routing, CLI/API compatibility, and learning-runtime
+concepts. Tutor also retains OpenMAIC (`THU-MAIC/OpenMAIC`) under
+`services/openmaic/` as a classroom-generation, export, media, and visualization
+progenitor/archive. Keep those attributions present in user-facing project
+docs, but keep the primary UI focused on Tutor's course workflow.
 
 ### Playground Plugins
 
@@ -102,19 +128,22 @@ deeptutor serve --port 8001
 | `deeptutor_cli/main.py`             | Typer CLI entry point                |
 | `deeptutor/api/routers/unified_ws.py` | Unified WebSocket endpoint         |
 
-## OpenMAIC Classroom Integration
+## OpenMAIC Archive / Progenitor
 
-OpenMAIC (THU-MAIC) runs as a sibling Docker service sharing the Tailscale network namespace. It connects to DeepTutor's backend for RAG-enriched classroom content generation.
+OpenMAIC (THU-MAIC) is retained under `services/openmaic/` as archive and
+progenitor code. Do not expose classroom as the primary Tutor UI. Port only
+course-generation, security, provider, export, or media fixes that directly
+serve the simplified Tutor product.
 
 **Integration points:**
 - `services/openmaic/lib/integrations/deeptutor-client.ts` — WebSocket RAG client
-- `services/openmaic/app/api/knowledge-bases/route.ts` — KB listing endpoint (proxies to DeepTutor)
+- `services/openmaic/app/api/knowledge-bases/route.ts` — KB listing endpoint (legacy proxy)
 - `services/openmaic/app/api/generate/scene-outlines-stream/route.ts` — RAG-enriched outline generation
 - `services/openmaic/components/generation/generation-toolbar.tsx` — KB selector dropdown UI
 
-**Data flow:** User selects KB in toolbar → FormState → sessionStorage → GenerationSessionState → fetch body → API route → `getRAGContextForGeneration()` → enriched prompt → scene outlines
-
-**Sidebar link:** DeepTutor's sidebar (`web/components/sidebar/SidebarShell.tsx`) includes a "Classroom" nav item that links externally to `https://deeptutor.tail6e035b.ts.net:3100`.
+**Data flow:** User selects KB in toolbar -> FormState -> sessionStorage ->
+GenerationSessionState -> fetch body -> API route ->
+`getRAGContextForGeneration()` -> enriched prompt -> scene outlines.
 
 ---
 

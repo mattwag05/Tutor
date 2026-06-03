@@ -1,21 +1,26 @@
-# DeepTutor CLI Skill
+# Tutor CLI Skill
 
-> Teach your AI agent to configure, manage, and use DeepTutor — an intelligent learning platform — entirely through the command line.
+> Teach your AI agent to configure, manage, and use Tutor through the compatibility `deeptutor` command line.
+
+Tutor keeps compatibility with the DeepTutor-derived Python package and CLI
+surface while focusing the product on the Tutor course workflow. The repository
+also retains OpenMAIC-derived classroom-generation code under `services/openmaic/`
+as a progenitor/archive.
 
 ## When to Use
 
 Use this skill when the user wants to:
-- Set up or configure DeepTutor
-- Chat with DeepTutor or run a capability (deep solve, quiz generation, deep research, math animation)
+- Set up or configure Tutor
+- Chat with Tutor or run a capability (deep solve, quiz generation, deep research, math animation)
 - Create, manage, or search knowledge bases
 - Manage TutorBot instances
 - View or manage learning memory, sessions, or notebooks
-- Start the DeepTutor API server
+- Start the Tutor API server
 
 ## Prerequisites
 
 - Python 3.11+
-- DeepTutor installed: `pip install -e ".[cli]"` (CLI + RAG + providers) or `pip install -e ".[server]"` (adds web/API)
+- Tutor installed: `pip install -e ".[cli]"` (CLI + RAG + providers) or `pip install -e ".[server]"` (adds web/API)
 - Run `python scripts/start_tour.py` for first-time interactive setup (configures LLM, embedding, search providers and writes `.env`)
 
 ## Commands
@@ -126,7 +131,7 @@ Inside `deeptutor chat`, use these:
 
 **First-time setup:**
 ```bash
-cd DeepTutor
+cd Tutor
 pip install -e ".[server]"
 python scripts/start_tour.py    # Interactive guided setup
 ```

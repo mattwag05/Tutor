@@ -1,4 +1,7 @@
-# DeepTutor CLI
+# Tutor CLI
+
+The installed CLI command remains `deeptutor` for compatibility with the
+existing Python package and automation scripts.
 
 Agent-first 的命令行界面。两条核心路径：
 

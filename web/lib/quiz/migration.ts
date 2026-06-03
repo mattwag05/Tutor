@@ -59,13 +59,13 @@ export async function migrateLocalStorageQuizAttempts(): Promise<MigrationResult
     totalRecorded += recorded;
   }
 
-  // Skip the sentinel when every POST returned null (DeepTutor unreachable)
+  // Skip the sentinel when every POST returned null (Tutor unreachable)
   // so the next session retries; otherwise mark migration done.
   if (totalRecorded > 0) {
     safeSet(MIGRATION_SENTINEL_KEY, 'true');
   } else {
     log.warn(
-      `Migration found ${scenes.length} scene(s) but recorded 0 attempts — DeepTutor likely unavailable. Will retry on next load.`,
+      `Migration found ${scenes.length} scene(s) but recorded 0 attempts — Tutor likely unavailable. Will retry on next load.`,
     );
   }
 

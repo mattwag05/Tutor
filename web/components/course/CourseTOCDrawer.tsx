@@ -1,7 +1,17 @@
 'use client';
 
+import {
+  CircleHelp,
+  FileText,
+  GitBranch,
+  Headphones,
+  Layers,
+  type LucideIcon,
+} from 'lucide-react';
 import type { Course } from '@/lib/types/course';
 import { cn } from '@/lib/utils/cn';
+
+type ArtifactKind = 'podcast' | 'flashcards' | 'studyGuide' | 'finalExam' | 'diagram';
 
 interface Props {
   course: Course;
@@ -9,7 +19,7 @@ interface Props {
   activeSectionId?: string;
   onClose: () => void;
   onSelectSection: (sectionId: string) => void;
-  onOpenArtifact: (kind: 'podcast' | 'flashcards' | 'studyGuide' | 'finalExam') => void;
+  onOpenArtifact: (kind: ArtifactKind) => void;
 }
 
 export function CourseTOCDrawer({
@@ -32,7 +42,7 @@ export function CourseTOCDrawer({
       )}
       <aside
         className={cn(
-          'fixed left-0 top-0 z-50 h-full w-80 transform overflow-y-auto border-r border-neutral-200 bg-white shadow-xl transition-transform dark:border-neutral-800 dark:bg-neutral-950',
+          'fixed left-0 top-0 z-50 h-full w-80 transform overflow-y-auto border-r border-neutral-200 bg-[#fbfaf7] shadow-[0_24px_80px_rgba(40,32,24,0.16)] transition-transform dark:border-neutral-800 dark:bg-neutral-950',
           open ? 'translate-x-0' : '-translate-x-full',
         )}
       >
@@ -57,8 +67,8 @@ export function CourseTOCDrawer({
                     className={cn(
                       'w-full rounded-md px-3 py-2 text-left text-sm transition',
                       active
-                        ? 'bg-neutral-100 font-medium text-neutral-900 dark:bg-neutral-900 dark:text-neutral-50'
-                        : 'text-neutral-700 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-900',
+                        ? 'bg-white font-medium text-neutral-900 shadow-[0_1px_0_rgba(120,92,60,0.08)] dark:bg-neutral-900 dark:text-neutral-50'
+                        : 'text-neutral-700 hover:bg-white/70 dark:text-neutral-300 dark:hover:bg-neutral-900',
                     )}
                   >
                     {section.title}
@@ -72,23 +82,28 @@ export function CourseTOCDrawer({
         <div className="mt-2 border-t border-neutral-200 p-2 dark:border-neutral-800">
           <ArtifactButton
             label="Podcast"
-            icon="🎧"
+            icon={Headphones}
             onClick={() => onOpenArtifact('podcast')}
           />
           <ArtifactButton
             label="Flash Cards"
-            icon="🃏"
+            icon={Layers}
             onClick={() => onOpenArtifact('flashcards')}
           />
           <ArtifactButton
             label="Study Guide"
-            icon="📖"
+            icon={FileText}
             onClick={() => onOpenArtifact('studyGuide')}
           />
           <ArtifactButton
-            label="Final Exam"
-            icon="✓"
+            label="Quiz"
+            icon={CircleHelp}
             onClick={() => onOpenArtifact('finalExam')}
+          />
+          <ArtifactButton
+            label="Diagram"
+            icon={GitBranch}
+            onClick={() => onOpenArtifact('diagram')}
           />
         </div>
       </aside>
@@ -98,22 +113,20 @@ export function CourseTOCDrawer({
 
 function ArtifactButton({
   label,
-  icon,
+  icon: Icon,
   onClick,
 }: {
   label: string;
-  icon: string;
+  icon: LucideIcon;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm text-neutral-700 transition hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-900"
+      className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm text-neutral-700 transition hover:bg-white/70 dark:text-neutral-300 dark:hover:bg-neutral-900"
     >
-      <span className="w-5 text-center opacity-70" aria-hidden>
-        {icon}
-      </span>
+      <Icon size={15} strokeWidth={1.8} className="w-5 opacity-70" aria-hidden />
       <span>{label}</span>
     </button>
   );

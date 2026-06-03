@@ -108,6 +108,7 @@ export type CourseSummary = {
   sectionCount: number;
   language: Course['language'];
   personalization?: Course['personalization'];
+  generationPreferences?: Course['generationPreferences'];
 };
 
 export async function listCourses(): Promise<CourseSummary[]> {
@@ -128,6 +129,7 @@ export async function listCourses(): Promise<CourseSummary[]> {
               sectionCount: c.sections.length,
               language: c.language,
               personalization: c.personalization,
+              generationPreferences: c.generationPreferences,
             };
           } catch {
             return null;

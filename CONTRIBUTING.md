@@ -1,10 +1,16 @@
-# Contributing to DeepTutor
+# Contributing to Tutor
 
-Thank you for your interest in contributing to DeepTutor! We welcome developers of all skill levels to help build the next-generation intelligent learning companion.
+Thank you for your interest in contributing to Tutor. The product is being
+pared down into a focused, open-source learning app: prompt, generate, read,
+review, and add study formats without multi-surface complexity.
+
+Tutor is built on open-source progenitor work from DeepTutor (`HKUDS/DeepTutor`)
+and OpenMAIC (`THU-MAIC/OpenMAIC`). Contributions should preserve those
+attributions while keeping the primary product focused on Tutor's course
+creation and reader workflow.
 
 <p align="center">
 <a href="https://discord.gg/eRsjPgMU4t"><img src="https://img.shields.io/badge/Discord-Join_Community-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord"></a>&nbsp;
-<a href="https://github.com/HKUDS/DeepTutor/issues/78"><img src="https://img.shields.io/badge/WeChat-Join_Group-07C160?style=for-the-badge&logo=wechat&logoColor=white" alt="WeChat"></a>&nbsp;
 <a href="./Communication.md"><img src="https://img.shields.io/badge/Feishu-Join_Group-00D4AA?style=for-the-badge&logo=feishu&logoColor=white" alt="Feishu"></a>
 </p>
 
@@ -86,7 +92,8 @@ pre-commit run --all-files
 6. **Submit** your Pull Request to the correct target branch (not `main` unless it's a hotfix or docs-only change).
 
 > [!TIP]
-> Browse our [Issues](https://github.com/HKUDS/DeepTutor/issues) for tasks labeled `good first issue` to find a great starting point. Comment on the issue to let others know you're working on it.
+> Prefer issues and pull requests that improve the simplified Tutor creation
+> loop, course reader, format generation, provider reliability, or security.
 
 ---
 
@@ -217,4 +224,4 @@ We use automated tools (configured via `pyproject.toml` and `.pre-commit-config.
 
 ---
 
-Questions? Reach out on [Discord](https://discord.gg/eRsjPgMU4t). Let's build the future of AI tutoring together!
+Questions? Reach out on [Discord](https://discord.gg/eRsjPgMU4t). Let's build a simpler open-source learning product together.

@@ -4,6 +4,7 @@ Unified session history API.
 
 from __future__ import annotations
 
+import json
 import logging
 
 from fastapi import APIRouter, HTTPException, Query
@@ -14,6 +15,8 @@ from deeptutor.services.session import get_sqlite_session_store
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+MAX_SESSION_EVENT_PAYLOAD = 1024 * 1024
 
 
 class SessionRenameRequest(BaseModel):
@@ -64,6 +67,49 @@ def _format_quiz_results_message(answers: list[QuizResultItem]) -> str:
     return "\n".join(lines)
 
 
+def _truncate_session_events(session: dict) -> dict:
+    """Bound large trace event payloads returned to the browser UI."""
+    for msg in session.get("messages", []):
+        events_raw = msg.get("events_json") or msg.get("events")
+        if not events_raw or not isinstance(events_raw, (str, list)):
+            continue
+        try:
+            events = json.loads(events_raw) if isinstance(events_raw, str) else events_raw
+            truncated = False
+            for event in events:
+                if not isinstance(event, dict):
+                    continue
+                if event.get("type") not in ("tool_result", "observation"):
+                    continue
+                if (
+                    isinstance(event.get("content"), str)
+                    and len(event["content"]) > MAX_SESSION_EVENT_PAYLOAD
+                ):
+                    event["content"] = (
+                        event["content"][:MAX_SESSION_EVENT_PAYLOAD]
+                        + "\n\n[... content truncated]"
+                    )
+                    event["_truncated"] = True
+                    truncated = True
+                tool_metadata = event.get("metadata", {}).get("tool_metadata", {})
+                if isinstance(tool_metadata, dict):
+                    for field in ("content", "answer"):
+                        value = tool_metadata.get(field)
+                        if isinstance(value, str) and len(value) > MAX_SESSION_EVENT_PAYLOAD:
+                            tool_metadata[field] = (
+                                value[:MAX_SESSION_EVENT_PAYLOAD]
+                                + "\n\n[... content truncated]"
+                            )
+                            event["_truncated"] = True
+                            truncated = True
+            if truncated:
+                msg["events"] = events
+            msg.pop("events_json", None)
+        except (json.JSONDecodeError, TypeError, AttributeError):
+            msg.pop("events_json", None)
+    return session
+
+
 @router.get("")
 async def list_sessions(
     limit: int = Query(default=50, ge=1, le=200),
@@ -80,7 +126,7 @@ async def get_session(session_id: str):
     session = await store.get_session_with_messages(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
-    return session
+    return _truncate_session_events(session)
 
 
 @router.patch("/{session_id}")

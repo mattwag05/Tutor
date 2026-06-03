@@ -751,7 +751,7 @@ export function QuizView({ questions, sceneId, classroomId }: QuizViewProps) {
       setPhase('reviewing');
       writeSubmittedResults(sceneId, ordered);
 
-      // Fire-and-forget dual-write to DeepTutor's unified quiz store.
+      // Fire-and-forget dual-write to Tutor's unified quiz store.
       // Retries (Retry → re-grade → resubmit) write a fresh row with a
       // new ts_ms; rows are uuid-keyed so duplication is by design.
       void recordSceneResults({

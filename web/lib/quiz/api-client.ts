@@ -1,6 +1,6 @@
 /**
  * Client-side helper for posting quiz attempts to the local Next.js
- * proxy at /api/quiz/attempts (which forwards to DeepTutor's unified
+ * proxy at /api/quiz/attempts (which forwards to Tutor's unified
  * store). Browser code can't reach DEEPTUTOR_API_URL directly because
  * that's a server-side env var pointing at the internal port.
  *

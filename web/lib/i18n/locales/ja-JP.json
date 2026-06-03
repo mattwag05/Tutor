@@ -37,9 +37,9 @@
     "interactiveModeHint": "インタラクティブ優先モードを有効にして、より実践的なコンテンツを生成",
     "interactiveModeLabel": "インタラクティブモード",
     "knowledgeBase": "ナレッジベース",
-    "knowledgeBaseHint": "DeepTutorナレッジベースでコース内容を強化",
+    "knowledgeBaseHint": "Tutorナレッジベースでコース内容を強化",
     "knowledgeBaseNone": "ナレッジベースなし",
-    "knowledgeBaseUnavailable": "DeepTutorナレッジベースは利用できません",
+    "knowledgeBaseUnavailable": "Tutorナレッジベースは利用できません",
     "knowledgeBaseLoading": "ナレッジベースを読み込み中...",
     "languageHint": "コースはこの言語で生成されます"
   },

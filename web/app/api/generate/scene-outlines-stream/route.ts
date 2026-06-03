@@ -204,7 +204,7 @@ export async function POST(req: NextRequest) {
     // Build teacher context from agents (if available)
     const teacherContext = formatTeacherPersonaForPrompt(agents);
 
-    // Enrich research context with DeepTutor RAG if a KB was selected.
+    // Enrich research context with Tutor RAG if a KB was selected.
     let enrichedResearchContext = researchContext || 'None';
     if (knowledgeBase && isDeepTutorEnabled()) {
       try {
@@ -216,7 +216,7 @@ export async function POST(req: NextRequest) {
           log.info(`Enriched outlines with RAG from KB "${knowledgeBase}"`);
         }
       } catch (error) {
-        log.warn(`DeepTutor RAG enrichment failed, proceeding without: ${error}`);
+        log.warn(`Tutor RAG enrichment failed, proceeding without: ${error}`);
       }
     }
 

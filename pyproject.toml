@@ -1,4 +1,4 @@
-# Python project configuration for DeepTutor
+# Python project configuration for Tutor
 # This file configures Black, Ruff, and other Python tools
 
 [build-system]
@@ -8,7 +8,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "deeptutor"
 version = "1.0.0"
-description = "An agent-native intelligent learning companion with multi-agent collaboration and RAG"
+description = "Open-source AI learning companion focused on course generation and study formats"
 requires-python = ">=3.11"
 readme = "README.md"
 license = {text = "Apache-2.0"}

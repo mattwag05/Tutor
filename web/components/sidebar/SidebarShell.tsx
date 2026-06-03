@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import SessionList from "@/components/SessionList";
-import { TutorBotRecent } from "@/components/sidebar/TutorBotRecent";
+import {TutorBotRecent } from "@/components/sidebar/TutorBotRecent";
 import { VersionBadge } from "@/components/sidebar/VersionBadge";
 import type { SessionSummary } from "@/lib/session-api";
 
@@ -60,7 +60,7 @@ const BOTTOM_NAV: NavEntry[] = [
 ];
 
 const DEFAULT_SESSION_VIEWPORT_CLASS_NAME = "max-h-[112px]";
-const GITHUB_REPO_URL = "https://github.com/HKUDS/DeepTutor";
+const GITHUB_REPO_URL = "https://github.com/HKUDS/Tutor";
 
 interface SidebarShellProps {
   sessions?: SessionSummary[];
@@ -212,12 +212,12 @@ export function SidebarShell({
         <div className="relative mb-2 flex h-9 w-9 items-center justify-center">
           <Link
             href="/"
-            aria-label="DeepTutor"
+            aria-label="Tutor"
             className="flex items-center justify-center transition-opacity duration-150 group-hover/sb:opacity-0"
           >
             <Image
               src="/logo-ver2.png"
-              alt="DeepTutor"
+              alt="Tutor"
               width={22}
               height={22}
               className="h-[22px] w-[22px] rounded-md"
@@ -324,13 +324,13 @@ export function SidebarShell({
         <Link href="/" className="group flex items-center gap-2">
           <Image
             src="/logo-ver2.png"
-            alt="DeepTutor"
+            alt="Tutor"
             width={22}
             height={22}
             className="h-[22px] w-[22px] transition-transform duration-200 group-hover:scale-105"
           />
           <span className="text-[16px] font-semibold leading-none tracking-[-0.02em] text-[var(--foreground)]">
-            DeepTutor
+            Tutor
           </span>
         </Link>
         <button

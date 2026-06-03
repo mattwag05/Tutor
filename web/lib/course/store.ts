@@ -1,6 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
+import { nanoid } from 'nanoid';
 import { createSelectors } from '@/lib/utils/create-selectors';
 import type {
   Course,
@@ -31,12 +32,13 @@ interface CourseStoreState {
   markSectionComplete: (sectionId: string) => void;
   setBlockSrc: (blockId: string, src: string) => void;
   setTitle: (title: string) => void;
+  addFollowUpSection: (afterSectionId: string, prompt: string) => string | null;
 
   loadCourse: (id: string) => Promise<void>;
   generateSection: (sectionId: string) => Promise<void>;
   regenerateSection: (sectionId: string) => Promise<void>;
   generateArtifact: (
-    kind: 'flashcards' | 'studyGuide' | 'finalExam' | 'podcast',
+    kind: 'flashcards' | 'studyGuide' | 'finalExam' | 'podcast' | 'diagram',
     mode?: 'solo' | 'conversational',
   ) => Promise<void>;
   applyArtifact: (patch: Partial<CourseArtifacts>) => void;
@@ -86,6 +88,32 @@ function updateSection(
   };
 }
 
+async function readFailureMessage(res: Response, fallback: string): Promise<string> {
+  const contentType = res.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    try {
+      const data = (await res.json()) as { error?: unknown; message?: unknown };
+      const message = typeof data.error === 'string' ? data.error : data.message;
+      if (typeof message === 'string' && message.trim()) return message.trim();
+    } catch {
+      return fallback;
+    }
+  }
+
+  let text = '';
+  try {
+    text = await res.text();
+  } catch {
+    return fallback;
+  }
+  const trimmed = text.trim();
+  if (!trimmed) return fallback;
+  if (contentType.includes('text/html') || /^<!doctype html/i.test(trimmed) || /<html[\s>]/i.test(trimmed)) {
+    return fallback;
+  }
+  return trimmed.slice(0, 500);
+}
+
 const useCourseStoreBase = create<CourseStoreState>((set, get) => ({
   course: null,
 
@@ -116,6 +144,7 @@ const useCourseStoreBase = create<CourseStoreState>((set, get) => ({
     set({
       course: updateSection(course, sectionId, (s) => ({ ...s, status, error })),
     });
+    if (status === 'error') schedulePersist(() => get().course);
   },
 
   setSectionAudio: (sectionId, audio) => {
@@ -171,6 +200,35 @@ const useCourseStoreBase = create<CourseStoreState>((set, get) => ({
     schedulePersist(() => get().course);
   },
 
+  addFollowUpSection: (afterSectionId, prompt) => {
+    const course = get().course;
+    const trimmed = prompt.trim();
+    if (!course || !trimmed) return null;
+    const afterIndex = course.sections.findIndex((section) => section.id === afterSectionId);
+    if (afterIndex < 0) return null;
+    const sectionId = `follow_${nanoid(8)}`;
+    const nextSection: CourseSection = {
+      id: sectionId,
+      order: afterIndex + 2,
+      title: trimmed.replace(/[?.!]+$/, '').slice(0, 80),
+      description: `A focused follow-up lesson prompted by: ${trimmed}`,
+      blocks: [],
+      goDeeperPrompts: [],
+      status: 'pending',
+    };
+    const sections = [...course.sections];
+    sections.splice(afterIndex + 1, 0, nextSection);
+    set({
+      course: {
+        ...course,
+        sections: sections.map((section, index) => ({ ...section, order: index + 1 })),
+      },
+    });
+    schedulePersist(() => get().course);
+    void get().generateSection(sectionId);
+    return sectionId;
+  },
+
   loadCourse: async (id) => {
     const res = await fetch(`/api/course/${id}`);
     if (!res.ok) return;
@@ -206,7 +264,7 @@ const useCourseStoreBase = create<CourseStoreState>((set, get) => ({
     if (!section) return;
     // Skip if already generating or ready — dedupes races between the
     // IntersectionObserver and the prefetch effect.
-    if (section.status === 'generating' || section.status === 'ready') return;
+    if (section.status === 'generating' || section.status === 'ready' || section.status === 'error') return;
 
     get().setSectionStatus(sectionId, 'generating');
 
@@ -220,6 +278,7 @@ const useCourseStoreBase = create<CourseStoreState>((set, get) => ({
           language: course.language,
           knowledgeBase: course.knowledgeBase,
           personalization: course.personalization,
+          generationPreferences: course.generationPreferences,
           courseOutline: course.sections.map((s) => ({
             id: s.id,
             order: s.order,
@@ -236,7 +295,7 @@ const useCourseStoreBase = create<CourseStoreState>((set, get) => ({
       });
 
       if (!res.ok) {
-        const err = await res.text();
+        const err = await readFailureMessage(res, 'Generation failed');
         get().setSectionStatus(sectionId, 'error', err || 'Generation failed');
         return;
       }
@@ -287,7 +346,7 @@ const useCourseStoreBase = create<CourseStoreState>((set, get) => ({
           body: JSON.stringify({ courseId: course.id }),
         });
         if (!res.ok) {
-          const err = await res.text();
+          const err = await readFailureMessage(res, 'Generation failed');
           const cur = get().course?.artifacts?.podcast || {};
           get().applyArtifact({
             podcast: {
@@ -340,6 +399,7 @@ const useCourseStoreBase = create<CourseStoreState>((set, get) => ({
       flashcards: '/api/generate/course-flashcards',
       studyGuide: '/api/generate/course-study-guide',
       finalExam: '/api/generate/course-final-exam',
+      diagram: '/api/generate/course-diagram',
     };
 
     try {
@@ -350,7 +410,7 @@ const useCourseStoreBase = create<CourseStoreState>((set, get) => ({
       });
 
       if (!res.ok) {
-        const err = await res.text();
+        const err = await readFailureMessage(res, 'Generation failed');
         get().applyArtifact({ [kind]: { status: 'error', error: err || 'Generation failed' } });
         return;
       }
@@ -362,6 +422,15 @@ const useCourseStoreBase = create<CourseStoreState>((set, get) => ({
         get().applyArtifact({ studyGuide: { status: 'ready', content: data.content as string } });
       } else if (kind === 'finalExam') {
         get().applyArtifact({ finalExam: { status: 'ready', questions: data.questions as ExamQuestion[] } });
+      } else if (kind === 'diagram') {
+        get().applyArtifact({
+          diagram: {
+            status: 'ready',
+            title: data.title as string,
+            mermaid: data.mermaid as string,
+            explanation: data.explanation as string,
+          },
+        });
       }
     } catch (error) {
       get().applyArtifact({ [kind]: { status: 'error', error: error instanceof Error ? error.message : String(error) } });

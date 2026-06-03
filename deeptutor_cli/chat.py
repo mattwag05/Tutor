@@ -75,7 +75,7 @@ async def _chat_repl(state: ChatState) -> None:
 
     console.print(
         Panel(
-            "[bold]DeepTutor CLI[/]\n"
+            "[bold]Tutor CLI[/]\n"
             "Type a message to chat. Commands:\n"
             "  /quit  /session  /new\n"
             "  /regenerate (alias /retry) — re-run the last user message\n"

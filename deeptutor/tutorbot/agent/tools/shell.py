@@ -20,7 +20,7 @@ class ExecTool(Tool):
         working_dir: str | None = None,
         deny_patterns: list[str] | None = None,
         allow_patterns: list[str] | None = None,
-        restrict_to_workspace: bool = False,
+        restrict_to_workspace: bool = True,
         path_append: str = "",
         forward_logs: bool = True,
     ):
@@ -37,6 +37,15 @@ class ExecTool(Tool):
             r">\s*/dev/sd",  # write to disk
             r"\b(shutdown|reboot|poweroff)\b",  # system power
             r":\(\)\s*\{.*\};\s*:",  # fork bomb
+            r"\b(curl|wget|nc|ncat|netcat|socat)\b",  # network exfiltration
+            r"\b(ssh|scp|sftp|rsync|ftp)\b",  # remote file transfer
+            r"\bpython[23]?\s+-c\b",  # interpreter one-liners
+            r"\bperl\s+-e\b",
+            r"\bruby\s+-e\b",
+            r"\bcat\s+.*/etc/(passwd|shadow|sudoers)",  # sensitive files
+            r"\bchmod\s+[0-7]*[267][0-7]*\b",  # world-writable/suid/sgid perms
+            r"\bcrontab\b",
+            r"\b(useradd|usermod|passwd)\b",  # user management
         ]
         self.allow_patterns = allow_patterns or []
         self.restrict_to_workspace = restrict_to_workspace

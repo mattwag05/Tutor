@@ -1,5 +1,5 @@
 /**
- * Type definitions for DeepTutor API integration.
+ * Type definitions for Tutor API integration.
  */
 
 // ==================== Knowledge Base Types ====================
@@ -44,7 +44,7 @@ export interface ChatRAGResponse {
 // ==================== Error Types ====================
 
 export class DeepTutorUnavailableError extends Error {
-  constructor(message: string = 'DeepTutor service is unavailable') {
+  constructor(message: string = 'Tutor service is unavailable') {
     super(message);
     this.name = 'DeepTutorUnavailableError';
   }

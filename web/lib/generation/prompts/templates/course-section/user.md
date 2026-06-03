@@ -23,7 +23,7 @@
 - **title**: {{sectionTitle}}
 - **description**: {{sectionDescription}}
 
-## Research Context (from DeepTutor knowledge base)
+## Research Context (from Tutor knowledge base)
 
 {{researchContext}}
 

@@ -138,7 +138,7 @@ export default function SkillsPicker({
       open={open}
       onClose={onClose}
       title={t("Select Skills")}
-      subtitle={t("Pick Auto to let DeepTutor decide, or choose specific skills to apply.")}
+      subtitle={t("Pick Auto to let Tutor decide, or choose specific skills to apply.")}
       label={t("Skills Reference")}
       icon={<Wand2 className="h-3 w-3" />}
       width="3xl"
