@@ -106,6 +106,12 @@ runbook in [`docs/deployment.md`](docs/deployment.md):
 scripts/deploy_pironman.sh
 ```
 
+If GHCR is unavailable, opt into the remote local-build fallback explicitly:
+
+```bash
+TUTOR_ALLOW_LOCAL_BUILD_FALLBACK=1 scripts/deploy_pironman.sh
+```
+
 ## Validation
 
 Run these before shipping product changes:

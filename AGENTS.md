@@ -72,9 +72,10 @@ compose state, or integrations.
 
 For Pironman production deploys, use `scripts/deploy_pironman.sh` from the repo
 root and read `docs/deployment.md`. The script pulls the requested GHCR image
-before restarting the compatibility service and verifies the public tailnet
-route. Do not rely on Pironman's base compose file by itself; it may lag behind
-the repo and should be overridden by the Tutor image deploy file.
+before restarting the compatibility service, can explicitly fall back to a
+remote local build with `TUTOR_ALLOW_LOCAL_BUILD_FALLBACK=1`, and verifies the
+public tailnet route. Do not rely on Pironman's base compose file by itself; it
+may lag behind the repo and should be overridden by the Tutor image deploy file.
 
 ### Attribution
 

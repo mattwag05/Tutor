@@ -517,11 +517,16 @@ To deploy a pinned image:
 TUTOR_IMAGE=ghcr.io/mattwag05/tutor:sha-<short> scripts/deploy_pironman.sh
 ```
 
+If GHCR is unavailable, make the local-build fallback explicit:
+```bash
+TUTOR_ALLOW_LOCAL_BUILD_FALLBACK=1 scripts/deploy_pironman.sh
+```
+
 The runbook is in `docs/deployment.md`. Pironman's base compose file may lag
 behind the repo; the deploy script owns the Tutor image override and verifies
-health plus the public `tutor.tail6e035b.ts.net` route. For emergency local
+health plus the public `tutor.tail6e035b.ts.net` route. For emergency manual
 builds, build in `/home/matthewwagner/Projects/Tutor`, tag the image explicitly,
-and use a temporary compose override only until the GHCR image is pullable.
+and use a temporary compose override only until the scripted path is available.
 
 ---
 

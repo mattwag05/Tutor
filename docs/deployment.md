@@ -38,6 +38,18 @@ The script:
 5. waits for container health, and
 6. checks `https://tutor.tail6e035b.ts.net/course` plus backend system status.
 
+If GHCR is unavailable, make the fallback explicit:
+
+```bash
+TUTOR_ALLOW_LOCAL_BUILD_FALLBACK=1 scripts/deploy_pironman.sh
+```
+
+With the fallback enabled, the script still validates the published-image
+compose config first. If the pull fails, it builds the current Pironman checkout
+at `/home/matthewwagner/Projects/Tutor`, deploys that local image with
+`pull_policy: never`, and runs the same health and public-route checks. The
+fallback refuses to build if the remote checkout has local changes.
+
 ## GHCR Visibility
 
 Unauthenticated `docker pull ghcr.io/mattwag05/tutor:latest` must work before
@@ -47,7 +59,8 @@ Pironman's Docker client to GHCR.
 
 ## Emergency Local Build
 
-If GHCR is unavailable, build locally on Pironman and use a temporary override:
+Prefer the scripted fallback above. If the script is unavailable, build locally
+on Pironman and use a temporary override:
 
 ```bash
 ssh pironman
