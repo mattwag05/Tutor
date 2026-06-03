@@ -8,6 +8,7 @@ import {
   Layers,
   Settings as SettingsIcon,
   Star,
+  Upload,
 } from "lucide-react";
 import type { KnowledgeUploadPolicy } from "@/lib/knowledge-api";
 import {

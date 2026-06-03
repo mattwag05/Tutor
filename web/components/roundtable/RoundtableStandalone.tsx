@@ -18,15 +18,15 @@ interface Props {
 export function RoundtableStandalone({ sessionId, topic, prompt, ragContext }: Props) {
   const router = useRouter();
   const chatRef = useRef<ChatAreaRef>(null);
-  const registry = useAgentRegistry();
+  const availableAgentIds = useAgentRegistry((state) => Object.keys(state.agents));
   const selectedAgentIds = useSettingsStore((s) => s.selectedAgentIds);
   const [started, setStarted] = useState(false);
   const [thinking, setThinking] = useState<{ stage: string; agentId?: string } | null>(null);
   const [currentSpeech, setCurrentSpeech] = useState<string | null>(null);
 
-  const participants = selectedAgentIds
-    ? agentsToParticipants(registry, selectedAgentIds)
-    : [];
+  const participants = agentsToParticipants(
+    selectedAgentIds?.length ? selectedAgentIds : availableAgentIds,
+  );
 
   const handleStart = useCallback(async () => {
     if (started || !chatRef.current) return;
@@ -65,9 +65,8 @@ export function RoundtableStandalone({ sessionId, topic, prompt, ragContext }: P
             <div key={p.id} className="relative">
               <AvatarDisplay
                 src={p.avatar}
-                name={p.name}
+                alt={p.name}
                 className="h-8 w-8 rounded-full ring-2 ring-white dark:ring-neutral-800"
-                fallbackClassName="text-[10px]"
               />
               {p.isSpeaking && (
                 <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-green-500 dark:border-neutral-800" />

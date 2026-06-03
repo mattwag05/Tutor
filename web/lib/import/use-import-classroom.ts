@@ -5,12 +5,41 @@ import { nanoid } from 'nanoid';
 import { toast } from 'sonner';
 import { useI18n } from '@/lib/hooks/use-i18n';
 import { db, mediaFileKey } from '@/lib/utils/database';
-import type { AudioFileRecord, MediaFileRecord, GeneratedAgentRecord } from '@/lib/utils/database';
+import type {
+  AudioFileRecord,
+  ChatSessionRecord,
+  GeneratedAgentRecord,
+  MediaFileRecord,
+} from '@/lib/utils/database';
 import type { ClassroomManifest, ManifestScene } from '@/lib/export/classroom-zip-types';
 import { rewriteAudioRefsToIds } from '@/lib/export/classroom-zip-utils';
 import { createLogger } from '@/lib/logger';
+import type { SessionStatus, SessionType } from '@/lib/types/chat';
 
 const log = createLogger('ImportClassroom');
+const SESSION_TYPES = new Set<SessionType>(['qa', 'discussion', 'lecture']);
+const SESSION_STATUSES = new Set<SessionStatus>([
+  'idle',
+  'active',
+  'interrupted',
+  'completed',
+]);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function coerceSessionType(value: unknown): SessionType {
+  return typeof value === 'string' && SESSION_TYPES.has(value as SessionType)
+    ? (value as SessionType)
+    : 'qa';
+}
+
+function coerceSessionStatus(value: unknown): SessionStatus {
+  return typeof value === 'string' && SESSION_STATUSES.has(value as SessionStatus)
+    ? (value as SessionStatus)
+    : 'completed';
+}
 
 export type ImportPhase =
   | 'idle'
@@ -226,20 +255,29 @@ export function useImportClassroom(onSuccess?: () => void) {
             const chatText = await chatFile.async('text');
             const chatData = JSON.parse(chatText);
             if (Array.isArray(chatData) && chatData.length > 0) {
-              const chatRecords = chatData.map((s: Record<string, unknown>) => ({
-                id: nanoid(),
-                stageId: newStageId,
-                type: s.type || 'qa',
-                title: s.title || '',
-                status: s.status || 'completed',
-                messages: s.messages || [],
-                config: s.config || {},
-                toolCalls: [],
-                pendingToolCalls: [],
-                createdAt: typeof s.createdAt === 'number' ? s.createdAt : now,
-                updatedAt: typeof s.updatedAt === 'number' ? s.updatedAt : now,
-                sceneId: s.sceneId || undefined,
-              }));
+              const chatRecords: ChatSessionRecord[] = chatData
+                .filter(isRecord)
+                .map((s) => ({
+                  id: nanoid(),
+                  stageId: newStageId,
+                  type: coerceSessionType(s.type),
+                  title: typeof s.title === 'string' ? s.title : '',
+                  status: coerceSessionStatus(s.status),
+                  messages: Array.isArray(s.messages)
+                    ? (s.messages as ChatSessionRecord['messages'])
+                    : [],
+                  config: {
+                    agentIds: [],
+                    maxTurns: 0,
+                    currentTurn: 0,
+                    ...(isRecord(s.config) ? s.config : {}),
+                  },
+                  toolCalls: [],
+                  pendingToolCalls: [],
+                  createdAt: typeof s.createdAt === 'number' ? s.createdAt : now,
+                  updatedAt: typeof s.updatedAt === 'number' ? s.updatedAt : now,
+                  sceneId: typeof s.sceneId === 'string' ? s.sceneId : undefined,
+                }));
               await db.chatSessions.bulkPut(chatRecords);
               log.info(`Imported ${chatRecords.length} chat sessions`);
             }
