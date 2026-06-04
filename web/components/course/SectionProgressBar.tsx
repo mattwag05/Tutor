@@ -13,6 +13,8 @@ interface Props {
   sectionTitle: string;
   /** Re-measure when this changes (e.g. activeIndex flips, content hydrates). */
   resetKey?: string | number;
+  /** Optional parent hook for controls that should react to reading progress. */
+  onProgressChange?: (progress: number) => void;
 }
 
 /** Rendered height in px. AdvanceBar uses this to clear the bar. */
@@ -26,6 +28,7 @@ export function SectionProgressBar({
   sectionCount,
   sectionTitle,
   resetKey,
+  onProgressChange,
 }: Props) {
   const [pct, setPct] = useState(0);
 
@@ -35,8 +38,9 @@ export function SectionProgressBar({
 
     const compute = () => {
       const max = el.scrollHeight - el.clientHeight;
-      const next = max <= 0 ? 0 : Math.round(Math.min(1, Math.max(0, el.scrollTop / max)) * 100);
+      const next = max <= 0 ? 100 : Math.round(Math.min(1, Math.max(0, el.scrollTop / max)) * 100);
       setPct((prev) => (prev === next ? prev : next));
+      onProgressChange?.(next);
     };
 
     compute();
@@ -48,7 +52,7 @@ export function SectionProgressBar({
       el.removeEventListener('scroll', compute);
       ro.disconnect();
     };
-  }, [scrollRef, resetKey]);
+  }, [onProgressChange, scrollRef, resetKey]);
 
   return (
     <div
@@ -71,7 +75,9 @@ export function SectionProgressBar({
           <span className="font-mono font-semibold uppercase tracking-wider text-neutral-600 dark:text-neutral-300">
             Section {sectionNumber} / {sectionCount}
           </span>
-          <span className="truncate text-neutral-500 dark:text-neutral-400">{sectionTitle}</span>
+          <span className="hidden min-w-0 flex-1 truncate text-center text-neutral-500 sm:block dark:text-neutral-400">
+            {sectionTitle}
+          </span>
           <span
             className="font-mono font-semibold tabular-nums text-neutral-900 dark:text-neutral-50"
             aria-hidden

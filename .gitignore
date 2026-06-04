@@ -13,6 +13,7 @@ deeptutor/services/rag/eg_only_for_analysis/
 docs/
 !docs/
 !docs/deployment.md
+!docs/product.md
 .github
 
 # LaTeX build artifacts

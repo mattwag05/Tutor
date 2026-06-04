@@ -30,21 +30,20 @@ export function CourseTOCDrawer({
   onSelectSection,
   onOpenArtifact,
 }: Props) {
+  if (!open) return null;
+
   return (
     <>
-      {/* Backdrop */}
-      {open && (
-        <div
-          onClick={onClose}
-          className="fixed inset-0 z-40 bg-black/20 transition-opacity"
-          aria-hidden
-        />
-      )}
+      <div
+        onClick={onClose}
+        className="fixed inset-0 z-40 bg-black/20 transition-opacity"
+        aria-hidden
+      />
       <aside
-        className={cn(
-          'fixed left-0 top-0 z-50 h-full w-80 transform overflow-y-auto border-r border-neutral-200 bg-[#fbfaf7] shadow-[0_24px_80px_rgba(40,32,24,0.16)] transition-transform dark:border-neutral-800 dark:bg-neutral-950',
-          open ? 'translate-x-0' : '-translate-x-full',
-        )}
+        className="fixed left-0 top-0 z-50 h-full w-80 max-w-[85vw] overflow-y-auto border-r border-neutral-200 bg-[#fbfaf7] shadow-[0_24px_80px_rgba(40,32,24,0.16)] dark:border-neutral-800 dark:bg-neutral-950"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Course contents"
       >
         <div className="border-b border-neutral-200 p-4 dark:border-neutral-800">
           <div className="font-serif text-lg text-neutral-900 dark:text-neutral-50">

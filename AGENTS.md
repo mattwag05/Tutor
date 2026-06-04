@@ -64,6 +64,14 @@ Tutor's default web surface is a Tutor-native course creator and reader:
 First-class formats are `lesson`, `podcast`, `flashcards`, `studyGuide`,
 `quiz`, and `diagram`.
 
+For creator or reader refinements, read `docs/product.md` before editing. Keep
+the primary flow focused on course creation, reading, sources, follow-up
+questions, Go Deeper sections, and Add Format. Preserve the sticky bottom
+`SectionProgressBar`; keep `AdvanceBar` clear of the question composer and show
+it only after meaningful reading progress in long sections. Use the
+`Leonxlnx/taste-skill` guidance as an audit-first critique lens, not as a new
+design system.
+
 ### Deployment Image
 
 The durable production image is `ghcr.io/mattwag05/tutor`. Keep compatibility

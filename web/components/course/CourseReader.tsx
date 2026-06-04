@@ -89,6 +89,7 @@ export function CourseReader({ courseId }: Props) {
   const [formatDialogOpen, setFormatDialogOpen] = useState(false);
   const [formatPrompt, setFormatPrompt] = useState('');
   const [question, setQuestion] = useState('');
+  const [sectionProgress, setSectionProgress] = useState(0);
   const scrollRootRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -115,6 +116,7 @@ export function CourseReader({ courseId }: Props) {
     (idx: number) => {
       if (!course || idx < 0 || idx >= course.sections.length) return;
       setActiveIndex(idx);
+      setSectionProgress(0);
       scrollRootRef.current?.scrollTo({ top: 0, behavior: 'instant' });
     },
     [course],
@@ -128,6 +130,7 @@ export function CourseReader({ courseId }: Props) {
       if (!id) return;
       const nextIndex = activeIndex + 1;
       setActiveIndex(nextIndex);
+      setSectionProgress(0);
       setFormatDialogOpen(false);
       setFormatPrompt('');
       setQuestion('');
@@ -226,13 +229,15 @@ export function CourseReader({ courseId }: Props) {
           ) : null}
       </main>
 
-      <AdvanceBar
-        nextTitle={nextSection?.title}
-        onAdvance={onAdvance}
-        onPrevious={onPrevious}
-        hasPrevious={activeIndex > 0}
-        bottomOffset={SECTION_PROGRESS_BAR_HEIGHT + QUESTION_COMPOSER_HEIGHT}
-      />
+      {sectionProgress >= 70 ? (
+        <AdvanceBar
+          nextTitle={nextSection?.title}
+          onAdvance={onAdvance}
+          onPrevious={onPrevious}
+          hasPrevious={activeIndex > 0}
+          bottomOffset={SECTION_PROGRESS_BAR_HEIGHT + QUESTION_COMPOSER_HEIGHT}
+        />
+      ) : null}
 
       <QuestionComposer
         value={question}
@@ -248,6 +253,7 @@ export function CourseReader({ courseId }: Props) {
           sectionCount={totalSections}
           sectionTitle={currentSection.title}
           resetKey={currentSection.id}
+          onProgressChange={setSectionProgress}
         />
       ) : null}
 
@@ -473,21 +479,21 @@ function QuestionComposer({
         e.preventDefault();
         onSubmit();
       }}
-      className="fixed left-0 right-0 z-20 border-t border-neutral-200 bg-[#f7f4ee]/95 px-4 py-4 backdrop-blur"
+      className="fixed left-0 right-0 z-20 border-t border-neutral-200 bg-[#f7f4ee]/95 px-3 py-2 backdrop-blur sm:px-4 sm:py-4"
       style={{ bottom: `${bottomOffset}px` }}
     >
-      <div className="mx-auto flex max-w-2xl items-center gap-2 rounded-xl border border-neutral-200 bg-white/95 px-4 py-3 shadow-[0_16px_42px_rgba(85,67,43,0.10)]">
+      <div className="mx-auto flex max-w-2xl items-center gap-2 rounded-lg border border-neutral-200 bg-white/95 px-3 py-2 shadow-[0_12px_32px_rgba(85,67,43,0.10)] sm:rounded-xl sm:px-4 sm:py-3">
         <input
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder="Ask a question..."
-          className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-neutral-400"
+          className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-neutral-400 sm:text-sm"
         />
         <button
           type="submit"
           aria-label="Send question"
           disabled={!value.trim()}
-          className="flex h-9 w-9 items-center justify-center rounded-lg bg-neutral-900 text-white transition active:translate-y-px disabled:opacity-30"
+          className="flex h-9 w-9 items-center justify-center rounded-md bg-neutral-900 text-white transition active:translate-y-px disabled:opacity-30 sm:rounded-lg"
         >
           <ArrowUp size={17} strokeWidth={1.8} />
         </button>

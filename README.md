@@ -88,6 +88,13 @@ npm run dev
 The development frontend defaults to `http://localhost:3000` unless the start
 scripts choose another port.
 
+## Product Workflow
+
+Tutor's primary product loop is documented in
+[`docs/product.md`](docs/product.md): create a course, read with sources and
+inline checks, ask follow-up questions, and add another format. Use that runbook
+for creator and reader QA before shipping product changes.
+
 ## Docker Image
 
 Tutor publishes a multi-platform production image to GitHub Container Registry:
@@ -118,8 +125,9 @@ Run these before shipping product changes:
 
 ```bash
 cd web
-npm run lint
-npm run test
+npm exec tsc -- --noEmit --pretty false
+npm exec eslint -- components/course/TutorCreator.tsx components/course/CourseReader.tsx components/course/CourseTOCDrawer.tsx components/course/AdvanceBar.tsx components/course/SectionProgressBar.tsx
+npm exec vitest run tests/course-format.test.ts tests/prompts/course-diagram.test.ts
 ```
 
 For Python changes:

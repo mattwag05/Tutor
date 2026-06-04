@@ -489,6 +489,23 @@ Five places must be updated to wire in a new module (e.g. `mymodule`):
 
 ---
 
+## Product Workflow
+
+Tutor's primary product loop is documented in `docs/product.md`: create a
+course, read with sources and inline checks, ask follow-up questions, use Go
+Deeper, and add another format. For creator or reader refinements, use that
+runbook before editing and preserve the Tutor-native educational workspace
+direction.
+
+Course reader constraints:
+- `SectionProgressBar` stays sticky at the bottom.
+- `AdvanceBar` must clear both the question composer and progress bar.
+- On long sections, `AdvanceBar` appears only after meaningful reading progress.
+- Closed drawers/dialogs must not expose hidden actions in body text or
+  accessibility traversal.
+- `Go Deeper` prompts and the sticky question composer both call
+  `addFollowUpSection`.
+
 ## Production Deployment (Pironman)
 
 The full stack runs on the Pironman (100.126.176.86) via Docker Compose, fronted by the existing `caddy-tailscale` container (no per-service Tailscale sidecar — Tutor binds to `127.0.0.1:*` and Caddy proxies HTTPS).
