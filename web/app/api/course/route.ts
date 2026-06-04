@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
     generationPreferences?: CourseGenerationPreferences;
     sections?: CourseSection[];
     citations?: Record<string, CourseCitation>;
+    progress?: Course['progress'];
   };
   try {
     body = await req.json();
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest) {
     generationPreferences: body.generationPreferences,
     sections: body.sections || [],
     citations: body.citations || {},
-    progress: { sections: {} },
+    progress: body.progress || { sections: {} },
   };
 
   await writeCourse(course);

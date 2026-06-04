@@ -625,12 +625,21 @@ function SectionCard({ index, section, citations, courseId, onAsk }: SectionCard
           </div>
         </>
       ) : status === 'error' ? (
-        <div className="rounded-md border border-rose-200 bg-rose-50 p-4 text-rose-800">
-          <div className="mb-2">{section.error || 'Failed to generate this section.'}</div>
+        <div
+          className="rounded-md border border-rose-200 bg-rose-50 p-4 text-rose-900"
+          role="alert"
+        >
+          <div className="font-mono text-[10px] uppercase tracking-wider text-rose-500">
+            Section did not generate
+          </div>
+          <div className="mt-2 text-sm font-medium">Tutor could not build this section.</div>
+          <div className="mt-1 break-words text-sm text-rose-700">
+            {section.error || 'Generation failed'}
+          </div>
           <button
             type="button"
             onClick={() => void regenerateSection(section.id)}
-            className="inline-flex items-center gap-1.5 rounded-md border border-rose-300 bg-white px-2.5 py-1 text-xs text-rose-700 transition hover:bg-rose-50"
+            className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-rose-300 bg-white px-2.5 py-1 text-xs text-rose-700 transition hover:bg-rose-50"
           >
             <RotateCcw size={12} strokeWidth={1.8} />
             Try again

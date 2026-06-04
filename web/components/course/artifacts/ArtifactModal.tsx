@@ -52,9 +52,9 @@ export function ArtifactGenerating({ label }: { label: string }) {
 /** Shown on generation error. */
 export function ArtifactError({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <div className="mx-auto max-w-md py-16 text-center">
+    <div className="mx-auto max-w-md px-6 py-16 text-center" role="alert">
       <div className="mb-2 text-sm font-semibold text-rose-600 dark:text-rose-400">Generation failed</div>
-      <div className="mb-6 text-sm text-neutral-500">{message}</div>
+      <div className="mb-6 break-words text-sm text-neutral-500">{message}</div>
       <button
         type="button"
         onClick={onRetry}

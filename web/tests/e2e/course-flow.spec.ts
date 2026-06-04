@@ -137,9 +137,9 @@ function makeCourse(id: string): CourseFixture {
   };
 }
 
-async function createCourse(request: APIRequestContext, id: string) {
+async function createCourse(request: APIRequestContext, id: string, course: CourseFixture = makeCourse(id)) {
   await request.delete(`/api/course/${id}`);
-  const response = await request.post("/api/course", { data: makeCourse(id) });
+  const response = await request.post("/api/course", { data: course });
   expect(response.ok(), await response.text()).toBe(true);
 }
 
@@ -147,9 +147,9 @@ async function deleteCourse(request: APIRequestContext, id: string) {
   await request.delete(`/api/course/${id}`);
 }
 
-async function expectNoConsoleErrors(page: Page, errors: string[]) {
+async function expectNoConsoleErrors(page: Page, errors: string[], allowed: RegExp[] = []) {
   await page.waitForTimeout(100);
-  expect(errors).toEqual([]);
+  expect(errors.filter((error) => !allowed.some((pattern) => pattern.test(error)))).toEqual([]);
 }
 
 test.describe("Tutor course flow", () => {
@@ -280,6 +280,118 @@ test.describe("Tutor course flow", () => {
       await expect(page.getByText("A focused follow-up lesson for Explain with a workplace example.")).toBeVisible();
 
       await expectNoConsoleErrors(page, errors);
+    } finally {
+      await deleteCourse(request, id);
+    }
+  });
+
+  test("reader shows recoverable section and artifact failures", async ({ page, request }) => {
+    const id = `qa-course-failures-${test.info().project.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
+    const course = makeCourse(id);
+    course.sections[1] = {
+      ...course.sections[1],
+      status: "pending",
+      blocks: [],
+    };
+    const errors: string[] = [];
+    page.on("console", (message) => {
+      if (message.type() === "error") errors.push(message.text());
+    });
+
+    await createCourse(request, id, course);
+
+    let recoverSection = false;
+    await page.route("**/api/generate/course-section", async (route) => {
+      const body = route.request().postDataJSON() as {
+        section?: { id: string; order: number; title: string; description?: string };
+      };
+      const section = body.section;
+
+      if (!recoverSection) {
+        await route.fulfill({
+          status: 500,
+          contentType: "text/html",
+          body: "<!doctype html><html><body>internal failure</body></html>",
+        });
+        return;
+      }
+
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          section: {
+            id: section?.id ?? "s2",
+            order: section?.order ?? 2,
+            title: section?.title ?? "Recovered section",
+            description: section?.description,
+            status: "ready",
+            goDeeperPrompts: [],
+            blocks: [
+              {
+                id: `${section?.id ?? "s2"}_b1`,
+                type: "prose",
+                markdown: "Recovered section content after retry.",
+              },
+            ],
+          },
+          citations: [],
+        }),
+      });
+    });
+
+    let recoverDiagram = false;
+    await page.route("**/api/generate/course-diagram", async (route) => {
+      if (!recoverDiagram) {
+        await route.fulfill({
+          status: 500,
+          contentType: "application/json",
+          body: JSON.stringify({ error: "Diagram service unavailable" }),
+        });
+        return;
+      }
+
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          title: "Decision Map",
+          mermaid: "flowchart TD\n  A[Question] --> B[Tradeoffs]",
+          explanation: "Read from question to tradeoffs.",
+        }),
+      });
+    });
+
+    try {
+      await page.goto(`/course/${id}`);
+      await page.getByRole("button", { name: "Open table of contents" }).click();
+      await page.getByRole("dialog", { name: "Course contents" })
+        .getByRole("button", { name: "Build Better Defaults", exact: true })
+        .click();
+
+      await expect(page.getByRole("heading", { name: "Build Better Defaults" })).toBeVisible();
+      await expect(page.getByText("Section did not generate")).toBeVisible();
+      await expect(page.getByText("Tutor could not build this section.")).toBeVisible();
+      await expect(page.getByText("<!doctype html>")).toHaveCount(0);
+      await expect(page.getByText("Generation failed")).toBeVisible();
+
+      recoverSection = true;
+      await page.getByRole("button", { name: "Try again" }).click();
+      await expect(page.getByText("Recovered section content after retry.")).toBeVisible();
+
+      await page.getByRole("button", { name: "New Format" }).click();
+      await page.getByRole("button", { name: "Diagram", exact: true }).click();
+      await expect(page.getByText("Generation failed")).toBeVisible();
+      await expect(page.getByText("Diagram service unavailable")).toBeVisible();
+
+      recoverDiagram = true;
+      await page.getByRole("button", { name: "Try again" }).click();
+      await expect(page.getByRole("heading", { name: "Decision Map" })).toBeVisible();
+      await expect(page.getByText("Read from question to tradeoffs.")).toBeVisible();
+
+      await expectNoConsoleErrors(page, errors, [
+        /Failed to load resource: the server responded with a status of 500/,
+      ]);
     } finally {
       await deleteCourse(request, id);
     }

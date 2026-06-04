@@ -3,6 +3,7 @@
 import { create } from 'zustand';
 import { nanoid } from 'nanoid';
 import { createSelectors } from '@/lib/utils/create-selectors';
+import { normalizeFailureMessage, readFailureMessage } from '@/lib/course/failure-message';
 import type {
   Course,
   CourseArtifacts,
@@ -86,32 +87,6 @@ function updateSection(
     ...course,
     sections: course.sections.map((s) => (s.id === sectionId ? patch(s) : s)),
   };
-}
-
-async function readFailureMessage(res: Response, fallback: string): Promise<string> {
-  const contentType = res.headers.get('content-type') || '';
-  if (contentType.includes('application/json')) {
-    try {
-      const data = (await res.json()) as { error?: unknown; message?: unknown };
-      const message = typeof data.error === 'string' ? data.error : data.message;
-      if (typeof message === 'string' && message.trim()) return message.trim();
-    } catch {
-      return fallback;
-    }
-  }
-
-  let text = '';
-  try {
-    text = await res.text();
-  } catch {
-    return fallback;
-  }
-  const trimmed = text.trim();
-  if (!trimmed) return fallback;
-  if (contentType.includes('text/html') || /^<!doctype html/i.test(trimmed) || /<html[\s>]/i.test(trimmed)) {
-    return fallback;
-  }
-  return trimmed.slice(0, 500);
 }
 
 const useCourseStoreBase = create<CourseStoreState>((set, get) => ({
@@ -309,7 +284,7 @@ const useCourseStoreBase = create<CourseStoreState>((set, get) => ({
       get().setSectionStatus(
         sectionId,
         'error',
-        error instanceof Error ? error.message : String(error),
+        normalizeFailureMessage(error instanceof Error ? error.message : String(error), 'Generation failed'),
       );
     }
   },
@@ -379,7 +354,10 @@ const useCourseStoreBase = create<CourseStoreState>((set, get) => ({
             ...cur,
             [podcastMode]: {
               status: 'error',
-              error: error instanceof Error ? error.message : String(error),
+              error: normalizeFailureMessage(
+                error instanceof Error ? error.message : String(error),
+                'Generation failed',
+              ),
             },
           },
         });
@@ -433,7 +411,15 @@ const useCourseStoreBase = create<CourseStoreState>((set, get) => ({
         });
       }
     } catch (error) {
-      get().applyArtifact({ [kind]: { status: 'error', error: error instanceof Error ? error.message : String(error) } });
+      get().applyArtifact({
+        [kind]: {
+          status: 'error',
+          error: normalizeFailureMessage(
+            error instanceof Error ? error.message : String(error),
+            'Generation failed',
+          ),
+        },
+      });
     }
   },
 }));
