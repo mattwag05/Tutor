@@ -93,6 +93,10 @@ dist/
 web/dist/
 build/
 web/build/
+playwright-report/
+web/playwright-report/
+test-results/
+web/test-results/
 
 # TypeScript build info
 *.tsbuildinfo

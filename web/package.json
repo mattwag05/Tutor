@@ -16,6 +16,7 @@
     "i18n:audit": "node ./scripts/i18n_audit.mjs",
     "i18n:audit:strict": "node ./scripts/i18n_audit.mjs --strict",
     "i18n:check": "npm run i18n:parity && npm run i18n:audit",
+    "test:course-flow": "playwright test --project=course-flow-desktop --project=course-flow-mobile",
     "audit": "playwright test --project=ui-audit",
     "audit:ui": "playwright test --ui --project=ui-audit",
     "audit:report": "playwright show-report"

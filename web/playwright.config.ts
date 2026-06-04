@@ -23,5 +23,20 @@ export default defineConfig({
       testMatch: "**/*.audit.ts",
       use: { ...devices["Desktop Chrome"] },
     },
+    {
+      name: "course-flow-desktop",
+      testMatch: "**/course-flow.spec.ts",
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "course-flow-mobile",
+      testMatch: "**/course-flow.spec.ts",
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 390, height: 844 },
+        isMobile: true,
+        hasTouch: true,
+      },
+    },
   ],
 });

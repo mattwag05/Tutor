@@ -128,6 +128,7 @@ cd web
 npm exec tsc -- --noEmit --pretty false
 npm exec eslint -- components/course/TutorCreator.tsx components/course/CourseReader.tsx components/course/CourseTOCDrawer.tsx components/course/AdvanceBar.tsx components/course/SectionProgressBar.tsx
 npm exec vitest run tests/course-format.test.ts tests/prompts/course-diagram.test.ts
+npm run test:course-flow
 ```
 
 For Python changes:
