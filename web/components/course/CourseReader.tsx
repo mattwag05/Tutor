@@ -20,6 +20,7 @@ import { toast } from 'sonner';
 import { Mermaid } from '@/components/Mermaid';
 import { recordCourseAttempt } from '@/lib/quiz/api-client';
 import { useCourseStore } from '@/lib/course/store';
+import { useI18n } from '@/lib/hooks/use-i18n';
 import { AdvanceBar } from './AdvanceBar';
 import { CourseTOCDrawer } from './CourseTOCDrawer';
 import { SectionProgressBar, SECTION_PROGRESS_BAR_HEIGHT } from './SectionProgressBar';
@@ -299,12 +300,13 @@ function ReaderHeader({
   onOpenSources: () => void;
   onNewFormat: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <header className="sticky top-0 z-20 flex items-center gap-2 border-b border-neutral-200 bg-[#f7f4ee]/90 px-4 py-3 backdrop-blur sm:gap-3 dark:border-neutral-800 dark:bg-neutral-950/90">
       <button
         type="button"
         onClick={onOpenToc}
-        aria-label="Open table of contents"
+        aria-label={t('course.openTableOfContents')}
         className="flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-md transition hover:bg-white/70 sm:h-8 sm:w-8 dark:hover:bg-neutral-900"
       >
         <Menu size={18} strokeWidth={1.8} />
@@ -320,7 +322,7 @@ function ReaderHeader({
         onClick={onOpenSources}
         className="rounded-md px-2 py-2 text-xs text-neutral-700 transition hover:bg-white/70 sm:px-3 dark:text-neutral-300 dark:hover:bg-neutral-900"
       >
-        {sourceCount} Sources
+        {t('course.sourcesCount', { count: sourceCount })}
       </button>
       <button
         type="button"
@@ -328,7 +330,7 @@ function ReaderHeader({
         className="inline-flex h-9 items-center gap-1.5 rounded-md border border-neutral-300 bg-white/70 px-3 text-xs font-medium text-neutral-800 transition hover:bg-white"
       >
         <Plus size={14} strokeWidth={1.8} />
-        New Format
+        {t('course.newFormat')}
       </button>
     </header>
   );
@@ -342,28 +344,29 @@ function SourcesDialog({
   onClose: () => void;
 }) {
   const items = Object.values(citations);
+  const { t } = useI18n();
   return (
     <div className="fixed inset-0 z-50 bg-neutral-950/25 p-4" role="presentation" onClick={onClose}>
       <div
         className="ml-auto max-h-full w-full max-w-md overflow-y-auto rounded-lg border border-neutral-200 bg-[#fbfaf7] p-5 shadow-[0_24px_80px_rgba(40,32,24,0.18)]"
         role="dialog"
         aria-modal
-        aria-label="Sources"
+        aria-label={t('course.sources')}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-serif text-xl">Sources</h2>
+          <h2 className="font-serif text-xl">{t('course.sources')}</h2>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t('common.close')}
             className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-neutral-100"
           >
             <X size={16} />
           </button>
         </div>
         {items.length === 0 ? (
-          <p className="text-sm text-neutral-500">Sources will appear as lessons finish generating.</p>
+          <p className="text-sm text-neutral-500">{t('course.sourcesEmpty')}</p>
         ) : (
           <ul className="space-y-3">
             {items.map((citation) => (
@@ -401,20 +404,21 @@ function AddFormatDialog({
   onClose: () => void;
   onSelect: (format: CourseFormat) => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-950/25 p-4">
       <div className="w-full max-w-xl rounded-lg border border-neutral-200 bg-[#fbfaf7] p-5 shadow-[0_24px_80px_rgba(40,32,24,0.18)]">
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <h2 className="font-serif text-xl">Add format</h2>
+            <h2 className="font-serif text-xl">{t('course.addFormat')}</h2>
             <p className="mt-1 text-sm text-neutral-500">
-              Choose a new course format and optionally add a prompt.
+              {t('course.addFormatDescription')}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t('common.close')}
             className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-neutral-100"
           >
             <X size={16} />
@@ -424,20 +428,20 @@ function AddFormatDialog({
           <textarea
             value={prompt}
             onChange={(e) => onPromptChange(e.target.value)}
-            placeholder="Focus the next format on..."
+            placeholder={t('course.formatPromptPlaceholder')}
             rows={2}
             className="min-h-16 w-full resize-none rounded-t-lg bg-transparent px-4 py-3 outline-none placeholder:text-neutral-400"
           />
           <div className="flex items-center justify-between border-t border-neutral-100 px-3 py-2">
             <button
               type="button"
-              aria-label="Attach supporting files"
+              aria-label={t('course.attachSupportingFiles')}
               className="flex h-8 w-8 items-center justify-center rounded-md text-neutral-500 hover:bg-neutral-100"
             >
               <Paperclip size={16} strokeWidth={1.8} />
             </button>
             <span className="font-mono text-[10px] uppercase tracking-wider text-neutral-400">
-              Format prompt
+              {t('course.formatPrompt')}
             </span>
           </div>
         </div>
@@ -473,6 +477,7 @@ function QuestionComposer({
   onSubmit: () => void;
   bottomOffset: number;
 }) {
+  const { t } = useI18n();
   return (
     <form
       onSubmit={(e) => {
@@ -486,12 +491,12 @@ function QuestionComposer({
         <input
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="Ask a question..."
+          placeholder={t('course.askQuestionPlaceholder')}
           className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-neutral-400 sm:text-sm"
         />
         <button
           type="submit"
-          aria-label="Send question"
+          aria-label={t('course.sendQuestion')}
           disabled={!value.trim()}
           className="flex h-9 w-9 items-center justify-center rounded-md bg-neutral-900 text-white transition active:translate-y-px disabled:opacity-30 sm:rounded-lg"
         >
@@ -513,7 +518,8 @@ function ArtifactOverlay({
   onClose: () => void;
   onRetry: () => void;
 }) {
-  const label = kind === 'finalExam' ? 'Quiz' : artifactLabel(kind);
+  const { t } = useI18n();
+  const label = kind === 'finalExam' ? t('course.quiz') : artifactLabel(kind, t);
 
   if (kind === 'podcast') {
     return (
@@ -528,9 +534,9 @@ function ArtifactOverlay({
   return (
     <ArtifactModal title={label} onClose={onClose}>
       {!artifact || artifact.status === 'generating' || artifact.status === 'pending' ? (
-        <ArtifactGenerating label={`Generating ${label.toLowerCase()}...`} />
+        <ArtifactGenerating label={t('course.generatingArtifact', { artifact: label.toLowerCase() })} />
       ) : artifact.status === 'error' ? (
-        <ArtifactError message={artifact.error ?? 'Generation failed'} onRetry={onRetry} />
+        <ArtifactError message={artifact.error ?? t('course.generationFailed')} onRetry={onRetry} />
       ) : kind === 'flashcards' && 'cards' in artifact && artifact.cards ? (
         <FlashcardDeck cards={artifact.cards} />
       ) : kind === 'studyGuide' && 'content' in artifact && artifact.content ? (
@@ -539,23 +545,23 @@ function ArtifactOverlay({
         <FinalExamView questions={artifact.questions} />
       ) : kind === 'diagram' && 'mermaid' in artifact && artifact.mermaid ? (
         <DiagramView
-          title={artifact.title || 'Course Diagram'}
+          title={artifact.title || t('course.courseDiagram')}
           mermaid={artifact.mermaid}
           explanation={artifact.explanation}
         />
       ) : (
-        <ArtifactGenerating label={`Generating ${label.toLowerCase()}...`} />
+        <ArtifactGenerating label={t('course.generatingArtifact', { artifact: label.toLowerCase() })} />
       )}
     </ArtifactModal>
   );
 }
 
-function artifactLabel(kind: ArtifactKind) {
-  if (kind === 'flashcards') return 'Flash Cards';
-  if (kind === 'studyGuide') return 'Study Guide';
-  if (kind === 'finalExam') return 'Quiz';
-  if (kind === 'diagram') return 'Diagram';
-  return 'Podcast';
+function artifactLabel(kind: ArtifactKind, t: (key: string, options?: Record<string, unknown>) => string) {
+  if (kind === 'flashcards') return t('course.flashcards');
+  if (kind === 'studyGuide') return t('course.studyGuide');
+  if (kind === 'finalExam') return t('course.quiz');
+  if (kind === 'diagram') return t('course.diagram');
+  return t('course.podcast');
 }
 
 function DiagramView({
@@ -589,6 +595,7 @@ interface SectionCardProps {
 function SectionCard({ index, section, citations, courseId, onAsk }: SectionCardProps) {
   const status = section.status || 'pending';
   const regenerateSection = useCourseStore.use.regenerateSection();
+  const { t } = useI18n();
   const blockList = useMemo(
     () =>
       section.blocks.map((block) => (
@@ -616,11 +623,11 @@ function SectionCard({ index, section, citations, courseId, onAsk }: SectionCard
             <button
               type="button"
               onClick={() => void regenerateSection(section.id)}
-              aria-label={`Regenerate section: ${section.title}`}
+              aria-label={t('course.regenerateSectionAria', { title: section.title })}
               className="inline-flex items-center gap-1.5 rounded-md border border-neutral-200 bg-white px-2.5 py-1 text-xs text-neutral-500 transition hover:border-neutral-400 hover:bg-neutral-50 hover:text-neutral-700"
             >
               <RotateCcw size={12} strokeWidth={1.8} />
-              Regenerate section
+              {t('course.regenerateSection')}
             </button>
           </div>
         </>
@@ -630,11 +637,11 @@ function SectionCard({ index, section, citations, courseId, onAsk }: SectionCard
           role="alert"
         >
           <div className="font-mono text-[10px] uppercase tracking-wider text-rose-500">
-            Section did not generate
+            {t('course.sectionDidNotGenerate')}
           </div>
-          <div className="mt-2 text-sm font-medium">Tutor could not build this section.</div>
+          <div className="mt-2 text-sm font-medium">{t('course.sectionCouldNotBuild')}</div>
           <div className="mt-1 break-words text-sm text-rose-700">
-            {section.error || 'Generation failed'}
+            {section.error || t('course.generationFailed')}
           </div>
           <button
             type="button"
@@ -642,7 +649,7 @@ function SectionCard({ index, section, citations, courseId, onAsk }: SectionCard
             className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-rose-300 bg-white px-2.5 py-1 text-xs text-rose-700 transition hover:bg-rose-50"
           >
             <RotateCcw size={12} strokeWidth={1.8} />
-            Try again
+            {t('course.tryAgain')}
           </button>
         </div>
       ) : (
@@ -658,6 +665,7 @@ function SectionAudio({ section }: { section: CourseSection }) {
   const audioUrl = section.audio?.url;
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | undefined>();
+  const { t } = useI18n();
 
   const onListen = useCallback(async () => {
     if (!courseId || audioUrl) return;
@@ -671,17 +679,17 @@ function SectionAudio({ section }: { section: CourseSection }) {
       });
       const data = (await res.json()) as { success?: boolean; audioUrl?: string; error?: string };
       if (!res.ok || !data.success || !data.audioUrl) {
-        throw new Error(data.error || `Synthesis failed (${res.status})`);
+        throw new Error(data.error || t('course.synthesisFailedWithStatus', { status: res.status }));
       }
       setSectionAudio(section.id, { status: 'ready', url: data.audioUrl });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Synthesis failed';
+      const msg = e instanceof Error ? e.message : t('course.synthesisFailed');
       setError(msg);
       toast.error(msg);
     } finally {
       setGenerating(false);
     }
-  }, [audioUrl, courseId, section.id, setSectionAudio]);
+  }, [audioUrl, courseId, section.id, setSectionAudio, t]);
 
   if (audioUrl) {
     return (
@@ -704,7 +712,7 @@ function SectionAudio({ section }: { section: CourseSection }) {
         className="inline-flex items-center gap-2 rounded-md border border-neutral-300 bg-white px-4 py-1.5 text-sm text-neutral-700 transition hover:bg-neutral-50 disabled:cursor-progress disabled:opacity-60"
       >
         <Headphones size={15} strokeWidth={1.8} />
-        {generating ? 'Synthesizing...' : 'Listen'}
+        {generating ? t('course.synthesizing') : t('course.listen')}
       </button>
       {error ? <span className="text-sm text-rose-600">{error}</span> : null}
     </div>

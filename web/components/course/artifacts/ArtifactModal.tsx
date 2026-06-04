@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useI18n } from '@/lib/hooks/use-i18n';
 
 interface Props {
   title: string;
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export function ArtifactModal({ title, onClose, children }: Props) {
+  const { t } = useI18n();
   // Close on Escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -26,7 +28,7 @@ export function ArtifactModal({ title, onClose, children }: Props) {
         <button
           type="button"
           onClick={onClose}
-          aria-label="Close"
+          aria-label={t('common.close')}
           className="flex h-8 w-8 items-center justify-center rounded-md text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-900"
         >
           ✕
@@ -51,16 +53,19 @@ export function ArtifactGenerating({ label }: { label: string }) {
 
 /** Shown on generation error. */
 export function ArtifactError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  const { t } = useI18n();
   return (
     <div className="mx-auto max-w-md px-6 py-16 text-center" role="alert">
-      <div className="mb-2 text-sm font-semibold text-rose-600 dark:text-rose-400">Generation failed</div>
+      <div className="mb-2 text-sm font-semibold text-rose-600 dark:text-rose-400">
+        {t('course.generationFailed')}
+      </div>
       <div className="mb-6 break-words text-sm text-neutral-500">{message}</div>
       <button
         type="button"
         onClick={onRetry}
         className="rounded-lg bg-neutral-900 px-4 py-2 text-sm text-white hover:bg-neutral-800 dark:bg-neutral-100 dark:text-neutral-900"
       >
-        Try again
+        {t('course.tryAgain')}
       </button>
     </div>
   );
