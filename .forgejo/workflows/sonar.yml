@@ -1,0 +1,51 @@
+name: SonarQube
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  SCANNER_VERSION: 8.1.0.6389
+
+jobs:
+  quality-gate:
+    runs-on: ubuntu-latest
+    container: node:22-bookworm
+    steps:
+      - name: Checkout (full history for blame)
+        uses: https://data.forgejo.org/actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install JRE + scanner
+        run: |
+          apt-get update -qq && apt-get install -y -qq openjdk-17-jre-headless unzip >/dev/null
+          if [ ! -x /opt/sonar-scanner/bin/sonar-scanner ]; then
+            curl -sL -o /tmp/scanner.zip "https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SCANNER_VERSION}-linux-aarch64.zip"
+            unzip -q /tmp/scanner.zip -d /opt/
+            mv "/opt/sonar-scanner-${SCANNER_VERSION}-linux-aarch64" /opt/sonar-scanner
+          fi
+          java -version
+
+      - name: Scan
+        run: |
+          /opt/sonar-scanner/bin/sonar-scanner \
+            -Dsonar.projectKey=Tutor \
+            -Dsonar.sources=deeptutor,deeptutor_cli \
+            -Dsonar.scanner.skipJreProvisioning=true \
+            -Dsonar.qualitygate.wait=true \
+            -Dsonar.qualitygate.timeout=300
+        env:
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_SCANNER_JAVA_EXECUTABLE_PATH: /usr/lib/jvm/java-17-openjdk-arm64/bin/java
+
+      - name: Post gate failure to ntfy
+        if: failure()
+        run: |
+          curl -s --max-time 15 \
+            -H "Authorization: Bearer ${{ secrets.NTFY_TOKEN }}" \
+            -H "Title: Quality gate failure - Tutor" \
+            -d "SonarQube gate failed on main. ${{ vars.SONAR_HOST_URL }}/dashboard?id=Tutor" \
+            ${{ vars.NTFY_URL }}

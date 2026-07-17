@@ -1,0 +1,7 @@
+[extend]
+useDefault = true
+
+# Upstream detect-secrets baseline stores one-way SHA-1 hashes of candidate
+# strings, not secret values — gitleaks' generic-api-key rule false-positives on it.
+[allowlist]
+paths = ['''\.secrets\.baseline$''']

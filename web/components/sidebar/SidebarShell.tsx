@@ -1,0 +1,440 @@
+"use client";
+
+import Image from "next/image";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useAppShell } from "@/context/AppShellContext";
+import {
+  BookOpen,
+  Github,
+  GraduationCap,
+  LayoutGrid,
+  Library,
+  MessageSquare,
+  MoreHorizontal,
+  Notebook as NotebookIcon,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Plus,
+  Settings,
+  X,
+  type LucideIcon,
+} from "lucide-react";
+import { useTranslation } from "react-i18next";
+import SessionList from "@/components/SessionList";
+import { VersionBadge } from "@/components/sidebar/VersionBadge";
+import type { SessionSummary } from "@/lib/session-api";
+
+interface NavEntry {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+}
+
+const PRIMARY_NAV: NavEntry[] = [
+  { href: "/course", label: "Course", icon: GraduationCap },
+  { href: "/chat", label: "Chat", icon: MessageSquare },
+  { href: "/book", label: "Read", icon: BookOpen },
+  { href: "/knowledge", label: "Library", icon: Library },
+  { href: "/notebook", label: "Notebook", icon: NotebookIcon },
+  { href: "/space", label: "Space", icon: LayoutGrid },
+];
+
+const SECONDARY_NAV: NavEntry[] = [
+  { href: "/settings", label: "Settings", icon: Settings },
+];
+
+const BOTTOM_NAV: NavEntry[] = [
+  { href: "/chat", label: "Chat", icon: MessageSquare },
+  { href: "/book", label: "Read", icon: BookOpen },
+  { href: "/knowledge", label: "Library", icon: Library },
+  { href: "/notebook", label: "Quiz", icon: NotebookIcon },
+];
+
+const DEFAULT_SESSION_VIEWPORT_CLASS_NAME = "max-h-[112px]";
+const GITHUB_REPO_URL = "https://github.com/mattwag05/Tutor";
+
+interface SidebarShellProps {
+  sessions?: SessionSummary[];
+  activeSessionId?: string | null;
+  loadingSessions?: boolean;
+  showSessions?: boolean;
+  sessionViewportClassName?: string;
+  onNewChat?: () => void;
+  onSelectSession?: (sessionId: string) => void | Promise<void>;
+  onRenameSession?: (sessionId: string, title: string) => void | Promise<void>;
+  onDeleteSession?: (sessionId: string) => void | Promise<void>;
+  footerSlot?: ReactNode;
+}
+
+export function SidebarShell({
+  sessions = [],
+  activeSessionId = null,
+  loadingSessions = false,
+  showSessions = false,
+  sessionViewportClassName = DEFAULT_SESSION_VIEWPORT_CLASS_NAME,
+  onNewChat,
+  onSelectSession,
+  onRenameSession,
+  onDeleteSession,
+  footerSlot,
+}: SidebarShellProps) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { t } = useTranslation();
+  const { sidebarCollapsed: collapsed, setSidebarCollapsed: setCollapsed } =
+    useAppShell();
+
+  const handleNewChat = () => {
+    if (onNewChat) {
+      onNewChat();
+      return;
+    }
+    router.push("/chat");
+  };
+
+  const [moreState, setMoreState] = useState({ open: false, pathname });
+  const moreOpen = moreState.open && moreState.pathname === pathname;
+  const openMore = useCallback(() => {
+    setMoreState({ open: true, pathname });
+  }, [pathname]);
+  const closeMore = useCallback(() => {
+    setMoreState((state) => (state.open ? { ...state, open: false } : state));
+  }, []);
+
+  // Close on Escape (matches the dialog dismissal pattern users expect).
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") closeMore(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [closeMore, moreOpen]);
+
+  // Items already exposed in the bottom nav — don't repeat them in the sheet.
+  const bottomHrefs = new Set(BOTTOM_NAV.map((b) => b.href));
+  const moreItems: NavEntry[] = [...PRIMARY_NAV, ...SECONDARY_NAV].filter(
+    (it) => !bottomHrefs.has(it.href),
+  );
+
+  const mobileNav = (
+    <>
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-50 flex h-14 items-stretch border-t border-[var(--border)] bg-[var(--secondary)] sm:hidden"
+      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+    >
+      {BOTTOM_NAV.map((item) => {
+        const active = pathname.startsWith(item.href);
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={`flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] transition-colors ${
+              active
+                ? "text-[var(--foreground)]"
+                : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+            }`}
+          >
+            <item.icon size={20} strokeWidth={active ? 2 : 1.5} />
+            <span>{t(item.label)}</span>
+          </Link>
+        );
+      })}
+      <button
+        type="button"
+        onClick={openMore}
+        aria-label={t("More") as string}
+        className="flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)]"
+      >
+        <MoreHorizontal size={20} strokeWidth={1.5} />
+        <span>{t("More")}</span>
+      </button>
+    </nav>
+    {moreOpen && (
+      <div
+        className="fixed inset-0 z-[60] flex flex-col bg-black/50 sm:hidden"
+        onClick={closeMore}
+        role="presentation"
+      >
+        <div
+          className="mt-auto rounded-t-2xl border-t border-[var(--border)] bg-[var(--secondary)] pb-8 pt-2"
+          onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+          aria-label={t("More") as string}
+          style={{ paddingBottom: "calc(2rem + env(safe-area-inset-bottom))" }}
+        >
+          <div className="flex items-center justify-between px-4 pb-2 pt-2">
+            <span className="text-[13px] font-medium text-[var(--foreground)]">{t("More")}</span>
+            <button
+              type="button"
+              onClick={closeMore}
+              aria-label={t("Close") as string}
+              className="-mr-2 flex h-11 w-11 touch-manipulation items-center justify-center rounded-md text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+            >
+              <X size={18} />
+            </button>
+          </div>
+          <nav className="grid grid-cols-3 gap-2 px-3 pb-2">
+            {moreItems.map((item) => {
+              const active = pathname.startsWith(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex flex-col items-center justify-center gap-1.5 rounded-xl px-2 py-3 text-[11px] transition-colors ${
+                    active
+                      ? "bg-[var(--background)]/70 text-[var(--foreground)]"
+                      : "text-[var(--muted-foreground)] hover:bg-[var(--background)]/50 hover:text-[var(--foreground)]"
+                  }`}
+                >
+                  <item.icon size={20} strokeWidth={active ? 2 : 1.5} />
+                  <span>{t(item.label)}</span>
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+      </div>
+    )}
+    </>
+  );
+
+  /* ---- Collapsed state ---- */
+  if (collapsed) {
+    return (
+      <>
+      <aside className="group/sb relative hidden h-screen w-[60px] shrink-0 flex-col items-center bg-[var(--secondary)] py-3 transition-all duration-200 sm:flex">
+        {/* Header: logo + collapse toggle (toggle replaces logo on hover) */}
+        <div className="relative mb-2 flex h-9 w-9 items-center justify-center">
+          <Link
+            href="/"
+            aria-label={t("Tutor") as string}
+            className="flex items-center justify-center transition-opacity duration-150 group-hover/sb:opacity-0"
+          >
+            <Image
+              src="/logo-ver2.png"
+              alt={t("Tutor") as string}
+              width={22}
+              height={22}
+              className="h-[22px] w-[22px] rounded-md"
+            />
+          </Link>
+          <button
+            onClick={() => setCollapsed(false)}
+            className="absolute inset-0 flex items-center justify-center rounded-lg text-[var(--muted-foreground)] opacity-0 transition-all duration-150 hover:bg-[var(--background)]/60 hover:text-[var(--foreground)] group-hover/sb:opacity-100"
+            aria-label={t("Expand sidebar")}
+          >
+            <PanelLeftOpen size={16} />
+          </button>
+        </div>
+
+        {/* New chat — visually distinct circular button */}
+        <button
+          onClick={handleNewChat}
+          title={t("New Chat") as string}
+          className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)]/50 bg-[var(--background)]/40 text-[var(--foreground)] shadow-sm transition-all duration-150 hover:border-[var(--border)] hover:bg-[var(--background)]/80"
+          aria-label={t("New Chat")}
+        >
+          <Plus size={16} strokeWidth={2.2} />
+        </button>
+
+        {/* Subtle divider */}
+        <div className="my-1.5 h-px w-7 bg-[var(--border)]/40" />
+
+        {/* Primary nav */}
+        <nav className="flex w-full flex-col items-center gap-1 px-1.5">
+          {PRIMARY_NAV.map((item) => {
+            const active = pathname.startsWith(item.href);
+            return (
+              <div key={item.href} className="flex flex-col items-center">
+                <Link
+                  href={item.href}
+                  title={t(item.label) as string}
+                  className={`relative flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-150 ${
+                    active
+                      ? "bg-[var(--background)]/80 text-[var(--foreground)] shadow-sm"
+                      : "text-[var(--muted-foreground)] hover:bg-[var(--background)]/50 hover:text-[var(--foreground)]"
+                  }`}
+                >
+                  {active && (
+                    <span className="absolute -left-1.5 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-[var(--foreground)]/80" />
+                  )}
+                  <item.icon size={18} strokeWidth={active ? 2 : 1.6} />
+                </Link>
+              </div>
+            );
+          })}
+        </nav>
+
+        <div className="flex-1" />
+
+        {/* Secondary nav + footer */}
+        <div className="flex w-full flex-col items-center gap-1 px-1.5">
+          <div className="my-1 h-px w-7 bg-[var(--border)]/40" />
+          {SECONDARY_NAV.map((item) => {
+            const active = pathname.startsWith(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                title={t(item.label) as string}
+                className={`relative flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-150 ${
+                  active
+                    ? "bg-[var(--background)]/80 text-[var(--foreground)] shadow-sm"
+                    : "text-[var(--muted-foreground)] hover:bg-[var(--background)]/50 hover:text-[var(--foreground)]"
+                }`}
+              >
+                {active && (
+                  <span className="absolute -left-1.5 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-[var(--foreground)]/80" />
+                )}
+                <item.icon size={18} strokeWidth={active ? 2 : 1.6} />
+              </Link>
+            );
+          })}
+          {footerSlot}
+          <a
+            href={GITHUB_REPO_URL}
+            target="_blank"
+            rel="noreferrer noopener"
+            title={t("GitHub") as string}
+            aria-label={t("GitHub") as string}
+            className="mt-1 flex h-9 w-9 items-center justify-center rounded-xl text-[var(--muted-foreground)]/70 transition-colors hover:bg-[var(--background)]/50 hover:text-[var(--foreground)]"
+          >
+            <Github size={15} strokeWidth={1.6} />
+          </a>
+          <VersionBadge collapsed />
+        </div>
+      </aside>
+      {mobileNav}
+      </>
+    );
+  }
+
+  /* ---- Expanded state ---- */
+  return (
+    <>
+    <aside className="hidden h-screen w-[220px] shrink-0 flex-col bg-[var(--secondary)] transition-all duration-200 sm:flex">
+      {/* Header: logo + collapse toggle */}
+      <div className="flex h-14 items-center justify-between px-4">
+        <Link
+          href="/"
+          aria-label={t("Tutor") as string}
+          className="group flex items-center gap-2"
+        >
+          <Image
+            src="/logo-ver2.png"
+            alt={t("Tutor") as string}
+            width={22}
+            height={22}
+            className="h-[22px] w-[22px] transition-transform duration-200 group-hover:scale-105"
+          />
+          <span className="text-[16px] font-semibold leading-none tracking-[-0.02em] text-[var(--foreground)]">
+            {t("Tutor")}
+          </span>
+        </Link>
+        <button
+          onClick={() => setCollapsed(true)}
+          className="rounded-md p-1 text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)]"
+          aria-label={t("Collapse sidebar")}
+        >
+          <PanelLeftClose size={15} />
+        </button>
+      </div>
+
+      {/* Primary nav */}
+      <nav className="px-2 pt-1">
+        <div className="space-y-px">
+          {/* New chat */}
+          <button
+            onClick={handleNewChat}
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] text-[var(--muted-foreground)] transition-colors hover:bg-[var(--background)]/60 hover:text-[var(--foreground)]"
+          >
+            <Plus size={16} strokeWidth={2} />
+            <span>{t("New Chat")}</span>
+          </button>
+
+          {PRIMARY_NAV.map((item) => {
+            const active = pathname.startsWith(item.href);
+            const hasSessionsBelow =
+              item.href === "/chat" &&
+              showSessions &&
+              onSelectSession &&
+              onRenameSession &&
+              onDeleteSession;
+            return (
+              <div key={item.href}>
+                <Link
+                  href={item.href}
+                  className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] transition-colors ${
+                    active
+                      ? "bg-[var(--background)]/70 font-medium text-[var(--foreground)]"
+                      : "text-[var(--muted-foreground)] hover:bg-[var(--background)]/50 hover:text-[var(--foreground)]"
+                  }`}
+                >
+                  <item.icon size={16} strokeWidth={active ? 1.9 : 1.5} />
+                  <span>{t(item.label)}</span>
+                </Link>
+                {hasSessionsBelow && (
+                  <div
+                    className={`${sessionViewportClassName} overflow-y-auto`}
+                  >
+                    <SessionList
+                      sessions={sessions}
+                      activeSessionId={activeSessionId}
+                      loading={loadingSessions}
+                      onSelect={onSelectSession}
+                      onRename={onRenameSession}
+                      onDelete={onDeleteSession}
+                      compact
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </nav>
+
+      {/* Spacer */}
+      <div className="flex-1" />
+
+      {/* Secondary nav + footer */}
+      <div className="border-t border-[var(--border)]/40 px-2 py-2">
+        {SECONDARY_NAV.map((item) => {
+          const active = pathname.startsWith(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] transition-colors ${
+                active
+                  ? "bg-[var(--background)]/70 font-medium text-[var(--foreground)]"
+                  : "text-[var(--muted-foreground)] hover:bg-[var(--background)]/50 hover:text-[var(--foreground)]"
+              }`}
+            >
+              <item.icon size={16} strokeWidth={active ? 1.9 : 1.5} />
+              <span>{t(item.label)}</span>
+            </Link>
+          );
+        })}
+        {footerSlot}
+        <div className="mt-0.5 flex items-center gap-0.5">
+          <VersionBadge />
+          <a
+            href={GITHUB_REPO_URL}
+            target="_blank"
+            rel="noreferrer noopener"
+            title={t("GitHub") as string}
+            aria-label={t("GitHub") as string}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--muted-foreground)]/55 transition-colors hover:bg-[var(--background)]/50 hover:text-[var(--muted-foreground)]"
+          >
+            <Github size={13} strokeWidth={1.7} />
+          </a>
+        </div>
+      </div>
+    </aside>
+    {mobileNav}
+    </>
+  );
+}

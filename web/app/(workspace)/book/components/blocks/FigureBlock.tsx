@@ -1,0 +1,134 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import VisualizationViewer from "@/components/visualize/VisualizationViewer";
+import MarkdownRenderer from "@/components/common/MarkdownRenderer";
+import { useTranslation } from "react-i18next";
+import type { Block } from "@/lib/book-types";
+import type {
+  VisualizeRenderType,
+  VisualizeResult,
+} from "@/lib/visualize-types";
+
+export interface FigureBlockProps {
+  block: Block;
+}
+
+const FIGURE_RENDER_TYPES: ReadonlySet<VisualizeRenderType> = new Set([
+  "svg",
+  "chartjs",
+  "mermaid",
+]);
+
+function coerceRenderType(
+  value: unknown,
+  language: string,
+): VisualizeRenderType {
+  if (
+    typeof value === "string" &&
+    (FIGURE_RENDER_TYPES as Set<string>).has(value)
+  ) {
+    return value as VisualizeRenderType;
+  }
+  if (language === "javascript" || language === "js") return "chartjs";
+  if (language === "mermaid") return "mermaid";
+  return "svg";
+}
+
+export default function FigureBlock({ block }: FigureBlockProps) {
+  const { t } = useTranslation();
+  const code =
+    (block.payload?.code as
+      | { language?: string; content?: string }
+      | undefined) || {};
+  const language = String(code.language || "svg");
+  const content = String(code.content || "");
+  const description = block.payload?.description
+    ? String(block.payload.description)
+    : "";
+  const chartType = block.payload?.chart_type
+    ? String(block.payload.chart_type)
+    : "";
+
+  // Opt-in raster illustration: the backend only emits illustration_prompt when
+  // ENABLE_BOOK_ILLUSTRATIONS is set, and the route is itself flag-gated (503
+  // when off) so this degrades gracefully to the vector figure below.
+  const illustrationPrompt = block.payload?.illustration_prompt
+    ? String(block.payload.illustration_prompt)
+    : "";
+  const [illustrationSrc, setIllustrationSrc] = useState("");
+  const requestedRef = useRef(false);
+
+  useEffect(() => {
+    if (!illustrationPrompt || illustrationSrc || requestedRef.current) return;
+    requestedRef.current = true;
+    void fetch("/api/generate/illustration", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt: illustrationPrompt }),
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          requestedRef.current = false;
+          return;
+        }
+        const data = (await res.json()) as { src?: string };
+        if (data.src) setIllustrationSrc(data.src);
+        else requestedRef.current = false;
+      })
+      .catch(() => {
+        requestedRef.current = false;
+      });
+  }, [illustrationPrompt, illustrationSrc]);
+
+  if (!content.trim()) {
+    return (
+      <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--card)]/40 p-4 text-xs italic text-[var(--muted-foreground)]">
+        {t("(Figure payload is empty)")}
+      </div>
+    );
+  }
+
+  const renderType = coerceRenderType(block.payload?.render_type, language);
+
+  const result: VisualizeResult = {
+    response: description,
+    render_type: renderType,
+    code: { language, content },
+    analysis: {
+      render_type: renderType,
+      description,
+      data_description: "",
+      chart_type: chartType,
+      visual_elements: [],
+      rationale: "",
+    },
+    review: {
+      optimized_code: "",
+      changed: false,
+      review_notes: "",
+    },
+  };
+
+  return (
+    <figure className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-3 shadow-sm">
+      {illustrationSrc ? (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={illustrationSrc}
+            alt={description || t("Illustration")}
+            className="mb-3 w-full rounded-xl"
+            style={{ aspectRatio: "16/9" }}
+          />
+        </>
+      ) : null}
+      <VisualizationViewer result={result} />
+      {description && (
+        <figcaption className="mt-3 text-xs leading-snug text-[var(--muted-foreground)]">
+          <MarkdownRenderer content={description} variant="default" />
+        </figcaption>
+      )}
+    </figure>
+  );
+}
