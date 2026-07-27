@@ -15,7 +15,7 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    - cron: "0 10 * * 1"   # Mon 10:00 UTC = 06:00 ET (staggered: 4th of 4, after recall)
+    - cron: "0 10 * * 1"   # Mon 10:00 UTC = 06:00 ET (staggered: 5th of 5, after recall)
 
 jobs:
   strix:
