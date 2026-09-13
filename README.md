@@ -185,6 +185,10 @@ Do not blindly merge upstream heads into Tutor. Fetch them, inspect the diff,
 and port only fixes that improve the simplified Tutor product or close concrete
 security/compatibility gaps.
 
+## Development workflow
+
+Use the [shared agentic workflow](docs/AGENTIC-WORKFLOW.md) and [project bindings](docs/agents/issue-tracker.md). Background coding remains opt-in; native tests and secret checks remain required.
+
 ## License
 
 Apache-2.0. See [LICENSE](LICENSE).
