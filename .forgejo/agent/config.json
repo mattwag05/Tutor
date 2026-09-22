@@ -1,7 +1,7 @@
 {
   "version": 1,
   "approvedActor": "matthewwagner",
-  "model": "Qwen3.6-35B-A3B-4bit",
+  "model": "incoai/Qwen3.8-27B-Splash",
   "validationCommands": [["bash", ".forgejo/agent/validate.sh"]],
   "validationInputs": ["pyproject.toml", "pytest.ini", "conftest.py", "requirements.txt", "requirements/server.txt", "requirements/cli.txt"]
 }
