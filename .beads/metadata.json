@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "DeepTutor",
+  "project_id": "7f6f5b23-31ea-4b75-bdce-37770bb0f70a"
+}

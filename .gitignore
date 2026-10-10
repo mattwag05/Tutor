@@ -343,3 +343,11 @@ AGENTS.md
 .handoff.md
 docs/deployment.md
 scripts/deploy_*.sh
+
+# Native Beads bootstrap files; issue data stays in refs/dolt/data.
+!/.beads/
+/.beads/*
+!/.beads/.gitignore
+!/.beads/config.yaml
+!/.beads/metadata.json
+!/.beads/README.md
