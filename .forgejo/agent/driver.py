@@ -9,12 +9,19 @@ import tempfile
 import urllib.request
 from runtime import MODELS, binding, child_env, run, safe_paths
 
+# Git runs this at push time and it reads the token from the job environment,
+# so the token never lands in argv, .git/config, or the image.
+TOKEN_HELPER = '!f() { echo username=pi-agent; echo "password=$FORGEJO_TOKEN"; }; f'
+
 
 def git(*args):
     return run(["git", *args])
 
 
 def infer(prompt, config, implement):
+    guard = Path(__file__).with_name("no-progress-guard.ts")
+    if not guard.is_file():
+        raise RuntimeError("Pi no-progress guard unavailable")
     manifest = json.loads(Path(os.environ["AGENT_SKILLS_MANIFEST"]).read_text())
     skills = manifest["skills"]
     if not skills or not all(Path(p).is_file() for p in skills):
@@ -33,6 +40,10 @@ def infer(prompt, config, implement):
         profile.mkdir(parents=True)
         models = [{"id": m, "name": m, "input": ["text"], "reasoning": False,
                    "contextWindow": 128000, "maxTokens": 16384,
+                   "samplingParams": {"temperature": 0.7, "top_p": 0.8,
+                                      "top_k": 20, "min_p": 0.0,
+                                      "repetition_penalty": 1.0,
+                                      "chat_template_kwargs": {"enable_thinking": False}},
                    "cost": {"input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0}} for m in MODELS]
         cfg = {"providers": {"local": {"baseUrl": os.environ["LLM_BASE"],
             "apiKey": os.environ["LLM_KEY"], "api": "openai-completions", "authHeader": True,
@@ -41,6 +52,7 @@ def infer(prompt, config, implement):
         path.touch(mode=0o600)
         path.write_text(json.dumps(cfg))
         args = [os.environ["PI_BIN"], "--offline", "--no-session", "--no-extensions",
+                "--extension", str(guard),
                 "--no-prompt-templates", "--no-themes", "--no-approve", "--provider", "local", "--model", config["model"],
                 "--tools", "read,bash,edit,write" if implement else "read,grep,find,ls"]
         for skill in skills:
@@ -158,9 +170,9 @@ def main():
     git("fetch", "origin", default)
     if git("rev-parse", "FETCH_HEAD") != base:
         raise RuntimeError("Default branch moved; publication refused")
-    push_url = "ssh://git@" + os.environ["GIT_SSH_HOST"] + ":" + os.environ.get("GIT_SSH_PORT", "3022") + "/" + event["repository"]["full_name"] + ".git"
-    git("remote", "set-url", "--push", "origin", push_url)
-    git("push", "origin", "HEAD:refs/heads/" + branch)
+    web = os.environ["FORGEJO_API"].rstrip("/").removesuffix("/api/v1")
+    git("remote", "set-url", "--push", "origin", web + "/" + event["repository"]["full_name"] + ".git")
+    git("-c", "credential.helper=", "-c", "credential.helper=" + TOKEN_HELPER, "push", "origin", "HEAD:refs/heads/" + branch)
     api(repo + "/pulls", {"head": branch, "base": default, "title": f"Implement #{number}: {issue['title']}",
         "body": f"Closes #{number}\n\nModel: {config['model']}. Approval binding: `{digest}:{plan_hash}`.\n\nValidation receipts:\n```json\n{json.dumps(receipts, indent=2)}\n```"})
     state("agent:in-review")
