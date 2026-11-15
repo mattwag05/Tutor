@@ -6,4 +6,4 @@ The `agent:*` labels control the existing opt-in coding automation. Approval is 
 
 Run the import checks and smoke-test subset defined in `.forgejo/workflows/tests.yml`. Keep its Python 3.11, 3.12, and 3.13 matrix as the native acceptance source. The background driver additionally requires a successful local smoke run before publication; a missing environment or failed check is a blocked run, not a pass.
 
-Maintain relevant existing documentation under `docs/` and preserve recorded specifications until their decisions and deferred work are reconciled. Apply unslop and session-closeout. Do not recreate the retired DeepTutor homelab service as part of coding work.
+Maintain relevant existing documentation under `docs/` and preserve recorded specifications until their decisions and deferred work are reconciled. Apply unslop and closeout. Do not recreate the retired DeepTutor homelab service as part of coding work.
